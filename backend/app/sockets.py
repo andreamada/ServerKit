@@ -39,10 +39,13 @@ def init_socketio(app):
 
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(auth):
     """Handle client connection."""
-    # Verify JWT token from query string
-    token = request.args.get('token')
+    # Verify JWT token from auth payload (not query string, to avoid token leakage in logs)
+    token = None
+    if auth and isinstance(auth, dict):
+        token = auth.get('token')
+
     if token:
         try:
             decode_token(token)

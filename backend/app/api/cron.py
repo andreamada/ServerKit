@@ -5,15 +5,15 @@ Endpoints for managing scheduled tasks and cron jobs.
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
 
+from app.middleware.rbac import admin_required, viewer_required
 from app.services.cron_service import CronService
 
 cron_bp = Blueprint('cron', __name__)
 
 
 @cron_bp.route('/status', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_status():
     """Get cron service status."""
     status = CronService.get_status()
@@ -21,7 +21,7 @@ def get_status():
 
 
 @cron_bp.route('/jobs', methods=['GET'])
-@jwt_required()
+@viewer_required
 def list_jobs():
     """List all cron jobs."""
     result = CronService.list_jobs()
@@ -29,7 +29,7 @@ def list_jobs():
 
 
 @cron_bp.route('/jobs', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_job():
     """Create a new cron job."""
     data = request.get_json()
@@ -58,7 +58,7 @@ def create_job():
 
 
 @cron_bp.route('/jobs/<job_id>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_job(job_id):
     """Delete a cron job."""
     result = CronService.remove_job(job_id)
@@ -69,7 +69,7 @@ def delete_job(job_id):
 
 
 @cron_bp.route('/jobs/<job_id>/toggle', methods=['POST'])
-@jwt_required()
+@admin_required
 def toggle_job(job_id):
     """Enable or disable a cron job."""
     data = request.get_json()
@@ -83,7 +83,7 @@ def toggle_job(job_id):
 
 
 @cron_bp.route('/jobs/<job_id>/run', methods=['POST'])
-@jwt_required()
+@admin_required
 def run_job(job_id):
     """Run a job immediately."""
     result = CronService.run_job_now(job_id)
@@ -94,7 +94,7 @@ def run_job(job_id):
 
 
 @cron_bp.route('/presets', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_presets():
     """Get available schedule presets."""
     result = CronService.get_presets()

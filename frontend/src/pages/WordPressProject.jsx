@@ -70,7 +70,7 @@ const WordPressProject = () => {
         if (!token) return;
 
         const socket = io(SOCKET_URL, {
-            query: { token },
+            auth: { token },
             transports: ['websocket', 'polling']
         });
 

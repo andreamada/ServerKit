@@ -244,8 +244,9 @@ def regenerate_private_url(app_id):
 # =============================================================================
 
 @private_urls_bp.route('/p/<slug>', methods=['GET'])
+@jwt_required()
 def resolve_private_url(slug):
-    """Resolve a private URL slug to app info (public endpoint).
+    """Resolve a private URL slug to app info.
 
     This endpoint is for API consumers that need to look up which app
     a private URL points to. The actual proxying is handled by Nginx.

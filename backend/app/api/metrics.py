@@ -1,15 +1,15 @@
 """API endpoints for historical metrics data."""
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
 
+from app.middleware.rbac import admin_required, viewer_required
 from app.services.metrics_history_service import MetricsHistoryService
 
 metrics_bp = Blueprint('metrics', __name__)
 
 
 @metrics_bp.route('/history', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_metrics_history():
     """Get historical metrics data.
 
@@ -33,7 +33,7 @@ def get_metrics_history():
 
 
 @metrics_bp.route('/stats', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_metrics_stats():
     """Get statistics about stored metrics data.
 
@@ -48,7 +48,7 @@ def get_metrics_stats():
 
 
 @metrics_bp.route('/collection/start', methods=['POST'])
-@jwt_required()
+@admin_required
 def start_collection():
     """Start metrics collection (admin only).
 
@@ -65,7 +65,7 @@ def start_collection():
 
 
 @metrics_bp.route('/collection/stop', methods=['POST'])
-@jwt_required()
+@admin_required
 def stop_collection():
     """Stop metrics collection (admin only).
 
@@ -77,7 +77,7 @@ def stop_collection():
 
 
 @metrics_bp.route('/aggregate', methods=['POST'])
-@jwt_required()
+@admin_required
 def trigger_aggregation():
     """Manually trigger data aggregation (admin only).
 

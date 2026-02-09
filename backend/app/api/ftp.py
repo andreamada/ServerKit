@@ -1,14 +1,15 @@
 """FTP Server API endpoints for managing FTP services and users."""
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+
+from ..middleware.rbac import admin_required, viewer_required
 from ..services.ftp_service import FTPService
 
 ftp_bp = Blueprint('ftp', __name__)
 
 
 @ftp_bp.route('/status', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_status():
     """Get FTP server status."""
     result = FTPService.get_status()
@@ -16,7 +17,7 @@ def get_status():
 
 
 @ftp_bp.route('/service/<action>', methods=['POST'])
-@jwt_required()
+@admin_required
 def control_service(action):
     """Start, stop, restart, or reload FTP service."""
     if action not in ['start', 'stop', 'restart', 'reload']:
@@ -36,7 +37,7 @@ def control_service(action):
 
 
 @ftp_bp.route('/config', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_config():
     """Get FTP server configuration."""
     service = request.args.get('service')  # Optional
@@ -48,7 +49,7 @@ def get_config():
 
 
 @ftp_bp.route('/config', methods=['POST'])
-@jwt_required()
+@admin_required
 def update_config():
     """Update FTP server configuration."""
     data = request.get_json()
@@ -70,7 +71,7 @@ def update_config():
 
 
 @ftp_bp.route('/users', methods=['GET'])
-@jwt_required()
+@viewer_required
 def list_users():
     """List FTP users."""
     result = FTPService.list_users()
@@ -81,7 +82,7 @@ def list_users():
 
 
 @ftp_bp.route('/users', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_user():
     """Create a new FTP user."""
     data = request.get_json()
@@ -111,7 +112,7 @@ def create_user():
 
 
 @ftp_bp.route('/users/<username>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_user(username):
     """Delete an FTP user."""
     delete_home = request.args.get('delete_home', 'false').lower() == 'true'
@@ -124,7 +125,7 @@ def delete_user(username):
 
 
 @ftp_bp.route('/users/<username>/password', methods=['POST'])
-@jwt_required()
+@admin_required
 def change_password(username):
     """Change FTP user password."""
     data = request.get_json() or {}
@@ -138,7 +139,7 @@ def change_password(username):
 
 
 @ftp_bp.route('/users/<username>/toggle', methods=['POST'])
-@jwt_required()
+@admin_required
 def toggle_user(username):
     """Enable or disable an FTP user."""
     data = request.get_json() or {}
@@ -152,7 +153,7 @@ def toggle_user(username):
 
 
 @ftp_bp.route('/connections', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_connections():
     """Get active FTP connections."""
     result = FTPService.get_connections()
@@ -163,7 +164,7 @@ def get_connections():
 
 
 @ftp_bp.route('/connections/<int:pid>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def disconnect_user(pid):
     """Disconnect an active FTP session."""
     result = FTPService.disconnect_session(pid)
@@ -174,7 +175,7 @@ def disconnect_user(pid):
 
 
 @ftp_bp.route('/logs', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_logs():
     """Get FTP server logs."""
     lines = request.args.get('lines', 100, type=int)
@@ -187,7 +188,7 @@ def get_logs():
 
 
 @ftp_bp.route('/install', methods=['POST'])
-@jwt_required()
+@admin_required
 def install_ftp():
     """Install FTP server (vsftpd or proftpd)."""
     data = request.get_json() or {}
@@ -207,7 +208,7 @@ def install_ftp():
 
 
 @ftp_bp.route('/test', methods=['POST'])
-@jwt_required()
+@admin_required
 def test_connection():
     """Test FTP connection."""
     data = request.get_json() or {}

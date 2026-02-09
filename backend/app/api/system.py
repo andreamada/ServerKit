@@ -19,8 +19,9 @@ system_bp = Blueprint('system', __name__)
 
 
 @system_bp.route('/version', methods=['GET'])
+@jwt_required()
 def get_version():
-    """Get ServerKit version - no auth required."""
+    """Get ServerKit version."""
     version = '1.0.0'  # Default version
 
     # Try to read from VERSION file
@@ -46,8 +47,9 @@ def get_version():
 
 
 @system_bp.route('/check-update', methods=['GET'])
+@jwt_required()
 def check_update():
-    """Check for updates from GitHub releases - no auth required."""
+    """Check for updates from GitHub releases."""
     global _update_cache
 
     # Return cached result if still valid

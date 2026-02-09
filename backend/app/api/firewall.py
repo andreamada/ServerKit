@@ -1,14 +1,15 @@
 """Firewall API endpoints for managing firewalld and ufw."""
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+
+from ..middleware.rbac import admin_required, viewer_required
 from ..services.firewall_service import FirewallService
 
 firewall_bp = Blueprint('firewall', __name__)
 
 
 @firewall_bp.route('/status', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_status():
     """Get firewall status."""
     result = FirewallService.get_status()
@@ -16,7 +17,7 @@ def get_status():
 
 
 @firewall_bp.route('/enable', methods=['POST'])
-@jwt_required()
+@admin_required
 def enable_firewall():
     """Enable the firewall."""
     data = request.get_json() or {}
@@ -30,7 +31,7 @@ def enable_firewall():
 
 
 @firewall_bp.route('/disable', methods=['POST'])
-@jwt_required()
+@admin_required
 def disable_firewall():
     """Disable the firewall."""
     data = request.get_json() or {}
@@ -44,7 +45,7 @@ def disable_firewall():
 
 
 @firewall_bp.route('/rules', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_rules():
     """Get all firewall rules."""
     firewall = request.args.get('firewall')
@@ -56,7 +57,7 @@ def get_rules():
 
 
 @firewall_bp.route('/rules', methods=['POST'])
-@jwt_required()
+@admin_required
 def add_rule():
     """Add a firewall rule."""
     data = request.get_json()
@@ -79,7 +80,7 @@ def add_rule():
 
 
 @firewall_bp.route('/rules', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def remove_rule():
     """Remove a firewall rule."""
     data = request.get_json()
@@ -101,7 +102,7 @@ def remove_rule():
 
 
 @firewall_bp.route('/block-ip', methods=['POST'])
-@jwt_required()
+@admin_required
 def block_ip():
     """Quick block an IP address."""
     data = request.get_json()
@@ -123,7 +124,7 @@ def block_ip():
 
 
 @firewall_bp.route('/unblock-ip', methods=['POST'])
-@jwt_required()
+@admin_required
 def unblock_ip():
     """Unblock an IP address."""
     data = request.get_json()
@@ -145,7 +146,7 @@ def unblock_ip():
 
 
 @firewall_bp.route('/blocked-ips', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_blocked_ips():
     """Get list of blocked IP addresses."""
     result = FirewallService.get_blocked_ips()
@@ -156,7 +157,7 @@ def get_blocked_ips():
 
 
 @firewall_bp.route('/allow-port', methods=['POST'])
-@jwt_required()
+@admin_required
 def allow_port():
     """Allow a port through the firewall."""
     data = request.get_json()
@@ -179,7 +180,7 @@ def allow_port():
 
 
 @firewall_bp.route('/deny-port', methods=['POST'])
-@jwt_required()
+@admin_required
 def deny_port():
     """Remove a port from the firewall."""
     data = request.get_json()
@@ -202,7 +203,7 @@ def deny_port():
 
 
 @firewall_bp.route('/zones', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_zones():
     """Get firewalld zones."""
     result = FirewallService.get_zones()
@@ -213,7 +214,7 @@ def get_zones():
 
 
 @firewall_bp.route('/zones/default', methods=['POST'])
-@jwt_required()
+@admin_required
 def set_default_zone():
     """Set default firewalld zone."""
     data = request.get_json()
@@ -233,7 +234,7 @@ def set_default_zone():
 
 
 @firewall_bp.route('/install', methods=['POST'])
-@jwt_required()
+@admin_required
 def install_firewall():
     """Install a firewall (ufw or firewalld)."""
     data = request.get_json() or {}

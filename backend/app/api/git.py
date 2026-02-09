@@ -1,7 +1,8 @@
 """Git Server API endpoints for managing integrated Gitea instance and webhooks."""
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+
+from ..middleware.rbac import admin_required, viewer_required
 from ..services.git_service import GitService
 from ..services.webhook_service import WebhookService
 from ..services.gitea_api_service import GiteaAPIService
@@ -11,7 +12,7 @@ git_bp = Blueprint('git', __name__)
 
 
 @git_bp.route('/status', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_status():
     """Get Gitea installation status."""
     result = GitService.get_gitea_status()
@@ -19,7 +20,7 @@ def get_status():
 
 
 @git_bp.route('/requirements', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_requirements():
     """Get resource requirements for Gitea installation."""
     result = GitService.get_gitea_resource_requirements()
@@ -27,7 +28,7 @@ def get_requirements():
 
 
 @git_bp.route('/install', methods=['POST'])
-@jwt_required()
+@admin_required
 def install():
     """Install Gitea with PostgreSQL."""
     data = request.get_json() or {}
@@ -44,7 +45,7 @@ def install():
 
 
 @git_bp.route('/uninstall', methods=['POST'])
-@jwt_required()
+@admin_required
 def uninstall():
     """Uninstall Gitea and optionally remove data."""
     data = request.get_json() or {}
@@ -59,7 +60,7 @@ def uninstall():
 
 
 @git_bp.route('/start', methods=['POST'])
-@jwt_required()
+@admin_required
 def start():
     """Start Gitea server."""
     result = GitService.start_gitea()
@@ -70,7 +71,7 @@ def start():
 
 
 @git_bp.route('/stop', methods=['POST'])
-@jwt_required()
+@admin_required
 def stop():
     """Stop Gitea server."""
     result = GitService.stop_gitea()
@@ -81,7 +82,7 @@ def stop():
 
 
 @git_bp.route('/restart', methods=['POST'])
-@jwt_required()
+@admin_required
 def restart():
     """Restart Gitea server."""
     result = GitService.restart_gitea()
@@ -94,7 +95,7 @@ def restart():
 # ==================== WEBHOOK ENDPOINTS ====================
 
 @git_bp.route('/webhooks', methods=['GET'])
-@jwt_required()
+@viewer_required
 def list_webhooks():
     """List all configured webhooks."""
     result = WebhookService.list_webhooks()
@@ -102,7 +103,7 @@ def list_webhooks():
 
 
 @git_bp.route('/webhooks', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_webhook():
     """Create a new webhook."""
     data = request.get_json() or {}
@@ -128,7 +129,7 @@ def create_webhook():
 
 
 @git_bp.route('/webhooks/<int:webhook_id>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_webhook(webhook_id):
     """Get a specific webhook."""
     result = WebhookService.get_webhook(webhook_id)
@@ -139,7 +140,7 @@ def get_webhook(webhook_id):
 
 
 @git_bp.route('/webhooks/<int:webhook_id>', methods=['PUT'])
-@jwt_required()
+@admin_required
 def update_webhook(webhook_id):
     """Update a webhook."""
     data = request.get_json() or {}
@@ -152,7 +153,7 @@ def update_webhook(webhook_id):
 
 
 @git_bp.route('/webhooks/<int:webhook_id>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_webhook(webhook_id):
     """Delete a webhook."""
     result = WebhookService.delete_webhook(webhook_id)
@@ -163,7 +164,7 @@ def delete_webhook(webhook_id):
 
 
 @git_bp.route('/webhooks/<int:webhook_id>/toggle', methods=['POST'])
-@jwt_required()
+@admin_required
 def toggle_webhook(webhook_id):
     """Toggle webhook active status."""
     result = WebhookService.toggle_webhook(webhook_id)
@@ -174,7 +175,7 @@ def toggle_webhook(webhook_id):
 
 
 @git_bp.route('/webhooks/<int:webhook_id>/logs', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_webhook_logs(webhook_id):
     """Get logs for a specific webhook."""
     limit = request.args.get('limit', 50, type=int)
@@ -183,7 +184,7 @@ def get_webhook_logs(webhook_id):
 
 
 @git_bp.route('/webhooks/<int:webhook_id>/test', methods=['POST'])
-@jwt_required()
+@admin_required
 def test_webhook(webhook_id):
     """Test a webhook by triggering a manual sync."""
     result = WebhookService.test_webhook(webhook_id)
@@ -235,7 +236,7 @@ def receive_webhook(token):
 # ==================== REPOSITORY ENDPOINTS ====================
 
 @git_bp.route('/repos', methods=['GET'])
-@jwt_required()
+@viewer_required
 def list_repositories():
     """List all repositories in Gitea."""
     token = request.args.get('token')
@@ -249,7 +250,7 @@ def list_repositories():
 
 
 @git_bp.route('/repos/<owner>/<repo>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_repository(owner, repo):
     """Get repository details."""
     token = request.args.get('token')
@@ -262,7 +263,7 @@ def get_repository(owner, repo):
 
 
 @git_bp.route('/repos/<owner>/<repo>/stats', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_repo_stats(owner, repo):
     """Get repository statistics."""
     token = request.args.get('token')
@@ -275,7 +276,7 @@ def get_repo_stats(owner, repo):
 
 
 @git_bp.route('/repos/<owner>/<repo>/branches', methods=['GET'])
-@jwt_required()
+@viewer_required
 def list_branches(owner, repo):
     """List repository branches."""
     token = request.args.get('token')
@@ -288,7 +289,7 @@ def list_branches(owner, repo):
 
 
 @git_bp.route('/repos/<owner>/<repo>/branches/<branch>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_branch(owner, repo, branch):
     """Get branch details."""
     token = request.args.get('token')
@@ -301,7 +302,7 @@ def get_branch(owner, repo, branch):
 
 
 @git_bp.route('/repos/<owner>/<repo>/commits', methods=['GET'])
-@jwt_required()
+@viewer_required
 def list_commits(owner, repo):
     """List repository commits."""
     token = request.args.get('token')
@@ -323,7 +324,7 @@ def list_commits(owner, repo):
 
 
 @git_bp.route('/repos/<owner>/<repo>/commits/<sha>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_commit(owner, repo, sha):
     """Get commit details."""
     token = request.args.get('token')
@@ -336,7 +337,7 @@ def get_commit(owner, repo, sha):
 
 
 @git_bp.route('/repos/<owner>/<repo>/contents', methods=['GET'])
-@jwt_required()
+@viewer_required
 def list_files(owner, repo):
     """List files in repository directory."""
     token = request.args.get('token')
@@ -351,7 +352,7 @@ def list_files(owner, repo):
 
 
 @git_bp.route('/repos/<owner>/<repo>/contents/<path:filepath>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_file_content(owner, repo, filepath):
     """Get file content."""
     token = request.args.get('token')
@@ -365,7 +366,7 @@ def get_file_content(owner, repo, filepath):
 
 
 @git_bp.route('/repos/<owner>/<repo>/readme', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_readme(owner, repo):
     """Get repository README."""
     token = request.args.get('token')
@@ -379,7 +380,7 @@ def get_readme(owner, repo):
 
 
 @git_bp.route('/version', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_gitea_version():
     """Get Gitea server version."""
     result = GiteaAPIService.get_server_version()
@@ -392,7 +393,7 @@ def get_gitea_version():
 # ==================== DEPLOYMENT ENDPOINTS ====================
 
 @git_bp.route('/deployments/app/<int:app_id>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_app_deployments(app_id):
     """Get deployment history for an application."""
     limit = request.args.get('limit', 20, type=int)
@@ -401,7 +402,7 @@ def get_app_deployments(app_id):
 
 
 @git_bp.route('/deployments/<int:deployment_id>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_deployment(deployment_id):
     """Get a specific deployment with logs."""
     include_logs = request.args.get('logs', 'false').lower() == 'true'
@@ -413,7 +414,7 @@ def get_deployment(deployment_id):
 
 
 @git_bp.route('/deployments/app/<int:app_id>/deploy', methods=['POST'])
-@jwt_required()
+@admin_required
 def manual_deploy(app_id):
     """Trigger a manual deployment for an application."""
     data = request.get_json() or {}
@@ -427,7 +428,7 @@ def manual_deploy(app_id):
 
 
 @git_bp.route('/deployments/app/<int:app_id>/rollback', methods=['POST'])
-@jwt_required()
+@admin_required
 def rollback_deployment(app_id):
     """Rollback to a previous deployment version."""
     data = request.get_json() or {}
@@ -441,7 +442,7 @@ def rollback_deployment(app_id):
 
 
 @git_bp.route('/deployments/webhook/<int:webhook_id>', methods=['GET'])
-@jwt_required()
+@viewer_required
 def get_webhook_deployments(webhook_id):
     """Get deployments triggered by a specific webhook."""
     from app.models import GitDeployment
