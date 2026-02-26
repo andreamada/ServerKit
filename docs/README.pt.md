@@ -16,7 +16,7 @@ ou o custo de plataformas gerenciadas.
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-[![Discord](https://img.shields.io/discord/1470639209059455008?style=for-the-badge&logo=discord&logoColor=white&label=Discord&color=5865F2)](https://discord.gg/pe4E5zmj)
+[![Discord](https://img.shields.io/discord/1470639209059455008?style=for-the-badge&logo=discord&logoColor=white&label=Discord&color=5865F2)](https://discord.gg/93QEWZeHRK)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](../LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -269,7 +269,7 @@ fork → branch de feature → commit → push → pull request
 
 ## 💬 Comunidade
 
-[![Discord](https://img.shields.io/badge/Discord-Junte--se_a_Nós-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/pe4E5zmj)
+[![Discord](https://img.shields.io/badge/Discord-Junte--se_a_Nós-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/93QEWZeHRK)
 
 Entre no Discord para tirar dúvidas, compartilhar feedback ou obter ajuda com sua configuração.
 

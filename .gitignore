@@ -58,3 +58,5 @@ new_templates/
 
 # Dev data directory (local development path overrides)
 backend/dev-data/
+/.vscode
+/.vscode1
