@@ -151,18 +151,18 @@ This document outlines the development roadmap for ServerKit. Features are organ
 
 ---
 
-## Phase 12: Backup & Restore (Planned)
+## Phase 12: Backup & Restore (Completed)
 
 **Priority: High**
 
-- [ ] Automated database backups
-- [ ] File/directory backups
-- [ ] S3-compatible storage support
-- [ ] Backblaze B2 integration
-- [ ] Backup scheduling
-- [ ] One-click restore
-- [ ] Backup retention policies
-- [ ] Offsite backup verification
+- [x] Automated database backups
+- [x] File/directory backups
+- [x] S3-compatible storage support
+- [x] Backblaze B2 integration
+- [x] Backup scheduling
+- [x] One-click restore
+- [x] Backup retention policies
+- [x] Offsite backup verification
 
 ---
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Upload, Download, Check, AlertTriangle, Clock, Database, Package, FolderArchive, HardDrive, Cloud, CloudOff, RefreshCw, Trash2, Plus, Settings, CheckCircle, XCircle, Server, FileArchive } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 
@@ -8,6 +9,7 @@ const Backups = () => {
     const [stats, setStats] = useState(null);
     const [schedules, setSchedules] = useState([]);
     const [config, setConfig] = useState(null);
+    const [storageConfig, setStorageConfig] = useState(null);
     const [apps, setApps] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,6 +21,8 @@ const Backups = () => {
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [showRestoreModal, setShowRestoreModal] = useState(false);
     const [selectedBackup, setSelectedBackup] = useState(null);
+    const [uploadingBackup, setUploadingBackup] = useState(null);
+    const [testingConnection, setTestingConnection] = useState(false);
 
     // Backup form state
     const [backupForm, setBackupForm] = useState({
@@ -29,7 +33,9 @@ const Backups = () => {
         dbName: '',
         dbUser: '',
         dbPassword: '',
-        dbHost: 'localhost'
+        dbHost: 'localhost',
+        filePaths: '',
+        fileName: ''
     });
 
     // Schedule form state
@@ -38,13 +44,23 @@ const Backups = () => {
         backupType: 'application',
         target: '',
         scheduleTime: '02:00',
-        days: ['daily']
+        days: ['daily'],
+        uploadRemote: false
     });
 
     // Config form state
     const [configForm, setConfigForm] = useState({
         enabled: false,
         retention_days: 30
+    });
+
+    // Storage config form state
+    const [storageForm, setStorageForm] = useState({
+        provider: 'local',
+        s3: { bucket: '', region: 'us-east-1', access_key: '', secret_key: '', endpoint_url: '', path_prefix: 'serverkit-backups' },
+        b2: { bucket: '', key_id: '', application_key: '', endpoint_url: '', path_prefix: 'serverkit-backups' },
+        auto_upload: false,
+        keep_local_copy: true
     });
 
     useEffect(() => {
@@ -54,12 +70,13 @@ const Backups = () => {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [backupsRes, statsRes, schedulesRes, configRes, appsRes] = await Promise.all([
+            const [backupsRes, statsRes, schedulesRes, configRes, appsRes, storageRes] = await Promise.all([
                 api.getBackups(),
                 api.getBackupStats(),
                 api.getBackupSchedules(),
                 api.getBackupConfig(),
-                api.getApps()
+                api.getApps(),
+                api.getStorageConfig().catch(() => null)
             ]);
 
             setBackups(backupsRes.backups || []);
@@ -67,6 +84,11 @@ const Backups = () => {
             setSchedules(schedulesRes.schedules || []);
             setConfig(configRes);
             setApps(appsRes.applications || []);
+
+            if (storageRes) {
+                setStorageConfig(storageRes);
+                setStorageForm(storageRes);
+            }
 
             if (configRes) {
                 setConfigForm({
@@ -93,7 +115,8 @@ const Backups = () => {
                     host: backupForm.dbHost
                 } : null;
                 await api.backupApplication(parseInt(backupForm.applicationId), backupForm.includeDb, dbConfig);
-            } else {
+                toast.success('Application backup created');
+            } else if (backupForm.type === 'database') {
                 await api.backupDatabase(
                     backupForm.dbType,
                     backupForm.dbName,
@@ -101,12 +124,21 @@ const Backups = () => {
                     backupForm.dbPassword,
                     backupForm.dbHost
                 );
+                toast.success('Database backup created');
+            } else if (backupForm.type === 'files') {
+                const paths = backupForm.filePaths.split('\n').map(p => p.trim()).filter(Boolean);
+                if (paths.length === 0) {
+                    toast.error('Enter at least one file path');
+                    return;
+                }
+                await api.backupFiles(paths, backupForm.fileName || null);
+                toast.success('File backup created');
             }
             setShowBackupModal(false);
             resetBackupForm();
             loadData();
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
         }
     };
 
@@ -114,9 +146,23 @@ const Backups = () => {
         if (!window.confirm('Are you sure you want to delete this backup?')) return;
         try {
             await api.deleteBackup(backupPath);
+            toast.success('Backup deleted');
             loadData();
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
+        }
+    };
+
+    const handleUploadToRemote = async (backup) => {
+        setUploadingBackup(backup.path);
+        try {
+            await api.uploadBackupToRemote(backup.path);
+            toast.success('Backup uploaded to remote storage');
+            loadData();
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setUploadingBackup(null);
         }
     };
 
@@ -150,13 +196,25 @@ const Backups = () => {
                 scheduleForm.backupType,
                 scheduleForm.target,
                 scheduleForm.scheduleTime,
-                scheduleForm.days
+                scheduleForm.days,
+                scheduleForm.uploadRemote
             );
+            toast.success('Schedule added');
             setShowScheduleModal(false);
             resetScheduleForm();
             loadData();
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
+        }
+    };
+
+    const handleToggleSchedule = async (schedule) => {
+        try {
+            await api.updateBackupSchedule(schedule.id, { enabled: !schedule.enabled });
+            toast.success(`Schedule ${schedule.enabled ? 'disabled' : 'enabled'}`);
+            loadData();
+        } catch (err) {
+            toast.error(err.message);
         }
     };
 
@@ -164,9 +222,10 @@ const Backups = () => {
         if (!window.confirm('Are you sure you want to remove this schedule?')) return;
         try {
             await api.removeBackupSchedule(scheduleId);
+            toast.success('Schedule removed');
             loadData();
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
         }
     };
 
@@ -174,9 +233,37 @@ const Backups = () => {
         e.preventDefault();
         try {
             await api.updateBackupConfig(configForm);
+            toast.success('Settings saved');
             loadData();
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
+        }
+    };
+
+    const handleSaveStorageConfig = async (e) => {
+        e.preventDefault();
+        try {
+            await api.updateStorageConfig(storageForm);
+            toast.success('Storage configuration saved');
+            loadData();
+        } catch (err) {
+            toast.error(err.message);
+        }
+    };
+
+    const handleTestConnection = async () => {
+        setTestingConnection(true);
+        try {
+            const result = await api.testStorageConnection(storageForm);
+            if (result.success) {
+                toast.success(result.message);
+            } else {
+                toast.error(result.error);
+            }
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setTestingConnection(false);
         }
     };
 
@@ -200,7 +287,9 @@ const Backups = () => {
             dbName: '',
             dbUser: '',
             dbPassword: '',
-            dbHost: 'localhost'
+            dbHost: 'localhost',
+            filePaths: '',
+            fileName: ''
         });
     };
 
@@ -210,7 +299,8 @@ const Backups = () => {
             backupType: 'application',
             target: '',
             scheduleTime: '02:00',
-            days: ['daily']
+            days: ['daily'],
+            uploadRemote: false
         });
     };
 
@@ -230,6 +320,26 @@ const Backups = () => {
         return new Date(timestamp).toLocaleString();
     };
 
+    const getBackupIcon = (type) => {
+        switch (type) {
+            case 'application': return <Package size={16} />;
+            case 'database': return <Database size={16} />;
+            case 'files': return <FolderArchive size={16} />;
+            default: return <FileArchive size={16} />;
+        }
+    };
+
+    const getRemoteStatusBadge = (status) => {
+        switch (status) {
+            case 'synced':
+                return <span className="badge badge-success"><Cloud size={12} /> Synced</span>;
+            case 'remote-only':
+                return <span className="badge badge-info"><Cloud size={12} /> Remote</span>;
+            default:
+                return <span className="badge badge-secondary"><HardDrive size={12} /> Local</span>;
+        }
+    };
+
     const filteredBackups = filterType === 'all'
         ? backups
         : backups.filter(b => b.type === filterType);
@@ -243,21 +353,15 @@ const Backups = () => {
             <div className="page-header">
                 <div>
                     <h1>Backups</h1>
-                    <p className="page-subtitle">Manage application and database backups</p>
+                    <p className="page-subtitle">Manage application, database, and file backups with local and remote storage</p>
                 </div>
                 <div className="page-actions">
                     <button className="btn btn-secondary" onClick={() => setShowScheduleModal(true)}>
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                        </svg>
+                        <Clock size={16} />
                         Add Schedule
                     </button>
                     <button className="btn btn-primary" onClick={() => setShowBackupModal(true)}>
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <line x1="12" y1="5" x2="12" y2="19"/>
-                            <line x1="5" y1="12" x2="19" y2="12"/>
-                        </svg>
+                        <Plus size={16} />
                         Create Backup
                     </button>
                 </div>
@@ -274,11 +378,7 @@ const Backups = () => {
             <div className="stats-grid">
                 <div className="stat-card">
                     <div className="stat-icon backups">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
+                        <Download size={24} />
                     </div>
                     <div className="stat-content">
                         <span className="stat-label">Total Backups</span>
@@ -288,9 +388,7 @@ const Backups = () => {
 
                 <div className="stat-card">
                     <div className="stat-icon apps">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                        </svg>
+                        <Package size={24} />
                     </div>
                     <div className="stat-content">
                         <span className="stat-label">Application Backups</span>
@@ -300,11 +398,7 @@ const Backups = () => {
 
                 <div className="stat-card">
                     <div className="stat-icon databases">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                        </svg>
+                        <Database size={24} />
                     </div>
                     <div className="stat-content">
                         <span className="stat-label">Database Backups</span>
@@ -314,41 +408,43 @@ const Backups = () => {
 
                 <div className="stat-card">
                     <div className="stat-icon size">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                            <line x1="6" y1="6" x2="6.01" y2="6"/>
-                            <line x1="6" y1="18" x2="6.01" y2="18"/>
-                        </svg>
+                        <HardDrive size={24} />
                     </div>
                     <div className="stat-content">
-                        <span className="stat-label">Total Size</span>
+                        <span className="stat-label">Local Size</span>
                         <span className="stat-value">{stats?.total_size_human || '0 B'}</span>
                     </div>
                 </div>
+
+                {storageConfig?.provider !== 'local' && (
+                    <div className="stat-card">
+                        <div className="stat-icon cloud">
+                            <Cloud size={24} />
+                        </div>
+                        <div className="stat-content">
+                            <span className="stat-label">Remote Backups</span>
+                            <span className="stat-value">{stats?.remote_count || 0}</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="tabs">
-                <button
-                    className={`tab ${activeTab === 'backups' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('backups')}
-                >
+                <button className={`tab ${activeTab === 'backups' ? 'active' : ''}`} onClick={() => setActiveTab('backups')}>
                     Backups
                 </button>
-                <button
-                    className={`tab ${activeTab === 'schedules' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('schedules')}
-                >
+                <button className={`tab ${activeTab === 'schedules' ? 'active' : ''}`} onClick={() => setActiveTab('schedules')}>
                     Schedules
                 </button>
-                <button
-                    className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('settings')}
-                >
+                <button className={`tab ${activeTab === 'storage' ? 'active' : ''}`} onClick={() => setActiveTab('storage')}>
+                    Storage
+                </button>
+                <button className={`tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
                     Settings
                 </button>
             </div>
 
+            {/* Backups Tab */}
             {activeTab === 'backups' && (
                 <div className="card">
                     <div className="card-header">
@@ -362,8 +458,10 @@ const Backups = () => {
                                 <option value="all">All Types</option>
                                 <option value="application">Applications</option>
                                 <option value="database">Databases</option>
+                                <option value="files">Files</option>
                             </select>
                             <button className="btn btn-secondary btn-sm" onClick={loadData}>
+                                <RefreshCw size={14} />
                                 Refresh
                             </button>
                         </div>
@@ -371,11 +469,7 @@ const Backups = () => {
                     <div className="card-body">
                         {filteredBackups.length === 0 ? (
                             <div className="empty-state">
-                                <svg viewBox="0 0 24 24" width="48" height="48">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="7 10 12 15 17 10"/>
-                                    <line x1="12" y1="15" x2="12" y2="3"/>
-                                </svg>
+                                <Download size={48} />
                                 <h3>No Backups</h3>
                                 <p>No backups found. Create your first backup to get started.</p>
                                 <button className="btn btn-primary" onClick={() => setShowBackupModal(true)}>
@@ -389,6 +483,7 @@ const Backups = () => {
                                         <th>Name</th>
                                         <th>Type</th>
                                         <th>Size</th>
+                                        <th>Storage</th>
                                         <th>Created</th>
                                         <th>Actions</th>
                                     </tr>
@@ -398,51 +493,52 @@ const Backups = () => {
                                         <tr key={index}>
                                             <td>
                                                 <div className="backup-name">
-                                                    {backup.type === 'application' ? (
-                                                        <svg viewBox="0 0 24 24" width="16" height="16" className="icon-app">
-                                                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                                                        </svg>
-                                                    ) : (
-                                                        <svg viewBox="0 0 24 24" width="16" height="16" className="icon-db">
-                                                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                                                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                                                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                                                        </svg>
-                                                    )}
+                                                    {getBackupIcon(backup.type)}
                                                     <span>{backup.name || backup.app_name}</span>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className={`badge badge-${backup.type === 'application' ? 'primary' : 'info'}`}>
+                                                <span className={`badge badge-${backup.type === 'application' ? 'primary' : backup.type === 'database' ? 'info' : 'warning'}`}>
                                                     {backup.type}
                                                 </span>
                                             </td>
                                             <td>{formatSize(backup.size)}</td>
+                                            <td>{getRemoteStatusBadge(backup.remote_status)}</td>
                                             <td>{formatTimestamp(backup.timestamp)}</td>
                                             <td>
                                                 <div className="action-buttons">
-                                                    <button
-                                                        className="btn btn-sm btn-secondary"
-                                                        onClick={() => {
-                                                            setSelectedBackup(backup);
-                                                            setShowRestoreModal(true);
-                                                        }}
-                                                        title="Restore"
-                                                    >
-                                                        <svg viewBox="0 0 24 24" width="14" height="14">
-                                                            <polyline points="1 4 1 10 7 10"/>
-                                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                                                        </svg>
-                                                    </button>
+                                                    {backup.type !== 'files' && (
+                                                        <button
+                                                            className="btn btn-sm btn-secondary"
+                                                            onClick={() => {
+                                                                setSelectedBackup(backup);
+                                                                setShowRestoreModal(true);
+                                                            }}
+                                                            title="Restore"
+                                                        >
+                                                            <RefreshCw size={14} />
+                                                        </button>
+                                                    )}
+                                                    {storageConfig?.provider !== 'local' && backup.remote_status !== 'synced' && (
+                                                        <button
+                                                            className="btn btn-sm btn-secondary"
+                                                            onClick={() => handleUploadToRemote(backup)}
+                                                            disabled={uploadingBackup === backup.path}
+                                                            title="Upload to Remote"
+                                                        >
+                                                            {uploadingBackup === backup.path ? (
+                                                                <RefreshCw size={14} className="spinning" />
+                                                            ) : (
+                                                                <Upload size={14} />
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     <button
                                                         className="btn btn-sm btn-danger"
                                                         onClick={() => handleDeleteBackup(backup.path)}
                                                         title="Delete"
                                                     >
-                                                        <svg viewBox="0 0 24 24" width="14" height="14">
-                                                            <polyline points="3 6 5 6 21 6"/>
-                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                                        </svg>
+                                                        <Trash2 size={14} />
                                                     </button>
                                                 </div>
                                             </td>
@@ -455,21 +551,20 @@ const Backups = () => {
                 </div>
             )}
 
+            {/* Schedules Tab */}
             {activeTab === 'schedules' && (
                 <div className="card">
                     <div className="card-header">
                         <h3>Backup Schedules</h3>
                         <button className="btn btn-primary btn-sm" onClick={() => setShowScheduleModal(true)}>
+                            <Plus size={14} />
                             Add Schedule
                         </button>
                     </div>
                     <div className="card-body">
                         {schedules.length === 0 ? (
                             <div className="empty-state">
-                                <svg viewBox="0 0 24 24" width="48" height="48">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <polyline points="12 6 12 12 16 14"/>
-                                </svg>
+                                <Clock size={48} />
                                 <h3>No Schedules</h3>
                                 <p>No backup schedules configured. Add a schedule for automated backups.</p>
                                 <button className="btn btn-primary" onClick={() => setShowScheduleModal(true)}>
@@ -485,6 +580,8 @@ const Backups = () => {
                                         <th>Target</th>
                                         <th>Time</th>
                                         <th>Days</th>
+                                        <th>Remote</th>
+                                        <th>Last Run</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -494,7 +591,7 @@ const Backups = () => {
                                         <tr key={schedule.id}>
                                             <td>{schedule.name}</td>
                                             <td>
-                                                <span className={`badge badge-${schedule.backup_type === 'application' ? 'primary' : 'info'}`}>
+                                                <span className={`badge badge-${schedule.backup_type === 'application' ? 'primary' : schedule.backup_type === 'database' ? 'info' : 'warning'}`}>
                                                     {schedule.backup_type}
                                                 </span>
                                             </td>
@@ -502,21 +599,43 @@ const Backups = () => {
                                             <td>{schedule.schedule_time}</td>
                                             <td>{schedule.days?.join(', ') || 'daily'}</td>
                                             <td>
-                                                <span className={`badge badge-${schedule.enabled ? 'success' : 'secondary'}`}>
-                                                    {schedule.enabled ? 'Active' : 'Disabled'}
-                                                </span>
+                                                {schedule.upload_remote ? (
+                                                    <Cloud size={16} className="text-success" />
+                                                ) : (
+                                                    <CloudOff size={16} className="text-muted" />
+                                                )}
+                                            </td>
+                                            <td>{schedule.last_run ? formatTimestamp(schedule.last_run) : 'Never'}</td>
+                                            <td>
+                                                {schedule.last_status === 'success' && (
+                                                    <span className="badge badge-success"><CheckCircle size={12} /> Success</span>
+                                                )}
+                                                {schedule.last_status === 'failed' && (
+                                                    <span className="badge badge-danger"><XCircle size={12} /> Failed</span>
+                                                )}
+                                                {!schedule.last_status && (
+                                                    <span className={`badge badge-${schedule.enabled ? 'success' : 'secondary'}`}>
+                                                        {schedule.enabled ? 'Active' : 'Disabled'}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td>
-                                                <button
-                                                    className="btn btn-sm btn-danger"
-                                                    onClick={() => handleRemoveSchedule(schedule.id)}
-                                                    title="Remove"
-                                                >
-                                                    <svg viewBox="0 0 24 24" width="14" height="14">
-                                                        <polyline points="3 6 5 6 21 6"/>
-                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                                    </svg>
-                                                </button>
+                                                <div className="action-buttons">
+                                                    <button
+                                                        className={`btn btn-sm ${schedule.enabled ? 'btn-secondary' : 'btn-success'}`}
+                                                        onClick={() => handleToggleSchedule(schedule)}
+                                                        title={schedule.enabled ? 'Disable' : 'Enable'}
+                                                    >
+                                                        {schedule.enabled ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-danger"
+                                                        onClick={() => handleRemoveSchedule(schedule.id)}
+                                                        title="Remove"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -527,6 +646,200 @@ const Backups = () => {
                 </div>
             )}
 
+            {/* Storage Tab */}
+            {activeTab === 'storage' && (
+                <div className="card">
+                    <div className="card-header">
+                        <h3>Remote Storage Configuration</h3>
+                    </div>
+                    <div className="card-body">
+                        <form onSubmit={handleSaveStorageConfig}>
+                            <div className="form-group">
+                                <label>Storage Provider</label>
+                                <select
+                                    value={storageForm.provider}
+                                    onChange={(e) => setStorageForm({...storageForm, provider: e.target.value})}
+                                >
+                                    <option value="local">Local Only</option>
+                                    <option value="s3">S3-Compatible (AWS S3, MinIO, Wasabi)</option>
+                                    <option value="b2">Backblaze B2</option>
+                                </select>
+                            </div>
+
+                            {storageForm.provider === 's3' && (
+                                <div className="storage-provider-config">
+                                    <h4>S3-Compatible Storage</h4>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label>Bucket Name</label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.s3.bucket}
+                                                onChange={(e) => setStorageForm({...storageForm, s3: {...storageForm.s3, bucket: e.target.value}})}
+                                                placeholder="my-backup-bucket"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Region</label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.s3.region}
+                                                onChange={(e) => setStorageForm({...storageForm, s3: {...storageForm.s3, region: e.target.value}})}
+                                                placeholder="us-east-1"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label>Access Key</label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.s3.access_key}
+                                                onChange={(e) => setStorageForm({...storageForm, s3: {...storageForm.s3, access_key: e.target.value}})}
+                                                placeholder="AKIA..."
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Secret Key</label>
+                                            <input
+                                                type="password"
+                                                value={storageForm.s3.secret_key}
+                                                onChange={(e) => setStorageForm({...storageForm, s3: {...storageForm.s3, secret_key: e.target.value}})}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label>Custom Endpoint URL <span className="form-help-inline">(optional, for MinIO/Wasabi)</span></label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.s3.endpoint_url}
+                                                onChange={(e) => setStorageForm({...storageForm, s3: {...storageForm.s3, endpoint_url: e.target.value}})}
+                                                placeholder="https://s3.example.com"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Path Prefix</label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.s3.path_prefix}
+                                                onChange={(e) => setStorageForm({...storageForm, s3: {...storageForm.s3, path_prefix: e.target.value}})}
+                                                placeholder="serverkit-backups"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {storageForm.provider === 'b2' && (
+                                <div className="storage-provider-config">
+                                    <h4>Backblaze B2</h4>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label>Bucket Name</label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.b2.bucket}
+                                                onChange={(e) => setStorageForm({...storageForm, b2: {...storageForm.b2, bucket: e.target.value}})}
+                                                placeholder="my-backup-bucket"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>S3-Compatible Endpoint URL</label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.b2.endpoint_url}
+                                                onChange={(e) => setStorageForm({...storageForm, b2: {...storageForm.b2, endpoint_url: e.target.value}})}
+                                                placeholder="https://s3.us-west-004.backblazeb2.com"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label>Application Key ID</label>
+                                            <input
+                                                type="text"
+                                                value={storageForm.b2.key_id}
+                                                onChange={(e) => setStorageForm({...storageForm, b2: {...storageForm.b2, key_id: e.target.value}})}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Application Key</label>
+                                            <input
+                                                type="password"
+                                                value={storageForm.b2.application_key}
+                                                onChange={(e) => setStorageForm({...storageForm, b2: {...storageForm.b2, application_key: e.target.value}})}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Path Prefix</label>
+                                        <input
+                                            type="text"
+                                            value={storageForm.b2.path_prefix}
+                                            onChange={(e) => setStorageForm({...storageForm, b2: {...storageForm.b2, path_prefix: e.target.value}})}
+                                            placeholder="serverkit-backups"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {storageForm.provider !== 'local' && (
+                                <>
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={storageForm.auto_upload}
+                                                onChange={(e) => setStorageForm({...storageForm, auto_upload: e.target.checked})}
+                                            />
+                                            <span>Auto-upload new backups to remote storage</span>
+                                        </label>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={storageForm.keep_local_copy}
+                                                onChange={(e) => setStorageForm({...storageForm, keep_local_copy: e.target.checked})}
+                                            />
+                                            <span>Keep local copy after uploading</span>
+                                        </label>
+                                    </div>
+                                </>
+                            )}
+
+                            <div className="form-actions">
+                                <button type="submit" className="btn btn-primary">Save Storage Config</button>
+                                {storageForm.provider !== 'local' && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={handleTestConnection}
+                                        disabled={testingConnection}
+                                    >
+                                        {testingConnection ? (
+                                            <><RefreshCw size={16} className="spinning" /> Testing...</>
+                                        ) : (
+                                            <><Check size={16} /> Test Connection</>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Settings Tab */}
             {activeTab === 'settings' && (
                 <div className="card">
                     <div className="card-header">
@@ -560,6 +873,7 @@ const Backups = () => {
                             <div className="form-actions">
                                 <button type="submit" className="btn btn-primary">Save Settings</button>
                                 <button type="button" className="btn btn-secondary" onClick={handleCleanup}>
+                                    <Trash2 size={16} />
                                     Run Cleanup Now
                                 </button>
                             </div>
@@ -586,6 +900,7 @@ const Backups = () => {
                                     >
                                         <option value="application">Application</option>
                                         <option value="database">Database Only</option>
+                                        <option value="files">Files / Directories</option>
                                     </select>
                                 </div>
 
@@ -614,6 +929,31 @@ const Backups = () => {
                                                 />
                                                 <span>Include Database</span>
                                             </label>
+                                        </div>
+                                    </>
+                                )}
+
+                                {backupForm.type === 'files' && (
+                                    <>
+                                        <div className="form-group">
+                                            <label>Backup Name (optional)</label>
+                                            <input
+                                                type="text"
+                                                value={backupForm.fileName}
+                                                onChange={(e) => setBackupForm({...backupForm, fileName: e.target.value})}
+                                                placeholder="my-config-backup"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>File/Directory Paths (one per line)</label>
+                                            <textarea
+                                                value={backupForm.filePaths}
+                                                onChange={(e) => setBackupForm({...backupForm, filePaths: e.target.value})}
+                                                placeholder={"/etc/nginx/nginx.conf\n/var/www/mysite/config\n/home/user/.env"}
+                                                rows={5}
+                                                required
+                                            />
+                                            <span className="form-help">Enter absolute paths to files or directories to backup</span>
                                         </div>
                                     </>
                                 )}
@@ -712,16 +1052,30 @@ const Backups = () => {
                                     >
                                         <option value="application">Application</option>
                                         <option value="database">Database</option>
+                                        <option value="files">Files / Directories</option>
                                     </select>
                                 </div>
 
                                 <div className="form-group">
-                                    <label>Target</label>
+                                    <label>
+                                        {scheduleForm.backupType === 'files'
+                                            ? 'Paths (comma-separated)'
+                                            : scheduleForm.backupType === 'database'
+                                            ? 'Database (format: mysql:dbname or postgresql:dbname)'
+                                            : 'Application Name'
+                                        }
+                                    </label>
                                     <input
                                         type="text"
                                         value={scheduleForm.target}
                                         onChange={(e) => setScheduleForm({...scheduleForm, target: e.target.value})}
-                                        placeholder="App name or database name"
+                                        placeholder={
+                                            scheduleForm.backupType === 'files'
+                                                ? '/etc/nginx,/var/www/config'
+                                                : scheduleForm.backupType === 'database'
+                                                ? 'mysql:mydb'
+                                                : 'my-app'
+                                        }
                                         required
                                     />
                                 </div>
@@ -735,6 +1089,19 @@ const Backups = () => {
                                         required
                                     />
                                 </div>
+
+                                {storageConfig?.provider !== 'local' && (
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={scheduleForm.uploadRemote}
+                                                onChange={(e) => setScheduleForm({...scheduleForm, uploadRemote: e.target.checked})}
+                                            />
+                                            <span>Upload to remote storage after backup</span>
+                                        </label>
+                                    </div>
+                                )}
                             </div>
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowScheduleModal(false)}>
@@ -757,11 +1124,7 @@ const Backups = () => {
                         </div>
                         <div className="modal-body">
                             <div className="restore-warning">
-                                <svg viewBox="0 0 24 24" width="48" height="48">
-                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                                    <line x1="12" y1="9" x2="12" y2="13"/>
-                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                                </svg>
+                                <AlertTriangle size={48} />
                                 <h3>Warning</h3>
                                 <p>Restoring this backup will overwrite existing data. This action cannot be undone.</p>
                             </div>

@@ -148,4 +148,76 @@
             color: @text-primary;
         }
     }
+
+    // Remote storage stat
+    .stat-icon.cloud {
+        background: fade(@info, 10%);
+        color: @info;
+    }
+
+    // Storage provider config section
+    .storage-provider-config {
+        margin: @space-4 0;
+        padding: @space-4;
+        background: @bg-hover;
+        border-radius: @radius-md;
+        border: 1px solid @border-subtle;
+
+        h4 {
+            margin: 0 0 @space-4;
+            font-size: @font-size-base;
+            color: @text-primary;
+        }
+    }
+
+    .form-help-inline {
+        font-size: @font-size-xs;
+        color: @text-tertiary;
+        font-weight: @font-weight-normal;
+    }
+
+    // Remote status badges in backup list
+    .badge {
+        svg {
+            vertical-align: -2px;
+            margin-right: 2px;
+        }
+    }
+
+    // Text helper classes
+    .text-success {
+        color: @success;
+    }
+
+    .text-muted {
+        color: @text-tertiary;
+    }
+
+    // Spinning animation for upload/test buttons
+    .spinning {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    // Textarea for file paths
+    textarea {
+        width: 100%;
+        padding: @space-2 @space-3;
+        border: 1px solid @border-subtle;
+        border-radius: @radius-md;
+        background: @bg-input;
+        color: @text-primary;
+        font-family: @font-mono;
+        font-size: @font-size-sm;
+        resize: vertical;
+
+        &:focus {
+            outline: none;
+            border-color: @accent-primary;
+        }
+    }
 }

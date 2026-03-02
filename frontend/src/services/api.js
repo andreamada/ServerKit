@@ -1232,15 +1232,74 @@ class ApiService {
         return this.request('/backups/schedules');
     }
 
-    async addBackupSchedule(name, backupType, target, scheduleTime, days = null) {
+    async addBackupSchedule(name, backupType, target, scheduleTime, days = null, uploadRemote = false) {
         return this.request('/backups/schedules', {
             method: 'POST',
-            body: { name, backup_type: backupType, target, schedule_time: scheduleTime, days }
+            body: { name, backup_type: backupType, target, schedule_time: scheduleTime, days, upload_remote: uploadRemote }
+        });
+    }
+
+    async updateBackupSchedule(scheduleId, updates) {
+        return this.request(`/backups/schedules/${scheduleId}`, {
+            method: 'PUT',
+            body: updates
         });
     }
 
     async removeBackupSchedule(scheduleId) {
         return this.request(`/backups/schedules/${scheduleId}`, { method: 'DELETE' });
+    }
+
+    async backupFiles(filePaths, name = null) {
+        return this.request('/backups/files', {
+            method: 'POST',
+            body: { paths: filePaths, name }
+        });
+    }
+
+    // Remote Storage
+    async getStorageConfig() {
+        return this.request('/backups/storage');
+    }
+
+    async updateStorageConfig(config) {
+        return this.request('/backups/storage', {
+            method: 'PUT',
+            body: config
+        });
+    }
+
+    async testStorageConnection(config = null) {
+        return this.request('/backups/storage/test', {
+            method: 'POST',
+            body: config || {}
+        });
+    }
+
+    async uploadBackupToRemote(backupPath) {
+        return this.request('/backups/upload', {
+            method: 'POST',
+            body: { backup_path: backupPath }
+        });
+    }
+
+    async verifyRemoteBackup(remoteKey, localPath) {
+        return this.request('/backups/verify', {
+            method: 'POST',
+            body: { remote_key: remoteKey, local_path: localPath }
+        });
+    }
+
+    async listRemoteBackups(prefix = null) {
+        const params = prefix ? `?prefix=${encodeURIComponent(prefix)}` : '';
+        return this.request(`/backups/remote${params}`);
+    }
+
+    async downloadRemoteBackup(remoteKey, localPath = null) {
+        return this.request('/backups/remote/download', {
+            method: 'POST',
+            body: { remote_key: remoteKey, local_path: localPath }
+        });
     }
 
     // ========================================

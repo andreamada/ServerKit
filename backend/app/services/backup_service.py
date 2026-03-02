@@ -25,6 +25,7 @@ class BackupService:
     TYPE_APP = 'application'
     TYPE_DATABASE = 'database'
     TYPE_FULL = 'full'
+    TYPE_FILES = 'files'
 
     _scheduler_thread = None
     _stop_scheduler = False
@@ -39,7 +40,7 @@ class BackupService:
     @classmethod
     def ensure_backup_dirs(cls) -> None:
         """Ensure backup directories exist."""
-        for subdir in ['applications', 'databases', 'full', 'scheduled']:
+        for subdir in ['applications', 'databases', 'full', 'scheduled', 'files']:
             path = os.path.join(cls.BACKUP_BASE_DIR, subdir)
             os.makedirs(path, exist_ok=True)
 
@@ -99,7 +100,8 @@ class BackupService:
                 'timestamp': datetime.now().isoformat(),
                 'type': cls.TYPE_APP,
                 'files_backup': files_backup,
-                'size': os.path.getsize(files_backup)
+                'size': os.path.getsize(files_backup),
+                'remote_status': 'local'
             }
 
             # Backup database if requested
@@ -118,6 +120,9 @@ class BackupService:
             meta_path = os.path.join(backup_dir, 'backup.json')
             with open(meta_path, 'w') as f:
                 json.dump(backup_info, f, indent=2)
+
+            # Auto-upload to remote if configured
+            cls._auto_upload(backup_dir, backup_info)
 
             return {
                 'success': True,
@@ -202,20 +207,83 @@ class BackupService:
         if result.get('success'):
             # Rename to final path
             os.rename(result['path'], backup_path)
+
+            backup_info = {
+                'name': backup_name,
+                'path': backup_path,
+                'timestamp': datetime.now().isoformat(),
+                'type': cls.TYPE_DATABASE,
+                'database_type': db_type,
+                'database_name': db_name,
+                'size': os.path.getsize(backup_path),
+                'remote_status': 'local'
+            }
+
+            # Auto-upload to remote if configured
+            cls._auto_upload(backup_path, backup_info)
+
             return {
                 'success': True,
-                'backup': {
-                    'name': backup_name,
-                    'path': backup_path,
-                    'timestamp': datetime.now().isoformat(),
-                    'type': cls.TYPE_DATABASE,
-                    'database_type': db_type,
-                    'database_name': db_name,
-                    'size': os.path.getsize(backup_path)
-                }
+                'backup': backup_info
             }
 
         return result
+
+    @classmethod
+    def backup_files(cls, file_paths: List[str], backup_name: str = None) -> Dict:
+        """Backup specific files and directories."""
+        cls.ensure_backup_dirs()
+
+        # Validate paths
+        valid_paths = []
+        for p in file_paths:
+            if os.path.exists(p):
+                valid_paths.append(p)
+
+        if not valid_paths:
+            return {'success': False, 'error': 'No valid file paths provided'}
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        if not backup_name:
+            backup_name = f"files_{timestamp}"
+        else:
+            backup_name = f"{backup_name}_{timestamp}"
+
+        backup_file = os.path.join(cls.BACKUP_BASE_DIR, 'files', f'{backup_name}.tar.gz')
+
+        try:
+            with tarfile.open(backup_file, 'w:gz') as tar:
+                for p in valid_paths:
+                    tar.add(p, arcname=os.path.basename(p))
+
+            backup_info = {
+                'name': f'{backup_name}.tar.gz',
+                'path': backup_file,
+                'timestamp': datetime.now().isoformat(),
+                'type': cls.TYPE_FILES,
+                'source_paths': valid_paths,
+                'size': os.path.getsize(backup_file),
+                'remote_status': 'local'
+            }
+
+            # Save metadata alongside the archive
+            meta_path = os.path.join(cls.BACKUP_BASE_DIR, 'files', f'{backup_name}.json')
+            with open(meta_path, 'w') as f:
+                json.dump(backup_info, f, indent=2)
+
+            # Auto-upload to remote if configured
+            cls._auto_upload(backup_file, backup_info)
+
+            return {
+                'success': True,
+                'backup': backup_info,
+                'path': backup_file
+            }
+
+        except Exception as e:
+            if os.path.exists(backup_file):
+                os.remove(backup_file)
+            return {'success': False, 'error': str(e)}
 
     @classmethod
     def restore_application(cls, backup_path: str, restore_path: str = None) -> Dict:
@@ -315,10 +383,13 @@ class BackupService:
             search_dirs = [os.path.join(cls.BACKUP_BASE_DIR, 'applications')]
         elif backup_type == 'database':
             search_dirs = [os.path.join(cls.BACKUP_BASE_DIR, 'databases')]
+        elif backup_type == 'files':
+            search_dirs = [os.path.join(cls.BACKUP_BASE_DIR, 'files')]
         else:
             search_dirs = [
                 os.path.join(cls.BACKUP_BASE_DIR, 'applications'),
                 os.path.join(cls.BACKUP_BASE_DIR, 'databases'),
+                os.path.join(cls.BACKUP_BASE_DIR, 'files'),
                 os.path.join(cls.BACKUP_BASE_DIR, 'scheduled')
             ]
 
@@ -348,8 +419,31 @@ class BackupService:
                         'path': item_path,
                         'type': cls.TYPE_DATABASE,
                         'size': stat.st_size,
-                        'timestamp': datetime.fromtimestamp(stat.st_mtime).isoformat()
+                        'timestamp': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        'remote_status': 'local'
                     })
+                elif item.endswith('.tar.gz') and search_dir.endswith('files'):
+                    # File backup - check for metadata
+                    meta_name = item.replace('.tar.gz', '.json')
+                    meta_path = os.path.join(search_dir, meta_name)
+                    if os.path.exists(meta_path):
+                        try:
+                            with open(meta_path, 'r') as f:
+                                backup_info = json.load(f)
+                            backup_info['path'] = item_path
+                            backups.append(backup_info)
+                        except Exception:
+                            pass
+                    else:
+                        stat = os.stat(item_path)
+                        backups.append({
+                            'name': item,
+                            'path': item_path,
+                            'type': cls.TYPE_FILES,
+                            'size': stat.st_size,
+                            'timestamp': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            'remote_status': 'local'
+                        })
 
         # Sort by timestamp (newest first)
         backups.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
@@ -367,6 +461,11 @@ class BackupService:
                 shutil.rmtree(backup_path)
             elif os.path.exists(backup_path):
                 os.remove(backup_path)
+                # Also remove metadata file for file backups
+                if backup_path.endswith('.tar.gz'):
+                    meta_path = backup_path.replace('.tar.gz', '.json')
+                    if os.path.exists(meta_path):
+                        os.remove(meta_path)
             else:
                 return {'success': False, 'error': 'Backup not found'}
 
@@ -407,7 +506,8 @@ class BackupService:
 
     @classmethod
     def add_schedule(cls, name: str, backup_type: str, target: str,
-                    schedule_time: str, days: List[str] = None) -> Dict:
+                    schedule_time: str, days: List[str] = None,
+                    upload_remote: bool = False) -> Dict:
         """Add a backup schedule."""
         config = cls.get_config()
 
@@ -419,7 +519,9 @@ class BackupService:
             'schedule_time': schedule_time,
             'days': days or ['daily'],
             'enabled': True,
-            'last_run': None
+            'upload_remote': upload_remote,
+            'last_run': None,
+            'last_status': None
         }
 
         config.setdefault('schedules', []).append(schedule_entry)
@@ -428,6 +530,24 @@ class BackupService:
         if result.get('success'):
             return {'success': True, 'schedule': schedule_entry}
         return result
+
+    @classmethod
+    def update_schedule(cls, schedule_id: str, updates: Dict) -> Dict:
+        """Update a backup schedule."""
+        config = cls.get_config()
+        schedules = config.get('schedules', [])
+
+        for i, s in enumerate(schedules):
+            if s.get('id') == schedule_id:
+                allowed_fields = ['name', 'backup_type', 'target', 'schedule_time',
+                                  'days', 'enabled', 'upload_remote']
+                for field in allowed_fields:
+                    if field in updates:
+                        schedules[i][field] = updates[field]
+                config['schedules'] = schedules
+                return cls.save_config(config)
+
+        return {'success': False, 'error': 'Schedule not found'}
 
     @classmethod
     def remove_schedule(cls, schedule_id: str) -> Dict:
@@ -457,14 +577,224 @@ class BackupService:
         total_size = sum(b.get('size', 0) for b in backups)
         app_backups = [b for b in backups if b.get('type') == cls.TYPE_APP]
         db_backups = [b for b in backups if b.get('type') == cls.TYPE_DATABASE]
+        file_backups = [b for b in backups if b.get('type') == cls.TYPE_FILES]
+
+        # Get remote stats
+        remote_stats = {'remote_count': 0, 'remote_size': 0, 'remote_size_human': '0 B'}
+        try:
+            from app.services.storage_provider_service import StorageProviderService
+            storage_config = StorageProviderService.get_config()
+            if storage_config.get('provider', 'local') != 'local':
+                remote_stats = StorageProviderService.get_remote_stats()
+        except Exception:
+            pass
 
         return {
             'total_backups': len(backups),
             'application_backups': len(app_backups),
             'database_backups': len(db_backups),
+            'file_backups': len(file_backups),
             'total_size': total_size,
-            'total_size_human': cls._format_size(total_size)
+            'total_size_human': cls._format_size(total_size),
+            'remote_count': remote_stats.get('remote_count', 0),
+            'remote_size': remote_stats.get('remote_size', 0),
+            'remote_size_human': remote_stats.get('remote_size_human', '0 B')
         }
+
+    @classmethod
+    def _auto_upload(cls, backup_path: str, backup_info: Dict) -> None:
+        """Auto-upload backup to remote storage if configured."""
+        try:
+            from app.services.storage_provider_service import StorageProviderService
+            storage_config = StorageProviderService.get_config()
+
+            if storage_config.get('provider', 'local') == 'local':
+                return
+            if not storage_config.get('auto_upload', False):
+                return
+
+            if os.path.isdir(backup_path):
+                result = StorageProviderService.upload_directory(backup_path)
+            else:
+                result = StorageProviderService.upload_file(backup_path)
+
+            if result.get('success'):
+                backup_info['remote_status'] = 'synced'
+                backup_info['remote_key'] = result.get('remote_key', '')
+                # Update metadata if it's a directory backup
+                meta_path = os.path.join(backup_path, 'backup.json') if os.path.isdir(backup_path) else None
+                if meta_path and os.path.exists(meta_path):
+                    with open(meta_path, 'w') as f:
+                        json.dump(backup_info, f, indent=2)
+        except Exception:
+            pass
+
+    # --- Scheduler ---
+
+    @classmethod
+    def start_scheduler(cls) -> None:
+        """Start the backup scheduler background thread."""
+        if cls._scheduler_thread and cls._scheduler_thread.is_alive():
+            return
+
+        cls._stop_scheduler = False
+        cls._scheduler_thread = threading.Thread(
+            target=cls._scheduler_loop,
+            daemon=True,
+            name='backup-scheduler'
+        )
+        cls._scheduler_thread.start()
+
+    @classmethod
+    def stop_scheduler(cls) -> None:
+        """Stop the backup scheduler."""
+        cls._stop_scheduler = True
+        if cls._scheduler_thread:
+            cls._scheduler_thread.join(timeout=5)
+            cls._scheduler_thread = None
+
+    @classmethod
+    def _scheduler_loop(cls) -> None:
+        """Background loop that checks and runs scheduled backups."""
+        while not cls._stop_scheduler:
+            try:
+                config = cls.get_config()
+                if config.get('enabled', False):
+                    now = datetime.now()
+                    current_time = now.strftime('%H:%M')
+                    current_day = now.strftime('%A').lower()
+
+                    for sched in config.get('schedules', []):
+                        if not sched.get('enabled', False):
+                            continue
+
+                        # Check if it's time to run
+                        if sched.get('schedule_time') != current_time:
+                            continue
+
+                        # Check day
+                        days = sched.get('days', ['daily'])
+                        if 'daily' not in days and current_day not in days:
+                            continue
+
+                        # Check if already ran this minute
+                        last_run = sched.get('last_run')
+                        if last_run:
+                            try:
+                                last_run_time = datetime.fromisoformat(last_run)
+                                if (now - last_run_time).total_seconds() < 120:
+                                    continue
+                            except Exception:
+                                pass
+
+                        # Run the backup
+                        cls._run_scheduled_backup(sched)
+
+                    # Run retention cleanup once daily at midnight
+                    if current_time == '00:00':
+                        cls.cleanup_old_backups()
+
+            except Exception:
+                pass
+
+            # Check every 30 seconds
+            for _ in range(30):
+                if cls._stop_scheduler:
+                    return
+                time.sleep(1)
+
+    @classmethod
+    def _run_scheduled_backup(cls, sched: Dict) -> None:
+        """Execute a single scheduled backup."""
+        backup_type = sched.get('backup_type', 'database')
+        target = sched.get('target', '')
+        result = None
+
+        try:
+            if backup_type == 'database':
+                # Parse target as db_type:db_name or just db_name
+                parts = target.split(':')
+                if len(parts) == 2:
+                    db_type, db_name = parts
+                else:
+                    db_type, db_name = 'mysql', target
+                result = cls.backup_database(db_type, db_name)
+
+            elif backup_type == 'application':
+                from app.models import Application
+                app = Application.query.filter_by(name=target).first()
+                if app:
+                    result = cls.backup_application(app.name, app.root_path)
+                else:
+                    result = {'success': False, 'error': f'Application "{target}" not found'}
+
+            elif backup_type == 'files':
+                paths_list = [p.strip() for p in target.split(',') if p.strip()]
+                result = cls.backup_files(paths_list, backup_name=f"scheduled_{sched.get('name', 'backup')}")
+
+            # Upload to remote if configured on this schedule
+            if result and result.get('success') and sched.get('upload_remote', False):
+                try:
+                    from app.services.storage_provider_service import StorageProviderService
+                    backup_path = result.get('path') or result.get('backup', {}).get('path')
+                    if backup_path:
+                        if os.path.isdir(backup_path):
+                            StorageProviderService.upload_directory(backup_path)
+                        else:
+                            StorageProviderService.upload_file(backup_path)
+                except Exception:
+                    pass
+
+            # Update schedule status
+            config = cls.get_config()
+            for s in config.get('schedules', []):
+                if s.get('id') == sched.get('id'):
+                    s['last_run'] = datetime.now().isoformat()
+                    s['last_status'] = 'success' if result and result.get('success') else 'failed'
+                    break
+            cls.save_config(config)
+
+            # Send notification on failure
+            if result and not result.get('success'):
+                cls._send_backup_notification(
+                    sched.get('name', 'Backup'),
+                    False,
+                    result.get('error', 'Unknown error')
+                )
+
+        except Exception as e:
+            # Update schedule status on exception
+            config = cls.get_config()
+            for s in config.get('schedules', []):
+                if s.get('id') == sched.get('id'):
+                    s['last_run'] = datetime.now().isoformat()
+                    s['last_status'] = 'failed'
+                    break
+            cls.save_config(config)
+            cls._send_backup_notification(sched.get('name', 'Backup'), False, str(e))
+
+    @classmethod
+    def _send_backup_notification(cls, backup_name: str, success: bool, message: str) -> None:
+        """Send a notification about backup status."""
+        try:
+            from app.services.notification_service import NotificationService
+            config = cls.get_config()
+            notifications = config.get('notifications', {})
+
+            if success and not notifications.get('on_success', False):
+                return
+            if not success and not notifications.get('on_failure', True):
+                return
+
+            severity = 'success' if success else 'critical'
+            status = 'completed successfully' if success else 'failed'
+            NotificationService.send_all(
+                title=f'Backup {status}: {backup_name}',
+                message=message,
+                severity=severity
+            )
+        except Exception:
+            pass
 
     @staticmethod
     def _format_size(size: int) -> str:

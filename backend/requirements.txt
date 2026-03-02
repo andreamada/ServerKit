@@ -51,3 +51,6 @@ qrcode[pil]==7.4.2
 
 # HTTP Requests (for webhooks & notifications)
 requests==2.32.5
+
+# S3-compatible storage (AWS S3, Backblaze B2, MinIO, Wasabi)
+boto3==1.35.0
