@@ -25,6 +25,7 @@ def admin_required(fn):
 
 @backups_bp.route('', methods=['GET'])
 @jwt_required()
+@admin_required
 def list_backups():
     """List all backups."""
     backup_type = request.args.get('type')
@@ -34,6 +35,7 @@ def list_backups():
 
 @backups_bp.route('/stats', methods=['GET'])
 @jwt_required()
+@admin_required
 def get_stats():
     """Get backup statistics."""
     stats = BackupService.get_backup_stats()
@@ -191,7 +193,9 @@ def restore_database():
 def delete_backup(backup_path):
     """Delete a backup."""
     # Ensure path is within backup directory
-    full_path = os.path.join(paths.SERVERKIT_BACKUP_DIR, backup_path)
+    full_path = os.path.realpath(os.path.join(paths.SERVERKIT_BACKUP_DIR, backup_path))
+    if not full_path.startswith(os.path.realpath(paths.SERVERKIT_BACKUP_DIR)):
+        return jsonify({'error': 'Invalid backup path'}), 400
     result = BackupService.delete_backup(full_path)
     return jsonify(result), 200 if result['success'] else 400
 
@@ -313,9 +317,9 @@ def upload_to_remote():
     if not data or 'backup_path' not in data:
         return jsonify({'error': 'backup_path is required'}), 400
 
-    backup_path = data['backup_path']
+    backup_path = os.path.realpath(data['backup_path'])
 
-    if not backup_path.startswith(paths.SERVERKIT_BACKUP_DIR):
+    if not backup_path.startswith(os.path.realpath(paths.SERVERKIT_BACKUP_DIR)):
         return jsonify({'error': 'Invalid backup path'}), 400
 
     if os.path.isdir(backup_path):
@@ -342,6 +346,10 @@ def verify_remote_backup():
 
     if not remote_key or not local_path:
         return jsonify({'error': 'remote_key and local_path are required'}), 400
+
+    local_path = os.path.realpath(local_path)
+    if not local_path.startswith(os.path.realpath(paths.SERVERKIT_BACKUP_DIR)):
+        return jsonify({'error': 'local_path must be within backup directory'}), 400
 
     result = StorageProviderService.verify_file(remote_key, local_path)
     return jsonify(result), 200
@@ -376,7 +384,8 @@ def download_from_remote():
         filename = '/'.join(key_parts[1:]) if len(key_parts) > 1 else key_parts[0]
         local_path = os.path.join(paths.SERVERKIT_BACKUP_DIR, filename)
 
-    if not local_path.startswith(paths.SERVERKIT_BACKUP_DIR):
+    local_path = os.path.realpath(local_path)
+    if not local_path.startswith(os.path.realpath(paths.SERVERKIT_BACKUP_DIR)):
         return jsonify({'error': 'Download path must be within backup directory'}), 400
 
     result = StorageProviderService.download_file(remote_key, local_path)

@@ -14,10 +14,6 @@ ENV/
 *.pem
 *.crt
 *.csr
-*.key
-*.pem
-*.crt
-*.csr
 
 # Database
 *.db

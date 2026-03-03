@@ -1,8 +1,10 @@
 import os
 import json
 import hashlib
+import ipaddress
 from datetime import datetime
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 from app import paths
 
@@ -80,15 +82,47 @@ class StorageProviderService:
                 if provider in config:
                     for field in fields:
                         new_val = config[provider].get(field, '')
-                        if new_val and '*' in new_val:
+                        # Detect our masking pattern: 4 visible chars followed by only asterisks
+                        if new_val and len(new_val) > 4 and new_val[4:] == '*' * (len(new_val) - 4):
                             # Keep existing value if masked
                             config[provider][field] = existing.get(provider, {}).get(field, '')
 
             with open(cls.CONFIG_FILE, 'w') as f:
                 json.dump(config, f, indent=2)
+            if os.name != 'nt':
+                os.chmod(cls.CONFIG_FILE, 0o600)
             return {'success': True, 'message': 'Storage configuration saved'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
+
+    @classmethod
+    def _validate_endpoint_url(cls, url: str) -> None:
+        """Validate an S3 endpoint URL to prevent SSRF attacks.
+
+        Blocks private/internal IP ranges and requires http(s) scheme.
+        Raises ValueError if the URL is invalid or targets a private network.
+        """
+        if not url:
+            return
+
+        parsed = urlparse(url)
+
+        if parsed.scheme not in ('http', 'https'):
+            raise ValueError(f"Endpoint URL must use http or https scheme, got '{parsed.scheme}'")
+
+        hostname = parsed.hostname
+        if not hostname:
+            raise ValueError("Endpoint URL has no hostname")
+
+        try:
+            addr = ipaddress.ip_address(hostname)
+            if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+                raise ValueError(f"Endpoint URL must not target private/internal IP: {hostname}")
+        except ValueError as e:
+            # If it's our own raised ValueError, re-raise
+            if "must not target" in str(e) or "must use" in str(e):
+                raise
+            # Otherwise it's not a valid IP — it's a hostname, which is allowed
 
     @classmethod
     def _get_client(cls, config: Dict = None):
@@ -104,21 +138,27 @@ class StorageProviderService:
 
         if provider == 's3':
             provider_config = config.get('s3', {})
+            endpoint_url = provider_config.get('endpoint_url') or None
+            if endpoint_url:
+                cls._validate_endpoint_url(endpoint_url)
             client = boto3.client(
                 's3',
                 region_name=provider_config.get('region', 'us-east-1'),
                 aws_access_key_id=provider_config.get('access_key'),
                 aws_secret_access_key=provider_config.get('secret_key'),
-                endpoint_url=provider_config.get('endpoint_url') or None
+                endpoint_url=endpoint_url
             )
             bucket = provider_config.get('bucket', '')
             prefix = provider_config.get('path_prefix', 'serverkit-backups')
 
         elif provider == 'b2':
             provider_config = config.get('b2', {})
+            endpoint_url = provider_config.get('endpoint_url') or None
+            if endpoint_url:
+                cls._validate_endpoint_url(endpoint_url)
             client = boto3.client(
                 's3',
-                endpoint_url=provider_config.get('endpoint_url'),
+                endpoint_url=endpoint_url,
                 aws_access_key_id=provider_config.get('key_id'),
                 aws_secret_access_key=provider_config.get('application_key')
             )
@@ -210,9 +250,11 @@ class StorageProviderService:
             uploaded = 0
             total_size = 0
 
-            for root, dirs, files in os.walk(local_dir):
+            for root, dirs, files in os.walk(local_dir, followlinks=False):
                 for filename in files:
                     local_path = os.path.join(root, filename)
+                    if os.path.islink(local_path):
+                        continue
                     rel_path = os.path.relpath(local_path, local_dir)
                     full_key = f"{prefix}/{remote_prefix}/{rel_path}" if prefix else f"{remote_prefix}/{rel_path}"
 
@@ -320,7 +362,7 @@ class StorageProviderService:
             # Compute local MD5 for simple files (non-multipart)
             md5_match = None
             if '-' not in remote_etag:
-                md5 = hashlib.md5()
+                md5 = hashlib.md5(usedforsecurity=False)
                 with open(local_path, 'rb') as f:
                     for chunk in iter(lambda: f.read(8192), b''):
                         md5.update(chunk)

@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 from pathlib import Path
 import threading
 import time
+import uuid
 import schedule
 
 from app import paths
@@ -311,9 +312,9 @@ class BackupService:
                 backup_existing = f"{restore_path}.backup_{timestamp}"
                 shutil.move(restore_path, backup_existing)
 
-            # Extract backup
+            # Extract backup (filter='data' blocks path traversal in archives)
             with tarfile.open(files_backup, 'r:gz') as tar:
-                tar.extractall(os.path.dirname(restore_path))
+                tar.extractall(os.path.dirname(restore_path), filter='data')
 
             return {
                 'success': True,
@@ -453,7 +454,8 @@ class BackupService:
     @classmethod
     def delete_backup(cls, backup_path: str) -> Dict:
         """Delete a backup."""
-        if not backup_path.startswith(cls.BACKUP_BASE_DIR):
+        backup_path = os.path.realpath(backup_path)
+        if not backup_path.startswith(os.path.realpath(cls.BACKUP_BASE_DIR)):
             return {'success': False, 'error': 'Invalid backup path'}
 
         try:
@@ -512,7 +514,7 @@ class BackupService:
         config = cls.get_config()
 
         schedule_entry = {
-            'id': datetime.now().strftime('%Y%m%d%H%M%S'),
+            'id': uuid.uuid4().hex[:12],
             'name': name,
             'backup_type': backup_type,
             'target': target,

@@ -28,6 +28,8 @@
 .env.*.local
 *.key
 *.pem
+*.crt
+*.csr
 
 # OS files
 .DS_Store

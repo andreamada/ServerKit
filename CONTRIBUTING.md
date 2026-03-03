@@ -17,7 +17,7 @@ chmod +x ./scripts/dev/*.sh
 ./scripts/dev/setup-wsl.sh
 
 # 3. Start dev servers
-./scripts/dev/start.sh
+./dev.sh
 ```
 
 Open http://localhost:5173 — login: `admin` / `admin`
@@ -31,7 +31,7 @@ Open http://localhost:5173 — login: `admin` / `admin`
 
 ```bash
 ./scripts/dev/setup-linux.sh
-./scripts/dev/start.sh
+./dev.sh
 ```
 
 ### Docker
@@ -47,7 +47,7 @@ docker compose -f docker-compose.dev.yml up --build  # Linux/Mac
 
 | Task | Command |
 |------|---------|
-| Start both | `./scripts/dev/start.sh` |
+| Start both | `./dev.sh` |
 | Backend only | `cd backend && source venv/bin/activate && python run.py` |
 | Frontend only | `cd frontend && npm run dev` |
 | Build frontend | `cd frontend && npm run build` |
@@ -72,6 +72,7 @@ docker compose -f docker-compose.dev.yml up --build  # Linux/Mac
 git clone https://github.com/YOUR_USERNAME/ServerKit.git
 cd ServerKit
 git remote add upstream https://github.com/jhd3197/ServerKit.git
+git checkout dev
 ```
 
 ### Backend Setup
@@ -258,6 +259,22 @@ npm test
 npm run test:coverage  # With coverage
 ```
 
+### Validate Before Submitting
+
+Run the dev validation suite to check for common issues:
+
+```powershell
+# Windows
+.\dev.ps1 validate
+```
+
+```bash
+# Linux/macOS
+./dev.sh validate
+```
+
+This runs eslint, bandit (security scanner), pytest, and a frontend production build.
+
 ### Manual Testing
 
 Before submitting, test your changes:
@@ -276,7 +293,7 @@ Before submitting, test your changes:
 1. **Update your fork:**
    ```bash
    git fetch upstream
-   git rebase upstream/main
+   git rebase upstream/dev
    ```
 
 2. **Push your branch:**
@@ -285,9 +302,11 @@ Before submitting, test your changes:
    ```
 
 3. **Create Pull Request:**
-   - Go to GitHub and create a PR
+   - Go to GitHub and create a PR **targeting the `dev` branch** (not `main`)
    - Fill out the PR template
    - Link any related issues
+
+> **Important:** All PRs should target the `dev` branch, not `main`. The `main` branch is reserved for stable releases.
 
 4. **PR Description:**
    - Describe what changed and why
