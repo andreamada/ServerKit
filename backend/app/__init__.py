@@ -151,6 +151,10 @@ def create_app(config_name=None):
     from app.api.cron import cron_bp
     app.register_blueprint(cron_bp, url_prefix='/api/v1/cron')
 
+    # Register blueprints - Email Server
+    from app.api.email import email_bp
+    app.register_blueprint(email_bp, url_prefix='/api/v1/email')
+
     # Register blueprints - Uptime Tracking
     from app.api.uptime import uptime_bp
     app.register_blueprint(uptime_bp, url_prefix='/api/v1/uptime')

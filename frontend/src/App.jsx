@@ -35,6 +35,7 @@ import WordPressDetail from './pages/WordPressDetail';
 import WordPressProjects from './pages/WordPressProjects';
 import WordPressProject from './pages/WordPressProject';
 import SSLCertificates from './pages/SSLCertificates';
+import Email from './pages/Email';
 
 // Page title mapping
 const PAGE_TITLES = {
@@ -60,6 +61,7 @@ const PAGE_TITLES = {
     '/backups': 'Backups',
     '/cron': 'Cron Jobs',
     '/security': 'Security',
+    '/email': 'Email Server',
     '/terminal': 'Terminal',
     '/settings': 'Settings',
 };
@@ -197,6 +199,8 @@ function AppRoutes() {
                 <Route path="cron" element={<CronJobs />} />
                 <Route path="security" element={<Security />} />
                 <Route path="security/:tab" element={<Security />} />
+                <Route path="email" element={<Email />} />
+                <Route path="email/:tab" element={<Email />} />
                 <Route path="terminal" element={<Terminal />} />
                 <Route path="terminal/:tab" element={<Terminal />} />
                 <Route path="settings" element={<Settings />} />

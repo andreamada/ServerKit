@@ -329,9 +329,9 @@
     }
 
     &.palette-item-service:hover {
-        background: fade(@accent-primary, 15%);
+        background: fade(@accent-primary-raw, 15%);
         color: @accent-primary;
-        border-color: fade(@accent-primary, 30%);
+        border-color: fade(@accent-primary-raw, 30%);
     }
 }
 
@@ -447,8 +447,8 @@
     display: inline-flex;
     align-items: center;
     padding: 2px @space-2;
-    background: fade(@accent-primary, 15%);
-    border: 1px solid fade(@accent-primary, 30%);
+    background: fade(@accent-primary-raw, 15%);
+    border: 1px solid fade(@accent-primary-raw, 30%);
     border-radius: @radius-full;
     font-size: @font-size-xs;
     font-family: @font-mono;
@@ -990,8 +990,8 @@
     color: white;
 
     &:hover {
-        background: darken(@accent-primary, 5%);
-        border-color: darken(@accent-primary, 5%);
+        background: darken(@accent-primary-raw, 5%);
+        border-color: darken(@accent-primary-raw, 5%);
         color: white;
     }
 }
@@ -1191,7 +1191,7 @@
 
     &:hover {
         border-color: @accent-primary;
-        background: fade(@accent-primary, 5%);
+        background: fade(@accent-primary-raw, 5%);
     }
 }
 
@@ -1369,7 +1369,7 @@
         transition: background @transition-fast;
 
         &:hover {
-            background: darken(@accent-primary, 5%);
+            background: darken(@accent-primary-raw, 5%);
         }
     }
 }
@@ -1587,7 +1587,7 @@
     border-color: @accent-primary;
 
     .workflow-node-header {
-        background: fade(@accent-primary, 15%);
+        background: fade(@accent-primary-raw, 15%);
     }
 }
 

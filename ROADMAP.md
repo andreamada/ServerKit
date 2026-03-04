@@ -267,6 +267,23 @@ This document outlines the development roadmap for ServerKit. Features are organ
 
 ---
 
+## Phase 21: SSO & OAuth Login (Planned)
+
+**Priority: High**
+
+- [ ] Google OAuth 2.0 login
+- [ ] GitHub OAuth login
+- [ ] Generic OpenID Connect (OIDC) provider support
+- [ ] SAML 2.0 support for enterprise environments
+- [ ] Social login UI (provider buttons on login page)
+- [ ] Account linking (connect OAuth identity to existing local account)
+- [ ] Auto-provisioning of new users on first SSO login
+- [ ] Configurable SSO settings (enable/disable providers, client ID/secret management)
+- [ ] Enforce SSO-only login (disable password auth for team members)
+- [ ] SSO session management and token refresh
+
+---
+
 ## Version Milestones
 
 | Version | Target Features | Status |
@@ -276,7 +293,7 @@ This document outlines the development roadmap for ServerKit. Features are organ
 | v1.1.0 | Multi-server, Git deployment | Planned |
 | v1.2.0 | Backups, Advanced SSL, Advanced Security | Planned |
 | v1.3.0 | Email server, API enhancements | Planned |
-| v1.4.0 | Team & permissions | Planned |
+| v1.4.0 | Team & permissions, SSO & OAuth login | Planned |
 | v1.5.0 | Performance optimizations | Planned |
 | v2.0.0 | Mobile app, Marketplace | Future |
 
@@ -304,5 +321,5 @@ Have a feature idea? Open an issue on GitHub with the `enhancement` label.
 
 <p align="center">
   <strong>ServerKit Roadmap</strong><br>
-  Last updated: January 2026
+  Last updated: March 2026
 </p>

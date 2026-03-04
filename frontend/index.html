@@ -10,10 +10,22 @@
     <meta name="description" content="ServerKit - Server Management Dashboard" />
     <title>ServerKit</title>
     <script>
-        // Prevent flash of unstyled content (FOUC) by setting theme before React loads
+        // Prevent flash of unstyled content (FOUC) by setting theme + accent before React loads
         (function() {
-            const theme = localStorage.getItem('theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
+            var d = document.documentElement;
+            d.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+            var accent = localStorage.getItem('accent_color');
+            if (accent) {
+                var m = accent.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+                if (m) {
+                    var r = parseInt(m[1],16), g = parseInt(m[2],16), b = parseInt(m[3],16);
+                    var dk = function(v){ return Math.max(0, Math.round(v*0.88)); };
+                    d.style.setProperty('--accent-primary', accent);
+                    d.style.setProperty('--accent-hover', '#'+dk(r).toString(16).padStart(2,'0')+dk(g).toString(16).padStart(2,'0')+dk(b).toString(16).padStart(2,'0'));
+                    d.style.setProperty('--accent-glow', 'rgba('+r+','+g+','+b+',0.15)');
+                    d.style.setProperty('--accent-shadow', 'rgba('+r+','+g+','+b+',0.3)');
+                }
+            }
         })();
     </script>
 </head>

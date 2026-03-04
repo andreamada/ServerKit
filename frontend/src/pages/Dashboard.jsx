@@ -8,6 +8,7 @@ import {
 import api from '../services/api';
 import { useMetrics } from '../hooks/useMetrics';
 import MetricsGraph from '../components/MetricsGraph';
+import useDashboardLayout from '../hooks/useDashboardLayout';
 
 // Refresh interval options in seconds
 const REFRESH_OPTIONS = [
@@ -21,6 +22,7 @@ const REFRESH_OPTIONS = [
 const Dashboard = () => {
     const navigate = useNavigate();
     const { metrics, loading: metricsLoading, connected, refresh: refreshMetrics } = useMetrics(true);
+    const { widgets } = useDashboardLayout();
     const [apps, setApps] = useState([]);
     const [services, setServices] = useState([]);
     const [dbStatus, setDbStatus] = useState(null);
@@ -218,147 +220,156 @@ const Dashboard = () => {
 
             {/* Grid Container */}
             <div className="grid-container">
-                {/* Metric Tiles */}
-                <div className="metric-tile">
-                    <div className="tile-head">
-                        <span className="tile-title">CPU</span>
-                        <Zap size={16} className="tile-icon cpu" />
-                    </div>
-                    <div className="tile-val">{(metrics?.cpu?.percent || 0).toFixed(1)}%</div>
-                    <div className="tile-sub">
-                        <span>Cores: {metrics?.cpu?.count_logical || 0}</span>
-                        <span className={metrics?.cpu?.percent > 50 ? 'trend-up' : 'trend-down'}>
-                            {metrics?.cpu?.percent > 50 ? '▲' : '▼'} {Math.abs(metrics?.cpu?.percent - 50).toFixed(0)}%
-                        </span>
-                    </div>
-                </div>
+                {widgets.filter(w => w.visible).map(w => {
+                    const WIDGET_RENDERERS = {
+                        cpu: () => (
+                            <div key="cpu" className="metric-tile">
+                                <div className="tile-head">
+                                    <span className="tile-title">CPU</span>
+                                    <Zap size={16} className="tile-icon cpu" />
+                                </div>
+                                <div className="tile-val">{(metrics?.cpu?.percent || 0).toFixed(1)}%</div>
+                                <div className="tile-sub">
+                                    <span>Cores: {metrics?.cpu?.count_logical || 0}</span>
+                                    <span className={metrics?.cpu?.percent > 50 ? 'trend-up' : 'trend-down'}>
+                                        {metrics?.cpu?.percent > 50 ? '▲' : '▼'} {Math.abs(metrics?.cpu?.percent - 50).toFixed(0)}%
+                                    </span>
+                                </div>
+                            </div>
+                        ),
+                        ram: () => (
+                            <div key="ram" className="metric-tile">
+                                <div className="tile-head">
+                                    <span className="tile-title">RAM</span>
+                                    <Database size={16} className="tile-icon memory" />
+                                </div>
+                                <div className="tile-val">{metrics?.memory?.ram?.used_human || '0 GB'}</div>
+                                <div className="tile-sub">
+                                    <span>Total: {metrics?.memory?.ram?.total_human || '0 GB'}</span>
+                                    <span>Cached: {metrics?.memory?.ram?.cached_human || '0 GB'}</span>
+                                </div>
+                            </div>
+                        ),
+                        network: () => (
+                            <div key="network" className="metric-tile">
+                                <div className="tile-head">
+                                    <span className="tile-title">Network</span>
+                                    <Activity size={16} className="tile-icon network" />
+                                </div>
+                                <div className="tile-val">
+                                    {metrics?.network?.io?.bytes_sent_human || '0 B'}
+                                    <span className="tile-val-unit">sent</span>
+                                </div>
+                                <div className="tile-sub">
+                                    <span>In: {metrics?.network?.io?.bytes_recv_human || '0 B'}</span>
+                                    <span>Out: {metrics?.network?.io?.bytes_sent_human || '0 B'}</span>
+                                </div>
+                            </div>
+                        ),
+                        disk: () => (
+                            <div key="disk" className="metric-tile">
+                                <div className="tile-head">
+                                    <span className="tile-title">Disk</span>
+                                    <HardDrive size={16} className="tile-icon disk" />
+                                </div>
+                                <div className="tile-val">
+                                    {(metrics?.disk?.partitions?.[0]?.percent || 0).toFixed(1)}%
+                                    <span className="tile-val-unit">used</span>
+                                </div>
+                                <div className="tile-sub">
+                                    <span>Used: {metrics?.disk?.partitions?.[0]?.used_human || '0 GB'}</span>
+                                    <span>Free: {metrics?.disk?.partitions?.[0]?.free_human || '0 GB'}</span>
+                                </div>
+                            </div>
+                        ),
+                        chart: () => (
+                            <div key="chart" className="chart-panel">
+                                <MetricsGraph timezone={serverTime?.timezone_id} />
+                            </div>
+                        ),
+                        specs: () => (
+                            <div key="specs" className="spec-panel">
+                                <h3 className="spec-panel-title">Quick Actions</h3>
+                                <button className="btn-action" onClick={() => navigate('/docker')}>
+                                    <span>Restart Services</span>
+                                    <span>►</span>
+                                </button>
+                                <button className="btn-action" onClick={() => navigate('/databases')}>
+                                    <span>Clear Cache</span>
+                                    <span><Zap size={14} /></span>
+                                </button>
+                                <button className="btn-action" onClick={() => navigate('/ssl')}>
+                                    <span>Rotate SSL Certs</span>
+                                    <span><RotateCcw size={14} /></span>
+                                </button>
 
-                <div className="metric-tile">
-                    <div className="tile-head">
-                        <span className="tile-title">RAM</span>
-                        <Database size={16} className="tile-icon memory" />
-                    </div>
-                    <div className="tile-val">{metrics?.memory?.ram?.used_human || '0 GB'}</div>
-                    <div className="tile-sub">
-                        <span>Total: {metrics?.memory?.ram?.total_human || '0 GB'}</span>
-                        <span>Cached: {metrics?.memory?.ram?.cached_human || '0 GB'}</span>
-                    </div>
-                </div>
-
-                <div className="metric-tile">
-                    <div className="tile-head">
-                        <span className="tile-title">Network</span>
-                        <Activity size={16} className="tile-icon network" />
-                    </div>
-                    <div className="tile-val">
-                        {metrics?.network?.io?.bytes_sent_human || '0 B'}
-                        <span className="tile-val-unit">sent</span>
-                    </div>
-                    <div className="tile-sub">
-                        <span>In: {metrics?.network?.io?.bytes_recv_human || '0 B'}</span>
-                        <span>Out: {metrics?.network?.io?.bytes_sent_human || '0 B'}</span>
-                    </div>
-                </div>
-
-                <div className="metric-tile">
-                    <div className="tile-head">
-                        <span className="tile-title">Disk</span>
-                        <HardDrive size={16} className="tile-icon disk" />
-                    </div>
-                    <div className="tile-val">
-                        {(metrics?.disk?.partitions?.[0]?.percent || 0).toFixed(1)}%
-                        <span className="tile-val-unit">used</span>
-                    </div>
-                    <div className="tile-sub">
-                        <span>Used: {metrics?.disk?.partitions?.[0]?.used_human || '0 GB'}</span>
-                        <span>Free: {metrics?.disk?.partitions?.[0]?.free_human || '0 GB'}</span>
-                    </div>
-                </div>
-
-                {/* Chart Panel */}
-                <div className="chart-panel">
-                    <MetricsGraph timezone={serverTime?.timezone_id} />
-                </div>
-
-                {/* Spec Panel */}
-                <div className="spec-panel">
-                    <h3 className="spec-panel-title">Quick Actions</h3>
-                    <button className="btn-action" onClick={() => navigate('/docker')}>
-                        <span>Restart Services</span>
-                        <span>►</span>
-                    </button>
-                    <button className="btn-action" onClick={() => navigate('/databases')}>
-                        <span>Clear Cache</span>
-                        <span><Zap size={14} /></span>
-                    </button>
-                    <button className="btn-action" onClick={() => navigate('/ssl')}>
-                        <span>Rotate SSL Certs</span>
-                        <span><RotateCcw size={14} /></span>
-                    </button>
-
-                    <h3 className="spec-panel-title" style={{ marginTop: '1.5rem' }}>Hardware Specs</h3>
-                    <div className="spec-row">
-                        <span className="spec-label">Processor</span>
-                        <span className="spec-data">{systemInfo?.cpu?.model || 'N/A'}</span>
-                    </div>
-                    <div className="spec-row">
-                        <span className="spec-label">Architecture</span>
-                        <span className="spec-data">{systemInfo?.cpu?.architecture || 'N/A'}</span>
-                    </div>
-                    <div className="spec-row">
-                        <span className="spec-label">Swap Memory</span>
-                        <span className="spec-data">{metrics?.memory?.swap?.total_human || 'N/A'}</span>
-                    </div>
-                </div>
-
-                {/* Process Table */}
-                <div className="table-panel">
-                    <div className="table-header">
-                        <span>Active Processes / Containers</span>
-                        <button className="btn btn-sm btn-secondary" onClick={loadData}>
-                            <RefreshCw size={14} />
-                        </button>
-                    </div>
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                                <th>Domain</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {apps.length === 0 ? (
-                                <tr>
-                                    <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                                        No applications found
-                                    </td>
-                                </tr>
-                            ) : (
-                                apps.slice(0, 6).map(app => (
-                                    <tr key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer' }}>
-                                        <td>{app.id}</td>
-                                        <td>
-                                            <div className="app-name-cell">
-                                                <span className="app-icon-mini">{getStackIcon(app.app_type)}</span>
-                                                {app.name}
-                                            </div>
-                                        </td>
-                                        <td>{app.app_type}</td>
-                                        <td>
-                                            <span className={`badge badge-${app.status === 'running' ? 'running' : 'warning'}`}>
-                                                {app.status?.toUpperCase()}
-                                            </span>
-                                        </td>
-                                        <td>{app.domains?.[0]?.name || '-'}</td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                <h3 className="spec-panel-title" style={{ marginTop: '1.5rem' }}>Hardware Specs</h3>
+                                <div className="spec-row">
+                                    <span className="spec-label">Processor</span>
+                                    <span className="spec-data">{systemInfo?.cpu?.model || 'N/A'}</span>
+                                </div>
+                                <div className="spec-row">
+                                    <span className="spec-label">Architecture</span>
+                                    <span className="spec-data">{systemInfo?.cpu?.architecture || 'N/A'}</span>
+                                </div>
+                                <div className="spec-row">
+                                    <span className="spec-label">Swap Memory</span>
+                                    <span className="spec-data">{metrics?.memory?.swap?.total_human || 'N/A'}</span>
+                                </div>
+                            </div>
+                        ),
+                        processes: () => (
+                            <div key="processes" className="table-panel">
+                                <div className="table-header">
+                                    <span>Active Processes / Containers</span>
+                                    <button className="btn btn-sm btn-secondary" onClick={loadData}>
+                                        <RefreshCw size={14} />
+                                    </button>
+                                </div>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Domain</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {apps.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                                                    No applications found
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            apps.slice(0, 6).map(app => (
+                                                <tr key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer' }}>
+                                                    <td>{app.id}</td>
+                                                    <td>
+                                                        <div className="app-name-cell">
+                                                            <span className="app-icon-mini">{getStackIcon(app.app_type)}</span>
+                                                            {app.name}
+                                                        </div>
+                                                    </td>
+                                                    <td>{app.app_type}</td>
+                                                    <td>
+                                                        <span className={`badge badge-${app.status === 'running' ? 'running' : 'warning'}`}>
+                                                            {app.status?.toUpperCase()}
+                                                        </span>
+                                                    </td>
+                                                    <td>{app.domains?.[0]?.name || '-'}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ),
+                    };
+                    return WIDGET_RENDERERS[w.id]?.();
+                })}
             </div>
         </div>
     );

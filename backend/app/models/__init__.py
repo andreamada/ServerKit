@@ -15,6 +15,7 @@ from app.models.wordpress_site import WordPressSite, DatabaseSnapshot, SyncJob
 from app.models.environment_activity import EnvironmentActivity
 from app.models.promotion_job import PromotionJob
 from app.models.sanitization_profile import SanitizationProfile
+from app.models.email_account import EmailAccount
 
 __all__ = [
     'User', 'Application', 'Domain', 'EnvironmentVariable', 'EnvironmentVariableHistory',
@@ -22,5 +23,5 @@ __all__ = [
     'MetricsHistory', 'Workflow', 'GitWebhook', 'WebhookLog', 'GitDeployment',
     'Server', 'ServerGroup', 'ServerMetrics', 'ServerCommand', 'AgentSession', 'SecurityAlert',
     'WordPressSite', 'DatabaseSnapshot', 'SyncJob',
-    'EnvironmentActivity', 'PromotionJob', 'SanitizationProfile'
+    'EnvironmentActivity', 'PromotionJob', 'SanitizationProfile', 'EmailAccount'
 ]

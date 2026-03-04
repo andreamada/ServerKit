@@ -2912,6 +2912,131 @@ class ApiService {
         const baseUrl = this.baseUrl.replace('/api/v1', '');
         return `${baseUrl}/api/servers/agent/download/${os}/${arch}`;
     }
+
+    // ==========================================
+    // Email Server
+    // ==========================================
+
+    async getEmailStatus() {
+        return this.request('/email/status');
+    }
+
+    async getEmailConfig() {
+        return this.request('/email/config');
+    }
+
+    async updateEmailConfig(data) {
+        return this.request('/email/config', { method: 'PUT', body: data });
+    }
+
+    // Postfix
+    async installPostfix() {
+        return this.request('/email/postfix/install', { method: 'POST' });
+    }
+
+    async getPostfixConfig() {
+        return this.request('/email/postfix/config');
+    }
+
+    async updatePostfixConfig(data) {
+        return this.request('/email/postfix/config', { method: 'PUT', body: data });
+    }
+
+    // Mail Queue
+    async getMailQueue() {
+        return this.request('/email/queue');
+    }
+
+    async flushMailQueue() {
+        return this.request('/email/queue/flush', { method: 'POST' });
+    }
+
+    async deleteQueuedMessage(queueId) {
+        return this.request(`/email/queue/${queueId}`, { method: 'DELETE' });
+    }
+
+    // Dovecot
+    async installDovecot() {
+        return this.request('/email/dovecot/install', { method: 'POST' });
+    }
+
+    async getDovecotConfig() {
+        return this.request('/email/dovecot/config');
+    }
+
+    // Email Accounts
+    async getEmailAccounts() {
+        return this.request('/email/accounts');
+    }
+
+    async createEmailAccount(data) {
+        return this.request('/email/accounts', { method: 'POST', body: data });
+    }
+
+    async updateEmailAccount(accountId, data) {
+        return this.request(`/email/accounts/${accountId}`, { method: 'PUT', body: data });
+    }
+
+    async deleteEmailAccount(accountId) {
+        return this.request(`/email/accounts/${accountId}`, { method: 'DELETE' });
+    }
+
+    async setEmailForwarding(accountId, data) {
+        return this.request(`/email/accounts/${accountId}/forwarding`, { method: 'PUT', body: data });
+    }
+
+    // SpamAssassin
+    async installSpamAssassin() {
+        return this.request('/email/spamassassin/install', { method: 'POST' });
+    }
+
+    async getSpamAssassinConfig() {
+        return this.request('/email/spamassassin/config');
+    }
+
+    async updateSpamAssassinConfig(data) {
+        return this.request('/email/spamassassin/config', { method: 'PUT', body: data });
+    }
+
+    // DKIM
+    async installDkim() {
+        return this.request('/email/dkim/install', { method: 'POST' });
+    }
+
+    async generateDkimKey(data) {
+        return this.request('/email/dkim/generate', { method: 'POST', body: data });
+    }
+
+    async getEmailDnsRecords(domain) {
+        return this.request(`/email/dns/${domain}`);
+    }
+
+    // Service Control
+    async startEmailService(service) {
+        return this.request(`/email/services/${service}/start`, { method: 'POST' });
+    }
+
+    async stopEmailService(service) {
+        return this.request(`/email/services/${service}/stop`, { method: 'POST' });
+    }
+
+    async restartEmailService(service) {
+        return this.request(`/email/services/${service}/restart`, { method: 'POST' });
+    }
+
+    // Webmail
+    async getWebmailStatus() {
+        return this.request('/email/webmail/status');
+    }
+
+    async installWebmail() {
+        return this.request('/email/webmail/install', { method: 'POST' });
+    }
+
+    // Mail Logs
+    async getMailLogs(lines = 100) {
+        return this.request(`/email/logs?lines=${lines}`);
+    }
 }
 
 export const api = new ApiService();

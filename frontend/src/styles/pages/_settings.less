@@ -316,7 +316,7 @@
 
     &.active {
         border-color: @accent-primary;
-        background: fade(@accent-primary, 5%);
+        background: fade(@accent-primary-raw, 5%);
     }
 
     span {
@@ -482,7 +482,7 @@
         }
 
         &:focus + .toggle-slider {
-            box-shadow: 0 0 0 2px fade(@accent-primary, 30%);
+            box-shadow: 0 0 0 2px fade(@accent-primary-raw, 30%);
         }
     }
 
@@ -696,8 +696,8 @@
 // Star Prompt Card
 .star-prompt-card {
     position: relative;
-    background: linear-gradient(135deg, @accent-glow 0%, fade(@accent-primary, 8%) 100%);
-    border: 1px solid fade(@accent-primary, 30%);
+    background: linear-gradient(135deg, @accent-glow 0%, fade(@accent-primary-raw, 8%) 100%);
+    border: 1px solid fade(@accent-primary-raw, 30%);
     border-radius: @radius-lg;
     padding: @space-6;
     display: flex;
@@ -972,5 +972,164 @@
     &.copied .icon-reference-name {
         color: @success;
         font-weight: @font-weight-medium;
+    }
+}
+
+// ============================================
+// ACCENT COLOR PRESETS
+// ============================================
+
+.accent-presets {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: @space-2;
+    margin-bottom: @space-4;
+
+    @media (max-width: @breakpoint-sm) {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.accent-preset {
+    display: flex;
+    align-items: center;
+    gap: @space-2;
+    padding: @space-2 @space-3;
+    background: transparent;
+    border: 2px solid @border-subtle;
+    border-radius: @radius-md;
+    cursor: pointer;
+    transition: all @transition-fast;
+
+    &:hover {
+        border-color: @border-active;
+    }
+
+    &.active {
+        border-color: @accent-primary;
+        background: @bg-hover;
+    }
+}
+
+.accent-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: @radius-full;
+    flex-shrink: 0;
+}
+
+.accent-label {
+    font-size: @font-size-sm;
+    font-weight: @font-weight-medium;
+    color: @text-primary;
+}
+
+.accent-custom {
+    padding-top: @space-3;
+    border-top: 1px solid @border-subtle;
+}
+
+.accent-custom-label {
+    display: block;
+    font-size: @font-size-sm;
+    font-weight: @font-weight-medium;
+    color: @text-secondary;
+    margin-bottom: @space-2;
+}
+
+.accent-custom-row {
+    display: flex;
+    align-items: center;
+    gap: @space-3;
+}
+
+.accent-custom-input {
+    width: 40px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid @border-subtle;
+    border-radius: @radius-md;
+    background: transparent;
+    cursor: pointer;
+
+    &::-webkit-color-swatch-wrapper {
+        padding: 2px;
+    }
+
+    &::-webkit-color-swatch {
+        border: none;
+        border-radius: @radius-sm;
+    }
+}
+
+.accent-custom-hex {
+    font-family: @font-mono;
+    font-size: @font-size-sm;
+    color: @text-secondary;
+}
+
+// ============================================
+// DASHBOARD WIDGET CONFIG
+// ============================================
+
+.widget-list {
+    display: flex;
+    flex-direction: column;
+    gap: @space-2;
+}
+
+.widget-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: @space-3 @space-4;
+    background: @bg-hover;
+    border-radius: @radius-md;
+    transition: opacity @transition-fast;
+
+    &--hidden {
+        opacity: 0.5;
+    }
+}
+
+.widget-item__info {
+    display: flex;
+    align-items: center;
+    gap: @space-3;
+}
+
+.widget-item__label {
+    font-size: @font-size-sm;
+    font-weight: @font-weight-medium;
+    color: @text-primary;
+}
+
+.widget-item__controls {
+    display: flex;
+    gap: @space-1;
+}
+
+.widget-move-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid @border-subtle;
+    border-radius: @radius-sm;
+    color: @text-secondary;
+    cursor: pointer;
+    transition: all @transition-fast;
+
+    &:hover:not(:disabled) {
+        background: @bg-card;
+        color: @text-primary;
+        border-color: @border-active;
+    }
+
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
     }
 }

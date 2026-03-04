@@ -1,0 +1,265 @@
+// ============================================
+// EMAIL SERVER PAGE STYLES
+// ============================================
+
+.email-page {
+    .tabs-nav {
+        display: flex;
+        gap: @space-2;
+        margin-bottom: @space-6;
+        border-bottom: 1px solid @border-subtle;
+        padding-bottom: @space-2;
+        overflow-x: auto;
+
+        .tab-btn {
+            padding: @space-2 @space-4;
+            border: none;
+            background: none;
+            color: @text-secondary;
+            cursor: pointer;
+            border-radius: @radius-md;
+            white-space: nowrap;
+            transition: all 0.2s;
+
+            &:hover {
+                background: @bg-hover;
+                color: @text-primary;
+            }
+
+            &.active {
+                background: @accent-primary;
+                color: white;
+            }
+        }
+    }
+}
+
+// Service overview cards
+.email-overview {
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: @space-4;
+    }
+}
+
+.email-service-card {
+    .card-body {
+        padding: @space-6;
+    }
+}
+
+.email-service-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: @space-4;
+
+    h3 {
+        margin: 0 0 @space-1 0;
+        font-size: @font-size-md;
+        font-weight: @font-weight-semibold;
+    }
+
+    p {
+        margin: 0;
+        font-size: @font-size-sm;
+    }
+}
+
+.email-service-meta {
+    margin-top: @space-3;
+    font-size: @font-size-sm;
+}
+
+.email-service-actions {
+    display: flex;
+    gap: @space-2;
+    margin-top: @space-4;
+    padding-top: @space-4;
+    border-top: 1px solid @border-subtle;
+}
+
+// Accounts section
+.email-accounts {
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: @space-4;
+
+        h2 {
+            margin: 0;
+        }
+    }
+}
+
+.email-create-form {
+    margin-bottom: @space-4;
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: @space-4;
+    }
+}
+
+// Postfix / Dovecot config
+.email-postfix,
+.email-dovecot,
+.email-spam {
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: @space-4;
+    }
+}
+
+// Config list (read-only)
+.config-list {
+    display: flex;
+    flex-direction: column;
+    gap: @space-2;
+}
+
+.config-item {
+    display: flex;
+    gap: @space-4;
+    padding: @space-2 0;
+    border-bottom: 1px solid @border-subtle;
+    font-size: @font-size-sm;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    .config-key {
+        color: @text-secondary;
+        min-width: 200px;
+        font-family: @font-mono;
+        font-size: @font-size-xs;
+    }
+
+    .config-value {
+        color: @text-primary;
+        word-break: break-all;
+    }
+}
+
+// DNS records
+.dns-records-list {
+    display: flex;
+    flex-direction: column;
+    gap: @space-4;
+}
+
+.dns-record-item {
+    padding: @space-4;
+    background: @bg-elevated;
+    border-radius: @radius-md;
+    border: 1px solid @border-subtle;
+}
+
+.dns-record-header {
+    display: flex;
+    align-items: center;
+    gap: @space-3;
+    margin-bottom: @space-3;
+}
+
+.dns-record-purpose {
+    font-size: @font-size-sm;
+    color: @text-secondary;
+}
+
+.dns-record-details {
+    display: flex;
+    flex-direction: column;
+    gap: @space-2;
+}
+
+.dns-field {
+    display: flex;
+    align-items: flex-start;
+    gap: @space-2;
+
+    .dns-label {
+        font-size: @font-size-sm;
+        color: @text-tertiary;
+        min-width: 50px;
+    }
+
+    code {
+        font-family: @font-mono;
+        font-size: @font-size-xs;
+        color: @text-primary;
+        background: @bg-secondary;
+        padding: @space-1 @space-2;
+        border-radius: @radius-sm;
+        word-break: break-all;
+    }
+}
+
+// Mail queue
+.email-queue {
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: @space-4;
+
+        h2 {
+            margin: 0;
+        }
+    }
+}
+
+// Webmail
+.email-webmail {
+    .webmail-status {
+        padding: @space-2;
+    }
+}
+
+// Logs
+.email-logs {
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: @space-4;
+
+        h2 {
+            margin: 0;
+        }
+    }
+
+    .log-output {
+        font-family: @font-mono;
+        font-size: @font-size-xs;
+        line-height: @line-height-relaxed;
+        color: @text-primary;
+        background: @bg-body;
+        padding: @space-4;
+        border-radius: @radius-md;
+        border: 1px solid @border-subtle;
+        max-height: 600px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+        margin: 0;
+    }
+}
+
+// Authentication tab
+.email-authentication {
+    display: flex;
+    flex-direction: column;
+    gap: @space-4;
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: @space-4;
+    }
+}

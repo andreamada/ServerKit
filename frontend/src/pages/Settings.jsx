@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useTabParam from '../hooks/useTabParam';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import useDashboardLayout from '../hooks/useDashboardLayout';
 import api from '../services/api';
 import UsersTab from '../components/settings/UsersTab';
 import AuditLogTab from '../components/settings/AuditLogTab';
@@ -784,8 +785,20 @@ Keep these codes in a safe place.`;
     );
 };
 
+const ACCENT_PRESETS = [
+    { label: 'Indigo', color: '#6366f1' },
+    { label: 'Ocean', color: '#0ea5e9' },
+    { label: 'Forest', color: '#10b981' },
+    { label: 'Sunset', color: '#f97316' },
+    { label: 'Rose', color: '#f43f5e' },
+    { label: 'Violet', color: '#8b5cf6' },
+    { label: 'Amber', color: '#f59e0b' },
+    { label: 'Cyan', color: '#06b6d4' },
+];
+
 const AppearanceSettings = () => {
-    const { theme, setTheme } = useTheme();
+    const { theme, setTheme, accentColor, setAccentColor } = useTheme();
+    const { widgets, toggleWidget, moveWidget, resetLayout } = useDashboardLayout();
 
     return (
         <div className="settings-section">
@@ -838,6 +851,79 @@ const AppearanceSettings = () => {
                         <span>System</span>
                     </button>
                 </div>
+            </div>
+
+            <div className="settings-card">
+                <h3>Accent Color</h3>
+                <p>Choose the primary accent color used across the interface</p>
+                <div className="accent-presets">
+                    {ACCENT_PRESETS.map(({ label, color }) => (
+                        <button
+                            key={color}
+                            className={`accent-preset${accentColor === color ? ' active' : ''}`}
+                            onClick={() => setAccentColor(color)}
+                        >
+                            <span className="accent-swatch" style={{ background: color }} />
+                            <span className="accent-label">{label}</span>
+                        </button>
+                    ))}
+                </div>
+                <div className="accent-custom">
+                    <label className="accent-custom-label">Custom color</label>
+                    <div className="accent-custom-row">
+                        <input
+                            type="color"
+                            className="accent-custom-input"
+                            value={accentColor}
+                            onChange={(e) => setAccentColor(e.target.value)}
+                        />
+                        <span className="accent-custom-hex">{accentColor.toUpperCase()}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="settings-card">
+                <h3>Dashboard Widgets</h3>
+                <p>Toggle visibility and reorder widgets on the dashboard</p>
+                <div className="widget-list">
+                    {widgets.map((widget, idx) => (
+                        <div key={widget.id} className={`widget-item${!widget.visible ? ' widget-item--hidden' : ''}`}>
+                            <div className="widget-item__info">
+                                <label className="toggle-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={widget.visible}
+                                        onChange={() => toggleWidget(widget.id)}
+                                    />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                                <span className="widget-item__label">{widget.label}</span>
+                            </div>
+                            <div className="widget-item__controls">
+                                <button
+                                    className="widget-move-btn"
+                                    onClick={() => moveWidget(widget.id, 'up')}
+                                    disabled={idx === 0}
+                                    title="Move up"
+                                >
+                                    <ChevronUp size={14} />
+                                </button>
+                                <button
+                                    className="widget-move-btn"
+                                    onClick={() => moveWidget(widget.id, 'down')}
+                                    disabled={idx === widgets.length - 1}
+                                    title="Move down"
+                                >
+                                    <ChevronDown size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={resetLayout} style={{ marginTop: '12px' }}>
+                    <RotateCcw size={14} />
+                    Reset to defaults
+                </button>
             </div>
         </div>
     );
