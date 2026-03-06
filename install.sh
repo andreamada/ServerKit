@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ServerKit Quick Install Script for Ubuntu/Debian
+# ServerKit Quick Install Script for Ubuntu/Debian/Fedora
 #
 # Architecture:
 #   - Backend: Runs directly on host (for full system access)
@@ -49,45 +49,72 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Check Ubuntu/Debian
+# Check OS
+OS_FAMILY="unknown"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [ "$ID" != "ubuntu" ] && [ "$ID" != "debian" ]; then
-        print_warning "This script is designed for Ubuntu/Debian. Proceed with caution."
+    if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
+        OS_FAMILY="debian"
+    elif [ "$ID" = "fedora" ]; then
+        OS_FAMILY="fedora"
+    else
+        print_warning "This script is designed for Ubuntu/Debian/Fedora. Proceed with caution."
     fi
+else
+    print_warning "Cannot detect OS. Proceeding with caution."
 fi
 
 echo ""
 print_info "Installing system dependencies..."
 
-# Configure needrestart for non-interactive mode (Ubuntu 22.04+)
-# This prevents the "Which services should be restarted?" dialog
-# and avoids dpkg lock issues during automated installs
-export NEEDRESTART_MODE=a
-export DEBIAN_FRONTEND=noninteractive
+if [ "$OS_FAMILY" = "debian" ] || [ "$OS_FAMILY" = "unknown" ]; then
+    # Configure needrestart for non-interactive mode (Ubuntu 22.04+)
+    # This prevents the "Which services should be restarted?" dialog
+    # and avoids dpkg lock issues during automated installs
+    export NEEDRESTART_MODE=a
+    export DEBIAN_FRONTEND=noninteractive
 
-# Also configure needrestart.conf if it exists for future apt operations
-if [ -f /etc/needrestart/needrestart.conf ]; then
-    # Set needrestart to auto-restart mode
-    sed -i "s/#\$nrconf{restart} = 'i';/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf 2>/dev/null || true
+    # Also configure needrestart.conf if it exists for future apt operations
+    if [ -f /etc/needrestart/needrestart.conf ]; then
+        # Set needrestart to auto-restart mode
+        sed -i "s/#\$nrconf{restart} = 'i';/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf 2>/dev/null || true
+    fi
+
+    # Update package list
+    apt-get update
+
+    # Install Python and required packages
+    apt-get install -y \
+        python3 \
+        python3-pip \
+        python3-venv \
+        python3-dev \
+        git \
+        curl \
+        build-essential \
+        libffi-dev \
+        libssl-dev \
+        iproute2 \
+        procps
+elif [ "$OS_FAMILY" = "fedora" ]; then
+    # Update package list
+    dnf update -y
+    
+    # Install Python and required packages
+    dnf install -y \
+        python3 \
+        python3-pip \
+        git \
+        curl \
+        gcc \
+        gcc-c++ \
+        make \
+        libffi-devel \
+        openssl-devel \
+        python3-devel \
+        iproute \
+        procps-ng
 fi
-
-# Update package list
-apt-get update
-
-# Install Python and required packages
-apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-dev \
-    git \
-    curl \
-    build-essential \
-    libffi-dev \
-    libssl-dev \
-    iproute2 \
-    procps
 
 print_success "System dependencies installed"
 
@@ -105,7 +132,11 @@ fi
 # Install Docker Compose plugin if not present
 if ! docker compose version &> /dev/null; then
     print_info "Installing Docker Compose..."
-    apt-get install -y docker-compose-plugin
+    if [ "$OS_FAMILY" = "fedora" ]; then
+        dnf install -y docker-compose-plugin
+    else
+        apt-get install -y docker-compose-plugin
+    fi
     print_success "Docker Compose installed"
 else
     print_success "Docker Compose already installed"
@@ -114,8 +145,13 @@ fi
 # Install Node.js for frontend build (builds on host to avoid Docker memory issues)
 if ! command -v node &> /dev/null; then
     print_info "Installing Node.js..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y nodejs
+    if [ "$OS_FAMILY" = "fedora" ]; then
+        curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+        dnf install -y nodejs
+    else
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+    fi
     print_success "Node.js $(node --version) installed"
 else
     print_success "Node.js $(node --version) already installed"
@@ -227,7 +263,11 @@ print_success "CLI installed"
 
 # Install and configure host nginx as reverse proxy
 print_info "Setting up nginx reverse proxy..."
-apt-get install -y nginx
+if [ "$OS_FAMILY" = "fedora" ]; then
+    dnf install -y nginx
+else
+    apt-get install -y nginx
+fi
 
 # Stop nginx and remove default site
 systemctl stop nginx 2>/dev/null || true
@@ -248,6 +288,11 @@ ln -sf /etc/nginx/sites-available/serverkit.conf /etc/nginx/sites-enabled/
 
 # Copy site template
 cp "$INSTALL_DIR/nginx/sites-available/example.conf.template" /etc/nginx/sites-available/
+
+# Configure SELinux to allow nginx reverse proxying
+if [ "$OS_FAMILY" = "fedora" ] && command -v setsebool &> /dev/null; then
+    setsebool -P httpd_can_network_connect 1 2>/dev/null || true
+fi
 
 print_success "Nginx proxy configured"
 
