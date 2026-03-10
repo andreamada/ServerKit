@@ -23,6 +23,8 @@ PYTHON_MIN="3.11"
 PYTHON_MAX="3.12"
 PYTHON_BIN=""
 
+SAFE_MODE=false
+
 print_header() {
 echo -e "${BLUE}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -52,6 +54,39 @@ if command -v python3 &>/dev/null; then
 fi
 
 print_warning "System Python not supported ($PYTHON_MIN-$PYTHON_MAX)"
+}
+
+check_ram(){
+
+RAM=$(free -m | awk '/Mem:/ {print $2}')
+
+if [ "$RAM" -le 700 ]; then
+SAFE_MODE=true
+print_warning "Low RAM detected (${RAM}MB) → enabling VPS Safe Mode"
+fi
+
+}
+
+setup_swap(){
+
+SWAP_TOTAL=$(free -m | awk '/Swap:/ {print $2}')
+
+if [ "$SWAP_TOTAL" -lt 512 ]; then
+
+print_info "Creating swap (1GB)"
+
+if [ ! -f /swapfile ]; then
+fallocate -l 1G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=1024
+chmod 600 /swapfile
+mkswap /swapfile >/dev/null
+fi
+
+swapon /swapfile || true
+
+print_success "Swap enabled"
+
+fi
+
 }
 
 print_header
@@ -188,15 +223,10 @@ if ! command -v node &> /dev/null; then
 print_info "Installing Node.js..."
 
 if [ "$OS_FAMILY" = "fedora" ]; then
-
 curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
-
 dnf install -y nodejs
-
 else
-
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-
 apt-get install -y nodejs
 
 fi
@@ -216,14 +246,12 @@ if [ -d "$INSTALL_DIR" ]; then
 print_warning "Directory exists, updating..."
 
 cd "$INSTALL_DIR"
-
 git fetch origin
 git reset --hard origin/main
 
 else
 
 git clone https://github.com/jhd3197/serverkit.git "$INSTALL_DIR"
-
 cd "$INSTALL_DIR"
 
 fi
@@ -245,9 +273,13 @@ source "$VENV_DIR/bin/activate"
 
 print_info "Installing Python dependencies..."
 
+if [ "$SAFE_MODE" = true ]; then
+pip install --upgrade pip --no-cache-dir
+pip install --no-cache-dir -r "$INSTALL_DIR/backend/requirements.txt"
+else
 pip install --upgrade pip
-
 pip install -r "$INSTALL_DIR/backend/requirements.txt"
+fi
 
 pip install gunicorn gevent gevent-websocket
 
@@ -315,9 +347,9 @@ systemctl start serverkit
 
 docker compose up -d
 
-sleep 10
+systemctl start nginx
 
-echo ""
+sleep 8
 
 BACKEND_OK=false
 FRONTEND_OK=false
