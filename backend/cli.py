@@ -78,6 +78,10 @@ def create_admin(email, username, password):
         db.session.add(user)
         db.session.commit()
 
+        # Mark setup as complete so the UI doesn't show the setup wizard
+        from app.services.settings_service import SettingsService
+        SettingsService.complete_setup(user_id=user.id)
+
         click.echo(click.style(f'Admin user "{username}" created successfully!', fg='green'))
 
 

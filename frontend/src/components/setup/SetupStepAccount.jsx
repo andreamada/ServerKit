@@ -9,9 +9,12 @@ const SetupStepAccount = ({ onComplete }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { register } = useAuth();
+    const { register, login, registrationEnabled } = useAuth();
 
-    async function handleSubmit(e) {
+    // If users already exist (e.g. admin created via CLI), show login form instead
+    const showLogin = !registrationEnabled;
+
+    async function handleRegister(e) {
         e.preventDefault();
         setError('');
 
@@ -37,6 +40,80 @@ const SetupStepAccount = ({ onComplete }) => {
         }
     }
 
+    async function handleLogin(e) {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            await login(email, password);
+            onComplete({ email, username: email });
+        } catch (err) {
+            setError(err.message || 'Failed to sign in');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    if (showLogin) {
+        return (
+            <div className="wizard-step">
+                <h2 className="wizard-step-title">Sign In</h2>
+                <p className="wizard-step-description">
+                    An admin account already exists. Sign in to continue setup.
+                </p>
+
+                <div className="wizard-info-banner">
+                    <div className="wizard-info-icon">
+                        <Info size={20} />
+                    </div>
+                    <p>
+                        It looks like an admin account was created via the CLI.
+                        Sign in with those credentials to finish setting up your server.
+                    </p>
+                </div>
+
+                {error && <div className="error-message">{error}</div>}
+
+                <form onSubmit={handleLogin}>
+                    <div className="form-group">
+                        <label htmlFor="email">Email</label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="admin@example.com"
+                            required
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="password">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Enter your password"
+                            required
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="btn-wizard-next"
+                        disabled={loading}
+                        style={{ width: '100%', justifyContent: 'center' }}
+                    >
+                        {loading ? 'Signing in...' : 'Sign In & Continue'}
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
     return (
         <div className="wizard-step">
             <h2 className="wizard-step-title">Create Admin Account</h2>
@@ -57,7 +134,7 @@ const SetupStepAccount = ({ onComplete }) => {
 
             {error && <div className="error-message">{error}</div>}
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleRegister}>
                 <div className="form-group">
                     <label htmlFor="email">Admin Email</label>
                     <input

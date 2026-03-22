@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
         checkSetupStatus();
     }, []);
 
-    async function checkSetupStatus() {
+    async function checkSetupStatus(retries = 3) {
         try {
             const status = await api.getSetupStatus();
             setSetupStatus({
@@ -37,7 +37,18 @@ export function AuthProvider({ children }) {
             await checkAuth();
         } catch (error) {
             console.error('Setup status check failed:', error);
-            // Fallback to checking auth directly
+            // Backend may not be ready yet — retry before falling back
+            if (retries > 0) {
+                await new Promise(r => setTimeout(r, 2000));
+                return checkSetupStatus(retries - 1);
+            }
+            // Exhausted retries — assume fresh install so user isn't locked out
+            setSetupStatus(prev => ({
+                ...prev,
+                needsSetup: true,
+                registrationEnabled: true,
+                checked: true
+            }));
             await checkAuth();
         }
     }
