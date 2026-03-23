@@ -465,20 +465,20 @@ Isolate servers by team, client, or project. Essential for agencies, MSPs, and l
 
 ---
 
-## Phase 32: DNS Zone Management (Planned)
+## Phase 32: DNS Zone Management (Completed)
 
 **Priority: Medium**
 
 Full DNS record management with provider API integration.
 
-- [ ] DNS zone editor UI (A, AAAA, CNAME, MX, TXT, SRV, CAA records)
-- [ ] Cloudflare API integration (list/create/update/delete records)
-- [ ] Route53 API integration
-- [ ] DigitalOcean DNS integration
-- [ ] DNS propagation checker (query multiple nameservers)
-- [ ] Auto-generate recommended records for hosted services (SPF, DKIM, DMARC, MX)
-- [ ] DNS template presets (e.g., "standard web hosting", "email hosting")
-- [ ] Bulk record import/export (BIND zone file format)
+- [x] DNS zone editor UI (A, AAAA, CNAME, MX, TXT, SRV, CAA records)
+- [x] Cloudflare API integration (list/create/update/delete records)
+- [x] Route53 API integration
+- [x] DigitalOcean DNS integration
+- [x] DNS propagation checker (query multiple nameservers)
+- [x] Auto-generate recommended records for hosted services (SPF, DKIM, DMARC, MX)
+- [x] DNS template presets (e.g., "standard web hosting", "email hosting")
+- [x] Bulk record import/export (BIND zone file format)
 
 ---
 

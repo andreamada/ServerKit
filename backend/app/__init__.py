@@ -242,6 +242,10 @@ def create_app(config_name=None):
     from app.api.advanced_ssl import advanced_ssl_bp
     app.register_blueprint(advanced_ssl_bp, url_prefix='/api/v1/ssl/advanced')
 
+    # Register blueprints - DNS Zones
+    from app.api.dns_zones import dns_zones_bp
+    app.register_blueprint(dns_zones_bp, url_prefix='/api/v1/dns')
+
     # Handle database migrations (Alembic)
     with app.app_context():
         from app.services.migration_service import MigrationService

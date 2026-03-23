@@ -3604,6 +3604,64 @@ class ApiService {
     async getSSLExpiryAlerts(days = 30) {
         return this.request(`/ssl/advanced/expiry-alerts?days=${days}`);
     }
+    // ========================================
+    // DNS Zones endpoints
+    // ========================================
+    async getDNSZones() {
+        return this.request('/dns/');
+    }
+
+    async getDNSZone(id) {
+        return this.request(`/dns/${id}`);
+    }
+
+    async createDNSZone(data) {
+        return this.request('/dns/', { method: 'POST', body: data });
+    }
+
+    async deleteDNSZone(id) {
+        return this.request(`/dns/${id}`, { method: 'DELETE' });
+    }
+
+    async getDNSRecords(zoneId) {
+        return this.request(`/dns/${zoneId}/records`);
+    }
+
+    async createDNSRecord(zoneId, data) {
+        return this.request(`/dns/${zoneId}/records`, { method: 'POST', body: data });
+    }
+
+    async updateDNSRecord(recordId, data) {
+        return this.request(`/dns/records/${recordId}`, { method: 'PUT', body: data });
+    }
+
+    async deleteDNSRecord(recordId) {
+        return this.request(`/dns/records/${recordId}`, { method: 'DELETE' });
+    }
+
+    async getDNSPresets() {
+        return this.request('/dns/presets');
+    }
+
+    async applyDNSPreset(zoneId, preset, variables) {
+        return this.request(`/dns/${zoneId}/apply-preset`, {
+            method: 'POST', body: { preset, variables }
+        });
+    }
+
+    async checkDNSPropagation(domain, type = 'A') {
+        return this.request(`/dns/propagation/${domain}?type=${type}`);
+    }
+
+    async exportDNSZone(zoneId) {
+        return this.request(`/dns/${zoneId}/export`);
+    }
+
+    async importDNSZone(zoneId, zoneFile) {
+        return this.request(`/dns/${zoneId}/import`, {
+            method: 'POST', body: { zone_file: zoneFile }
+        });
+    }
 }
 
 export const api = new ApiService();

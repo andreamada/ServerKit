@@ -25,6 +25,7 @@ from app.models.metric_alert import ServerAlertThreshold, MetricAlert
 from app.models.agent_plugin import AgentPlugin, AgentPluginInstall
 from app.models.server_template import ServerTemplate, ServerTemplateAssignment
 from app.models.workspace import Workspace, WorkspaceMember, WorkspaceApiKey
+from app.models.dns_zone import DNSZone, DNSRecord
 
 __all__ = [
     'User', 'Application', 'Domain', 'EnvironmentVariable', 'EnvironmentVariableHistory',
@@ -39,5 +40,6 @@ __all__ = [
     'ServerAlertThreshold', 'MetricAlert',
     'AgentPlugin', 'AgentPluginInstall',
     'ServerTemplate', 'ServerTemplateAssignment',
-    'Workspace', 'WorkspaceMember', 'WorkspaceApiKey'
+    'Workspace', 'WorkspaceMember', 'WorkspaceApiKey',
+    'DNSZone', 'DNSRecord'
 ]

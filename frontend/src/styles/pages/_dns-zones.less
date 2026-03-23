@@ -1,0 +1,89 @@
+// DNS Zones page styles
+
+.dns-zones-page {
+    .dns-layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: @spacing-lg;
+        margin-top: @spacing-lg;
+
+        @media (max-width: 900px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .dns-zones-list {
+        display: flex;
+        flex-direction: column;
+        gap: @spacing-xs;
+    }
+
+    .dns-zone-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: @spacing-md;
+        background: @card-bg;
+        border: 1px solid @border-color;
+        border-radius: @radius-md;
+        cursor: pointer;
+        transition: border-color 0.15s;
+
+        &:hover, &.active {
+            border-color: @primary-color;
+        }
+
+        &__info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        &__actions {
+            display: flex;
+            gap: @spacing-xs;
+        }
+    }
+
+    .dns-records-panel {
+        background: @card-bg;
+        border: 1px solid @border-color;
+        border-radius: @radius-lg;
+        padding: @spacing-lg;
+
+        &__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: @spacing-lg;
+
+            h2 { margin: 0; }
+        }
+
+        &__actions {
+            display: flex;
+            gap: @spacing-sm;
+        }
+    }
+
+    .text-mono {
+        font-family: @font-mono;
+        font-size: 0.85rem;
+    }
+
+    .propagation-row {
+        display: flex;
+        align-items: center;
+        gap: @spacing-sm;
+        padding: @spacing-sm 0;
+        border-bottom: 1px solid @border-color;
+
+        &:last-child { border-bottom: none; }
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: @spacing-md;
+    }
+}
