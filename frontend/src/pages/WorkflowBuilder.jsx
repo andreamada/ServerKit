@@ -11,7 +11,7 @@ import {
     MiniMap
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Server, Database, Globe, Box, Save, FolderOpen, Plus, RefreshCw, Play, Layout, Eye, Bell, Terminal } from 'lucide-react';
+import { Server, Database, Globe, Box, Save, FolderOpen, Plus, RefreshCw, Play, Layout, Eye, Bell, Terminal, Activity } from 'lucide-react';
 import api from '../services/api';
 import WorkflowListModal from '../components/workflow/WorkflowListModal';
 import DeploymentProgressModal from '../components/workflow/DeploymentProgressModal';

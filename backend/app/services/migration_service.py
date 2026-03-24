@@ -31,24 +31,62 @@ class MigrationService:
         cfg.set_main_option('sqlalchemy.url', app.config['SQLALCHEMY_DATABASE_URI'])
         return cfg
 
+    # Map SQLAlchemy type names to SQLite-compatible type strings
+    _TYPE_MAP = {
+        'INTEGER': 'INTEGER', 'BIGINTEGER': 'INTEGER', 'SMALLINTEGER': 'INTEGER',
+        'FLOAT': 'REAL', 'NUMERIC': 'REAL',
+        'BOOLEAN': 'BOOLEAN',
+        'DATETIME': 'DATETIME', 'DATE': 'DATE', 'TIME': 'TIME',
+        'TEXT': 'TEXT', 'STRING': 'TEXT', 'VARCHAR': 'TEXT',
+        'JSON': 'TEXT',
+    }
+
+    @classmethod
+    def _sqlite_type(cls, sa_type):
+        """Convert a SQLAlchemy column type to a SQLite type string."""
+        type_name = type(sa_type).__name__.upper()
+        return cls._TYPE_MAP.get(type_name, 'TEXT')
+
     @classmethod
     def _fix_missing_columns(cls, db):
-        """Add columns that may be missing from existing tables.
+        """Sync database schema with ORM models.
 
+        Compares every model column against the actual database and adds any
+        that are missing.  Also creates tables that don't exist yet.
         Runs raw SQL before any ORM queries to prevent crashes when models
         reference columns that don't exist in the database yet.
         """
         inspector = sa_inspect(db.engine)
-        existing_tables = inspector.get_table_names()
+        existing_tables = set(inspector.get_table_names())
+        added = 0
 
-        if 'users' in existing_tables:
-            cols = {c['name'] for c in inspector.get_columns('users')}
-            if 'auth_provider' not in cols:
-                logger.info('Adding missing column: users.auth_provider')
-                with db.engine.begin() as conn:
-                    conn.execute(text(
-                        "ALTER TABLE users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'local'"
-                    ))
+        for table_name, table_obj in db.metadata.tables.items():
+            if table_name not in existing_tables:
+                # Entire table is missing — create_all will handle it later
+                continue
+
+            existing_cols = {c['name'] for c in inspector.get_columns(table_name)}
+
+            for col in table_obj.columns:
+                if col.name in existing_cols:
+                    continue
+
+                sqlite_type = cls._sqlite_type(col.type)
+                sql = f'ALTER TABLE {table_name} ADD COLUMN {col.name} {sqlite_type}'
+
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(sql))
+                    logger.info(f'Auto-added missing column: {table_name}.{col.name} ({sqlite_type})')
+                    added += 1
+                except Exception as e:
+                    logger.warning(f'Failed to add {table_name}.{col.name}: {e}')
+
+        # Create any entirely new tables
+        db.create_all()
+
+        if added:
+            logger.info(f'Schema sync complete: {added} column(s) added')
 
     @classmethod
     def check_and_prepare(cls, app):

@@ -73,11 +73,11 @@ class CloudServer(db.Model):
     snapshots = db.relationship('CloudSnapshot', backref='server', lazy='dynamic', cascade='all, delete-orphan')
 
     @property
-    def metadata(self):
+    def server_metadata(self):
         return json.loads(self.metadata_json) if self.metadata_json else {}
 
-    @metadata.setter
-    def metadata(self, v):
+    @server_metadata.setter
+    def server_metadata(self, v):
         self.metadata_json = json.dumps(v)
 
     def to_dict(self):

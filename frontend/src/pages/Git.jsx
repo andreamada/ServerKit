@@ -94,7 +94,7 @@ function Git() {
 
     const loadStatus = async () => {
         try {
-            const data = await api.getGitStatus();
+            const data = await api.getGitServerStatus();
             setStatus(data);
         } catch (error) {
             console.error('Failed to load status:', error);
@@ -367,7 +367,7 @@ function Git() {
     const handleTriggerDeploy = async (appId) => {
         setDeployingAppId(appId);
         try {
-            const result = await api.triggerDeploy(appId);
+            const result = await api.triggerGitDeploy(appId);
             if (result.success) {
                 toast.success(`Deployment started: v${result.version}`);
                 await loadAllDeployments();

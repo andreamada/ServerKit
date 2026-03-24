@@ -21,15 +21,27 @@ def register_security_headers(app: Flask):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
         # Content Security Policy
-        csp_directives = [
-            "default-src 'self'",
-            "script-src 'self'",
-            "style-src 'self'",
-            "img-src 'self' data: https:",
-            "font-src 'self'",
-            "connect-src 'self' ws: wss:",
-            "frame-ancestors 'none'",
-        ]
+        # In debug mode, allow inline styles/scripts for Vite dev tooling
+        if app.debug:
+            csp_directives = [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline'",
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data: https:",
+                "font-src 'self'",
+                "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*",
+                "frame-ancestors 'none'",
+            ]
+        else:
+            csp_directives = [
+                "default-src 'self'",
+                "script-src 'self'",
+                "style-src 'self'",
+                "img-src 'self' data: https:",
+                "font-src 'self'",
+                "connect-src 'self' ws: wss:",
+                "frame-ancestors 'none'",
+            ]
         response.headers['Content-Security-Policy'] = '; '.join(csp_directives)
 
         # Permissions Policy (formerly Feature-Policy)

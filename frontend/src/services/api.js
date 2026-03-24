@@ -383,7 +383,7 @@ class ApiService {
         return this.request('/system/check-update');
     }
 
-    async getProcesses() {
+    async getSystemProcesses() {
         return this.request('/system/processes');
     }
 
@@ -1328,7 +1328,7 @@ class ApiService {
         return this.request(`/deploy/apps/${appId}/config`, { method: 'DELETE' });
     }
 
-    async triggerDeploy(appId, force = false) {
+    async triggerAppDeploy(appId, force = false) {
         return this.request(`/deploy/apps/${appId}/deploy`, {
             method: 'POST',
             body: { force }
@@ -1342,7 +1342,7 @@ class ApiService {
         });
     }
 
-    async getGitStatus(appId) {
+    async getAppGitStatus(appId) {
         return this.request(`/deploy/apps/${appId}/git-status`);
     }
 
@@ -1840,7 +1840,7 @@ class ApiService {
     // ========================================
     // Git Server endpoints
     // ========================================
-    async getGitStatus() {
+    async getGitServerStatus() {
         return this.request('/git/status');
     }
 
@@ -1942,7 +1942,7 @@ class ApiService {
         return this.request(`/git/webhooks/${webhookId}/toggle`, { method: 'POST' });
     }
 
-    async getWebhookLogs(webhookId, limit = 50) {
+    async getGitWebhookLogs(webhookId, limit = 50) {
         return this.request(`/git/webhooks/${webhookId}/logs?limit=${limit}`);
     }
 
@@ -2010,7 +2010,7 @@ class ApiService {
         return this.request(`/git/deployments/${deploymentId}?logs=${includeLogs}`);
     }
 
-    async triggerDeploy(appId, branch = null) {
+    async triggerGitDeploy(appId, branch = null) {
         return this.request(`/git/deployments/app/${appId}/deploy`, {
             method: 'POST',
             body: branch ? { branch } : {}
@@ -3673,11 +3673,11 @@ class ApiService {
         return this.request('/nginx/advanced/proxy', { method: 'POST', body: data });
     }
 
-    async testNginxConfig() {
+    async testAdvancedNginxConfig() {
         return this.request('/nginx/advanced/test', { method: 'POST' });
     }
 
-    async reloadNginx() {
+    async reloadAdvancedNginx() {
         return this.request('/nginx/advanced/reload', { method: 'POST' });
     }
 

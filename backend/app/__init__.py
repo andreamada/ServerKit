@@ -12,6 +12,12 @@ from config import config
 db = SQLAlchemy()
 jwt = JWTManager()
 migrate = Migrate()
+
+# PyJWT 2.10+ enforces that 'sub' must be a string.
+# Stringify the identity so integer user IDs work transparently.
+@jwt.user_identity_loader
+def _user_identity(user_id):
+    return str(user_id)
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 # Note: key_func is updated to get_rate_limit_key after app init
 socketio = None

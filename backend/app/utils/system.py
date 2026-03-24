@@ -66,6 +66,23 @@ def run_privileged(cmd: Union[List[str], str], *, user: Optional[str] = None, **
     return subprocess.run(cmd, **kwargs)
 
 
+def run_command(cmd: Union[List[str], str], *, timeout: int = 60,
+                capture_stderr: bool = False, **kwargs) -> dict:
+    """Run a shell command and return a dict with stdout/stderr/returncode.
+
+    This is a convenience wrapper used by services that need simple dict results
+    rather than a raw ``CompletedProcess`` object.
+    """
+    kwargs.setdefault('capture_output', True)
+    kwargs.setdefault('text', True)
+    result = subprocess.run(cmd, timeout=timeout, **kwargs)
+    return {
+        'stdout': result.stdout or '',
+        'stderr': result.stderr or '',
+        'returncode': result.returncode,
+    }
+
+
 def is_command_available(cmd: str) -> bool:
     """Check whether *cmd* is available on the system.
 

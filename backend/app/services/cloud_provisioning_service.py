@@ -119,7 +119,7 @@ class CloudProvisioningService:
             db.session.commit()
         except Exception as e:
             server.status = CloudServer.STATUS_ERROR
-            server.metadata = {'error': str(e)}
+            server.server_metadata = {'error': str(e)}
             db.session.commit()
             raise
 

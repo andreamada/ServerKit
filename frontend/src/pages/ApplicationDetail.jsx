@@ -1425,7 +1425,7 @@ const DeployTab = ({ appId, appPath }) => {
                     postDeployScript: configRes.config.post_deploy_script || ''
                 });
                 try {
-                    const statusRes = await api.getGitStatus(appId);
+                    const statusRes = await api.getAppGitStatus(appId);
                     setGitStatus(statusRes);
                 } catch (e) {}
             } else {
@@ -1474,7 +1474,7 @@ const DeployTab = ({ appId, appPath }) => {
         setDeploying(true);
         setError(null);
         try {
-            const result = await api.triggerDeploy(appId, force);
+            const result = await api.triggerAppDeploy(appId, force);
             if (result.success) {
                 toast.success('Deployment completed successfully!');
             } else {
