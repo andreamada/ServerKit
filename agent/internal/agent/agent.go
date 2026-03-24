@@ -157,7 +157,7 @@ func (a *Agent) registerHandlers() {
 	}
 
 	// File commands
-	if a.cfg.Features.Files {
+	if a.cfg.Features.FileAccess {
 		a.handlers[protocol.ActionFileRead] = a.handleFileRead
 		a.handlers[protocol.ActionFileWrite] = a.handleFileWrite
 		a.handlers[protocol.ActionFileList] = a.handleFileList
@@ -787,6 +787,101 @@ func (a *Agent) handleSystemInfo(ctx context.Context, params json.RawMessage) (i
 
 func (a *Agent) handleSystemProcesses(ctx context.Context, params json.RawMessage) (interface{}, error) {
 	return a.metrics.ListProcesses(ctx)
+}
+
+// File command handlers
+
+func (a *Agent) handleFileRead(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var p struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, fmt.Errorf("invalid params: %w", err)
+	}
+	if p.Path == "" {
+		return nil, fmt.Errorf("path is required")
+	}
+
+	data, err := os.ReadFile(p.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	return map[string]interface{}{
+		"path":    p.Path,
+		"content": base64.StdEncoding.EncodeToString(data),
+		"size":    len(data),
+	}, nil
+}
+
+func (a *Agent) handleFileWrite(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var p struct {
+		Path    string `json:"path"`
+		Content string `json:"content"` // base64 encoded
+		Mode    uint32 `json:"mode"`
+	}
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, fmt.Errorf("invalid params: %w", err)
+	}
+	if p.Path == "" {
+		return nil, fmt.Errorf("path is required")
+	}
+
+	data, err := base64.StdEncoding.DecodeString(p.Content)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base64 content: %w", err)
+	}
+
+	mode := os.FileMode(0644)
+	if p.Mode != 0 {
+		mode = os.FileMode(p.Mode)
+	}
+
+	if err := os.WriteFile(p.Path, data, mode); err != nil {
+		return nil, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"path":    p.Path,
+		"size":    len(data),
+	}, nil
+}
+
+func (a *Agent) handleFileList(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var p struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, fmt.Errorf("invalid params: %w", err)
+	}
+	if p.Path == "" {
+		p.Path = "/"
+	}
+
+	entries, err := os.ReadDir(p.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list directory: %w", err)
+	}
+
+	var files []map[string]interface{}
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		files = append(files, map[string]interface{}{
+			"name":     entry.Name(),
+			"is_dir":   entry.IsDir(),
+			"size":     info.Size(),
+			"modified": info.ModTime().UnixMilli(),
+		})
+	}
+
+	return map[string]interface{}{
+		"path":  p.Path,
+		"files": files,
+	}, nil
 }
 
 // Docker Compose command handlers
