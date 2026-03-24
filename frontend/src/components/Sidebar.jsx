@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Star, Settings, LogOut, Sun, Moon, Monitor, ChevronRight, ChevronUp, Layers, Palette, PanelLeft, Check } from 'lucide-react';
+import { Star, Settings, LogOut, Sun, Moon, Monitor, ChevronRight, ChevronDown, ChevronUp, Layers, Palette, PanelLeft, Check } from 'lucide-react';
 import { api } from '../services/api';
 import ServerKitLogo from './ServerKitLogo';
 import { SIDEBAR_CATEGORIES, CATEGORY_LABELS, SIDEBAR_PRESETS, getVisibleItems } from './sidebarItems';
@@ -72,6 +72,12 @@ const Sidebar = () => {
 
     const conditions = { wpInstalled };
     const currentPreset = user?.sidebar_config?.preset || 'full';
+    const [expandedItems, setExpandedItems] = useState({});
+    const location = useLocation();
+
+    const toggleExpand = (itemId) => {
+        setExpandedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+    };
 
     const handlePresetSwitch = async (presetKey) => {
         if (presetKey === currentPreset) return;
@@ -99,21 +105,46 @@ const Sidebar = () => {
         return groups;
     }, [visibleItems]);
 
-    const renderNavItem = (item) => (
-        <React.Fragment key={item.id}>
-            <NavLink
-                to={item.route}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                end={item.end || false}
-            >
-                <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    dangerouslySetInnerHTML={{ __html: item.icon }}
-                />
-                {item.label}
-            </NavLink>
-            {item.subItems?.map(sub => {
-                if (sub.requiresCondition && !conditions[sub.requiresCondition]) return null;
-                return (
+    // Auto-expand parent when a sub-item route is active
+    useEffect(() => {
+        const path = location.pathname;
+        for (const item of visibleItems) {
+            if (item.subItems?.some(sub => path === sub.route || path.startsWith(sub.route + '/'))) {
+                setExpandedItems(prev => prev[item.id] ? prev : { ...prev, [item.id]: true });
+            }
+        }
+    }, [location.pathname, visibleItems]);
+
+    const renderNavItem = (item) => {
+        const hasChildren = item.subItems && item.subItems.length > 0;
+        const isExpanded = expandedItems[item.id];
+        const visibleSubs = hasChildren
+            ? item.subItems.filter(sub => !sub.requiresCondition || conditions[sub.requiresCondition])
+            : [];
+
+        return (
+            <React.Fragment key={item.id}>
+                <div className={`nav-item-row ${hasChildren ? 'has-children' : ''}`}>
+                    <NavLink
+                        to={item.route}
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        end={item.end || hasChildren}
+                    >
+                        <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            dangerouslySetInnerHTML={{ __html: item.icon }}
+                        />
+                        {item.label}
+                    </NavLink>
+                    {visibleSubs.length > 0 && (
+                        <button
+                            className={`nav-expand-btn ${isExpanded ? 'expanded' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); toggleExpand(item.id); }}
+                        >
+                            <ChevronRight size={14} />
+                        </button>
+                    )}
+                </div>
+                {isExpanded && visibleSubs.map(sub => (
                     <NavLink
                         key={sub.id}
                         to={sub.route}
@@ -124,10 +155,10 @@ const Sidebar = () => {
                         />
                         {sub.label}
                     </NavLink>
-                );
-            })}
-        </React.Fragment>
-    );
+                ))}
+            </React.Fragment>
+        );
+    };
 
     return (
         <aside className="sidebar">

@@ -1,82 +1,78 @@
 import React from 'react';
-import { X, MessageSquare, Mail, Slack, Bell } from 'lucide-react';
+import ConfigPanel from '../ConfigPanel';
+import { Bell, MessageSquare, Mail, Slack, Send, Globe } from 'lucide-react';
 
-const NotificationConfigPanel = ({ node, onChange, onClose }) => {
+const NotificationConfigPanel = ({ node, onChange, onClose, onDelete }) => {
     const { data } = node;
     const { channel = 'discord', label = 'Notify', message = '' } = data;
 
+    const channels = [
+        { id: 'discord', icon: MessageSquare, label: 'Discord' },
+        { id: 'slack', icon: Slack, label: 'Slack' },
+        { id: 'email', icon: Mail, label: 'Email' },
+        { id: 'telegram', icon: Send, label: 'Telegram' },
+        { id: 'webhook', icon: Globe, label: 'Webhook' },
+        { id: 'system', icon: Bell, label: 'All Channels' },
+    ];
+
     return (
-        <div className="config-panel">
-            <div className="panel-header">
-                <h3>Notification Configuration</h3>
-                <button onClick={onClose}><X size={18} /></button>
+        <ConfigPanel
+            title="Notification"
+            icon={<Bell size={16} />}
+            color="#818cf8"
+            onClose={onClose}
+            footer={onDelete && (
+                <button className="btn-delete-node" onClick={onDelete}>
+                    Remove Node
+                </button>
+            )}
+        >
+            <div className="form-group">
+                <label>Label</label>
+                <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => onChange({ ...data, label: e.target.value })}
+                />
             </div>
 
-            <div className="panel-body">
-                <div className="form-group">
-                    <label>Node Label</label>
-                    <input
-                        type="text"
-                        value={label}
-                        onChange={(e) => onChange({ ...data, label: e.target.value })}
-                    />
-                </div>
-
-                <div className="form-group">
-                    <label>Channel</label>
-                    <div className="grid grid-cols-2 gap-2">
+            <div className="form-group">
+                <label>Channel</label>
+                <div className="channel-grid">
+                    {channels.map(({ id, icon: Icon, label: chLabel }) => (
                         <button
-                            className={`p-2 rounded border flex items-center justify-center gap-2 transition-colors ${channel === 'discord' ? 'bg-indigo-900/30 border-indigo-500 text-indigo-400' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                            onClick={() => onChange({ ...data, channel: 'discord' })}
+                            key={id}
+                            className={`channel-btn ${channel === id ? 'active' : ''}`}
+                            onClick={() => onChange({ ...data, channel: id })}
                         >
-                            <MessageSquare size={14} />
-                            <span className="text-xs">Discord</span>
+                            <Icon size={14} />
+                            <span>{chLabel}</span>
                         </button>
-                        <button
-                            className={`p-2 rounded border flex items-center justify-center gap-2 transition-colors ${channel === 'slack' ? 'bg-pink-900/30 border-pink-500 text-pink-400' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                            onClick={() => onChange({ ...data, channel: 'slack' })}
-                        >
-                            <Slack size={14} />
-                            <span className="text-xs">Slack</span>
-                        </button>
-                        <button
-                            className={`p-2 rounded border flex items-center justify-center gap-2 transition-colors ${channel === 'email' ? 'bg-blue-900/30 border-blue-500 text-blue-400' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                            onClick={() => onChange({ ...data, channel: 'email' })}
-                        >
-                            <Mail size={14} />
-                            <span className="text-xs">Email</span>
-                        </button>
-                        <button
-                            className={`p-2 rounded border flex items-center justify-center gap-2 transition-colors ${channel === 'system' ? 'bg-gray-700 border-gray-500 text-gray-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                            onClick={() => onChange({ ...data, channel: 'system' })}
-                        >
-                            <Bell size={14} />
-                            <span className="text-xs">All</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="form-group">
-                    <label>Message Template</label>
-                    <textarea
-                        className="text-xs bg-gray-900 border-gray-700 rounded p-2 h-48 focus:border-blue-500 focus:outline-none"
-                        value={message}
-                        onChange={(e) => onChange({ ...data, message: e.target.value })}
-                        placeholder="e.g. Build finished for {{workflow_name}} — exit code: ${build_node.returncode}"
-                    />
-                </div>
-
-                <div className="mt-4 p-3 bg-gray-800 rounded border border-gray-700">
-                    <p className="text-[10px] text-gray-400">
-                        <strong>Variables:</strong><br />
-                        <code>{'{{workflow_name}}'}</code>, <code>{'{{execution_id}}'}</code>, <code>{'{{started_at}}'}</code><br />
-                        <code>{'${node_id.stdout}'}</code> — output from a specific node<br />
-                        <code>{'${node_id.returncode}'}</code> — exit code from a script node<br />
-                        <code>{'{{context.field}}'}</code> — value from trigger context
-                    </p>
+                    ))}
                 </div>
             </div>
-        </div>
+
+            <div className="form-group">
+                <label>Message Template</label>
+                <textarea
+                    value={message}
+                    onChange={(e) => onChange({ ...data, message: e.target.value })}
+                    placeholder={'Build finished for {{workflow_name}}\\nExit code: ${build.returncode}'}
+                    rows={8}
+                />
+            </div>
+
+            <div className="panel-info-box">
+                <strong>Variables</strong><br />
+                <code>{'{{workflow_name}}'}</code>, <code>{'{{execution_id}}'}</code>, <code>{'{{started_at}}'}</code><br />
+                <code>{'${node_id.stdout}'}</code> — output from a node<br />
+                <code>{'{{context.field}}'}</code> — trigger context value
+            </div>
+
+            <div className="panel-info-box panel-info-warning">
+                Channels must be configured in <strong>Settings &rarr; Notifications</strong> before they can send messages.
+            </div>
+        </ConfigPanel>
     );
 };
 

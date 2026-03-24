@@ -1,10 +1,10 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { GitBranch, Check, X } from 'lucide-react';
+import { GitBranch } from 'lucide-react';
 
 const LogicIfNode = ({ data, selected }) => {
-    const { 
-        condition = '', 
+    const {
+        condition = '',
         label = 'If/Else'
     } = data;
 
@@ -16,9 +16,9 @@ const LogicIfNode = ({ data, selected }) => {
                 id="input"
                 className="handle-input"
             />
-            
-            <div className="node-icon bg-gray-800">
-                <GitBranch size={16} className="text-orange-400" />
+
+            <div className="node-icon node-icon-logic">
+                <GitBranch size={16} />
             </div>
             <div className="node-content">
                 <div className="node-label">{label}</div>
@@ -26,24 +26,26 @@ const LogicIfNode = ({ data, selected }) => {
                     {condition || 'No condition'}
                 </div>
             </div>
-            
-            <div className="node-outputs flex justify-around w-full mt-2 border-t border-gray-700 pt-2">
-                <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-green-400 font-bold mb-1">TRUE</span>
+
+            <div className="node-outputs">
+                <div className="node-output-branch">
+                    <span className="node-branch-label node-branch-true">TRUE</span>
                     <Handle
                         type="source"
                         position={Position.Bottom}
                         id="true"
-                        className="handle-output handle-true !left-[25%]"
+                        className="handle-output handle-true"
+                        style={{ left: '25%' }}
                     />
                 </div>
-                <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-red-400 font-bold mb-1">FALSE</span>
+                <div className="node-output-branch">
+                    <span className="node-branch-label node-branch-false">FALSE</span>
                     <Handle
                         type="source"
                         position={Position.Bottom}
                         id="false"
-                        className="handle-output handle-false !left-[75%]"
+                        className="handle-output handle-false"
+                        style={{ left: '75%' }}
                     />
                 </div>
             </div>

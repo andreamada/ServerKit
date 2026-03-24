@@ -1,7 +1,8 @@
 import React from 'react';
-import { X, Terminal, Code } from 'lucide-react';
+import ConfigPanel from '../ConfigPanel';
+import { Terminal, Code } from 'lucide-react';
 
-const ScriptConfigPanel = ({ node, onChange, onClose }) => {
+const ScriptConfigPanel = ({ node, onChange, onClose, onDelete }) => {
     const { data } = node;
     const {
         language = 'bash',
@@ -13,95 +14,100 @@ const ScriptConfigPanel = ({ node, onChange, onClose }) => {
     } = data;
 
     return (
-        <div className="config-panel">
-            <div className="panel-header">
-                <h3>Script Configuration</h3>
-                <button onClick={onClose}><X size={18} /></button>
+        <ConfigPanel
+            title="Script"
+            icon={<Terminal size={16} />}
+            color="#71717a"
+            onClose={onClose}
+            footer={onDelete && (
+                <button className="btn-delete-node" onClick={onDelete}>
+                    Remove Node
+                </button>
+            )}
+        >
+            <div className="form-group">
+                <label>Label</label>
+                <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => onChange({ ...data, label: e.target.value })}
+                />
             </div>
 
-            <div className="panel-body">
+            <div className="form-group">
+                <label>Language</label>
+                <div className="lang-toggle">
+                    <button
+                        className={`lang-btn ${language === 'bash' ? 'active' : ''}`}
+                        onClick={() => onChange({ ...data, language: 'bash' })}
+                    >
+                        <Terminal size={14} />
+                        Bash
+                    </button>
+                    <button
+                        className={`lang-btn ${language === 'python' ? 'active' : ''}`}
+                        onClick={() => onChange({ ...data, language: 'python' })}
+                    >
+                        <Code size={14} />
+                        Python
+                    </button>
+                </div>
+            </div>
+
+            <div className="form-group">
+                <label>Script Content</label>
+                <textarea
+                    className="script-editor font-mono"
+                    value={content}
+                    onChange={(e) => onChange({ ...data, content: e.target.value })}
+                    placeholder={language === 'bash'
+                        ? "#!/bin/bash\necho 'Hello World'"
+                        : "print('Hello World')"
+                    }
+                    rows={12}
+                />
+            </div>
+
+            <div className="form-row form-row-3">
                 <div className="form-group">
-                    <label>Node Label</label>
+                    <label>Timeout (s)</label>
                     <input
-                        type="text"
-                        value={label}
-                        onChange={(e) => onChange({ ...data, label: e.target.value })}
+                        type="number"
+                        min="1"
+                        max="3600"
+                        value={timeout}
+                        onChange={(e) => onChange({ ...data, timeout: parseInt(e.target.value) || 300 })}
                     />
                 </div>
-
                 <div className="form-group">
-                    <label>Language</label>
-                    <div className="flex gap-2">
-                        <button
-                            className={`flex-1 p-2 rounded border flex items-center justify-center gap-2 ${language === 'bash' ? 'bg-gray-700 border-blue-500 text-blue-400' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                            onClick={() => onChange({ ...data, language: 'bash' })}
-                        >
-                            <Terminal size={14} />
-                            <span>Bash</span>
-                        </button>
-                        <button
-                            className={`flex-1 p-2 rounded border flex items-center justify-center gap-2 ${language === 'python' ? 'bg-gray-700 border-blue-500 text-blue-400' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                            onClick={() => onChange({ ...data, language: 'python' })}
-                        >
-                            <Code size={14} />
-                            <span>Python</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="form-group">
-                    <label>Script Content</label>
-                    <textarea
-                        className="font-mono text-xs bg-gray-900 border-gray-700 rounded p-2 h-64 focus:border-blue-500 focus:outline-none"
-                        value={content}
-                        onChange={(e) => onChange({ ...data, content: e.target.value })}
-                        placeholder={language === 'bash' ? "#!/bin/bash\necho 'Hello World'" : "print('Hello World')"}
+                    <label>Retries</label>
+                    <input
+                        type="number"
+                        min="0"
+                        max="5"
+                        value={retryCount}
+                        onChange={(e) => onChange({ ...data, retryCount: parseInt(e.target.value) || 0 })}
                     />
                 </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="form-group">
-                        <label>Timeout (s)</label>
-                        <input
-                            type="number"
-                            min="1"
-                            max="3600"
-                            value={timeout}
-                            onChange={(e) => onChange({ ...data, timeout: parseInt(e.target.value) || 300 })}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Retries</label>
-                        <input
-                            type="number"
-                            min="0"
-                            max="5"
-                            value={retryCount}
-                            onChange={(e) => onChange({ ...data, retryCount: parseInt(e.target.value) || 0 })}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Delay (s)</label>
-                        <input
-                            type="number"
-                            min="1"
-                            max="300"
-                            value={retryDelay}
-                            onChange={(e) => onChange({ ...data, retryDelay: parseInt(e.target.value) || 5 })}
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-4 p-3 bg-blue-900/20 rounded border border-blue-500/30">
-                    <p className="text-[10px] text-blue-300">
-                        <strong>Variables:</strong><br />
-                        <code className="text-blue-200">{'${node_id.stdout}'}</code> — output from a previous node<br />
-                        <code className="text-blue-200">$NODE_ID_OUTPUT</code> — same, as env var<br />
-                        <code className="text-blue-200">$WORKFLOW_ID</code>, <code className="text-blue-200">$EXECUTION_ID</code> — workflow metadata
-                    </p>
+                <div className="form-group">
+                    <label>Delay (s)</label>
+                    <input
+                        type="number"
+                        min="1"
+                        max="300"
+                        value={retryDelay}
+                        onChange={(e) => onChange({ ...data, retryDelay: parseInt(e.target.value) || 5 })}
+                    />
                 </div>
             </div>
-        </div>
+
+            <div className="panel-info-box">
+                <strong>Variables</strong><br />
+                <code>{'${node_id.stdout}'}</code> — output from a previous node<br />
+                <code>$WORKFLOW_ID</code>, <code>$EXECUTION_ID</code> — workflow metadata<br />
+                <code>$NODE_ID_OUTPUT</code> — node output as env var
+            </div>
+        </ConfigPanel>
     );
 };
 

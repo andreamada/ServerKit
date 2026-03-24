@@ -1,34 +1,9 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirm } from '../hooks/useConfirm';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { LoadingState } from '../components/Spinner';
-
-const AgentFleet = lazy(() => import('./AgentFleet'));
-const FleetMonitor = lazy(() => import('./FleetMonitor'));
-const CloudProvision = lazy(() => import('./CloudProvision'));
-const AgentPlugins = lazy(() => import('./AgentPlugins'));
-const ServerTemplates = lazy(() => import('./ServerTemplates'));
-
-const SERVER_TABS = ['overview', 'fleet', 'monitor', 'cloud', 'plugins', 'config'];
-const TAB_LABELS = {
-    overview: 'Servers',
-    fleet: 'Fleet',
-    monitor: 'Monitor',
-    cloud: 'Cloud',
-    plugins: 'Plugins',
-    config: 'Config'
-};
 
 const Servers = () => {
-    const location = useLocation();
-    const navigate = useNavigate();
-    const segment = location.pathname.split('/')[2];
-    const activeTab = SERVER_TABS.includes(segment) ? segment : 'overview';
-    const setActiveTab = (tab) => navigate(tab === 'overview' ? '/servers' : `/servers/${tab}`, { replace: true });
-
     const [servers, setServers] = useState([]);
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -89,7 +64,7 @@ const Servers = () => {
         connecting: servers.filter(s => s.status === 'connecting').length
     };
 
-    if (loading && activeTab === 'overview') {
+    if (loading) {
         return <div className="loading">Loading servers...</div>;
     }
 
@@ -100,43 +75,18 @@ const Servers = () => {
                     <h1>Servers</h1>
                     <p className="page-description">Manage your connected servers and agents</p>
                 </div>
-                {activeTab === 'overview' && (
-                    <div className="page-header-actions">
-                        <button className="btn btn-secondary" onClick={() => setShowGroupModal(true)}>
-                            <FolderIcon />
-                            Manage Groups
-                        </button>
-                        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-                            <PlusIcon />
-                            Add Server
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            <div className="tabs-nav tabs-nav-scrollable">
-                {SERVER_TABS.map(tab => (
-                    <button
-                        key={tab}
-                        className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                        onClick={() => setActiveTab(tab)}
-                    >
-                        {TAB_LABELS[tab]}
+                <div className="page-header-actions">
+                    <button className="btn btn-secondary" onClick={() => setShowGroupModal(true)}>
+                        <FolderIcon />
+                        Manage Groups
                     </button>
-                ))}
+                    <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+                        <PlusIcon />
+                        Add Server
+                    </button>
+                </div>
             </div>
 
-            {activeTab !== 'overview' && (
-                <Suspense fallback={<LoadingState />}>
-                    {activeTab === 'fleet' && <AgentFleet />}
-                    {activeTab === 'monitor' && <FleetMonitor />}
-                    {activeTab === 'cloud' && <CloudProvision />}
-                    {activeTab === 'plugins' && <AgentPlugins />}
-                    {activeTab === 'config' && <ServerTemplates />}
-                </Suspense>
-            )}
-
-            {activeTab === 'overview' && <>
             <div className="servers-stats">
                 <div className="stat-card">
                     <div className="stat-icon total">
@@ -242,7 +192,6 @@ const Servers = () => {
                     onUpdated={loadData}
                 />
             )}
-            </>}
         </div>
     );
 };
@@ -581,7 +530,6 @@ const ManageGroupsModal = ({ groups, onClose, onUpdated }) => {
     const [editingGroup, setEditingGroup] = useState(null);
     const [loading, setLoading] = useState(false);
     const toast = useToast();
-    const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
 
     async function handleCreateGroup(e) {
         e.preventDefault();
@@ -616,8 +564,7 @@ const ManageGroupsModal = ({ groups, onClose, onUpdated }) => {
     }
 
     async function handleDeleteGroup(groupId) {
-        const confirmed = await confirm({ title: 'Delete Group', message: 'Delete this group? Servers in this group will become ungrouped.' });
-        if (!confirmed) return;
+        if (!confirm('Delete this group? Servers in this group will become ungrouped.')) return;
 
         try {
             await api.deleteServerGroup(groupId);
@@ -702,16 +649,6 @@ const ManageGroupsModal = ({ groups, onClose, onUpdated }) => {
                     <button className="btn btn-primary" onClick={onClose}>Done</button>
                 </div>
             </div>
-            <ConfirmDialog
-                isOpen={confirmState.isOpen}
-                title={confirmState.title}
-                message={confirmState.message}
-                confirmText={confirmState.confirmText}
-                cancelText={confirmState.cancelText}
-                variant={confirmState.variant}
-                onConfirm={handleConfirm}
-                onCancel={handleCancel}
-            />
         </div>
     );
 };

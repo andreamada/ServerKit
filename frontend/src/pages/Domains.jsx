@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Globe, Plus, Shield, ShieldCheck, ShieldOff, RefreshCw,
     Trash2, ExternalLink, CheckCircle, XCircle, AlertTriangle,
@@ -6,21 +6,9 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirm } from '../hooks/useConfirm';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import useTabParam from '../hooks/useTabParam';
-import { LoadingState } from '../components/Spinner';
-
-const DNSZones = lazy(() => import('./DNSZones'));
-const SSLCertificates = lazy(() => import('./SSLCertificates'));
-
-const VALID_TABS = ['domains', 'dns', 'ssl'];
-const TAB_LABELS = { domains: 'Domains', dns: 'DNS Zones', ssl: 'SSL Certificates' };
 
 const Domains = () => {
-    const [activeTab, setActiveTab] = useTabParam('/domains', VALID_TABS);
     const toast = useToast();
-    const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
     const [domains, setDomains] = useState([]);
     const [apps, setApps] = useState([]);
     const [sslStatus, setSslStatus] = useState(null);
@@ -46,10 +34,14 @@ const Domains = () => {
     async function loadData() {
         try {
             setLoading(true);
+            const timeout = (promise, ms) => Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), ms))
+            ]);
             const [domainsData, appsData, sslData] = await Promise.all([
-                api.getDomains(),
-                api.getApps(),
-                api.getDomainsSslStatus().catch(() => null)
+                timeout(api.getDomains(), 10000).catch(() => ({ domains: [] })),
+                timeout(api.getApps(), 10000).catch(() => ({ apps: [] })),
+                timeout(api.getDomainsSslStatus(), 10000).catch(() => null)
             ]);
             setDomains(domainsData.domains || []);
             setApps(appsData.apps || []);
@@ -86,8 +78,7 @@ const Domains = () => {
     }
 
     async function handleDeleteDomain(domain) {
-        const confirmed = await confirm({ title: 'Delete Domain', message: `Are you sure you want to delete ${domain.name}?` });
-        if (!confirmed) return;
+        if (!confirm(`Are you sure you want to delete ${domain.name}?`)) return;
 
         try {
             await api.deleteDomain(domain.id);
@@ -116,8 +107,7 @@ const Domains = () => {
     }
 
     async function handleDisableSsl(domain) {
-        const confirmed = await confirm({ title: 'Disable SSL', message: `Disable SSL for ${domain.name}?`, variant: 'warning' });
-        if (!confirmed) return;
+        if (!confirm(`Disable SSL for ${domain.name}?`)) return;
 
         try {
             await api.disableSsl(domain.id);
@@ -157,56 +147,29 @@ const Domains = () => {
         return app ? app.name : 'Unknown';
     }
 
-    if (loading && activeTab === 'domains') {
-        return <div className="loading">Loading domains...</div>;
-    }
-
     return (
         <div>
             <header className="top-bar">
                 <div>
-                    <h1>Domains & Sites</h1>
-                    <p className="subtitle">Manage your domains, DNS zones, and SSL certificates</p>
+                    <h1>Domains & SSL</h1>
+                    <p className="subtitle">Manage your domains and SSL certificates</p>
                 </div>
-                {activeTab === 'domains' && (
-                    <div className="top-bar-actions">
-                        <button className="btn btn-secondary" onClick={loadData}>
-                            <RefreshCw size={16} />
-                            Refresh
-                        </button>
-                        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-                            <Plus size={16} />
-                            Add Domain
-                        </button>
-                    </div>
-                )}
-            </header>
-
-            <div className="tabs-nav tabs-nav-scrollable">
-                {VALID_TABS.map(tab => (
-                    <button
-                        key={tab}
-                        className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                        onClick={() => setActiveTab(tab)}
-                    >
-                        {TAB_LABELS[tab]}
+                <div className="top-bar-actions">
+                    <button className="btn btn-secondary" onClick={loadData}>
+                        <RefreshCw size={16} />
+                        Refresh
                     </button>
-                ))}
-            </div>
-
-            {activeTab !== 'domains' && (
-                <Suspense fallback={<LoadingState />}>
-                    {activeTab === 'dns' && <DNSZones />}
-                    {activeTab === 'ssl' && <SSLCertificates />}
-                </Suspense>
-            )}
-
-            {activeTab === 'domains' && <>
+                    <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+                        <Plus size={16} />
+                        Add Domain
+                    </button>
+                </div>
+            </header>
 
             {error && (
                 <div className="error-banner">
                     {error}
-                    <button className="btn-dismiss" onClick={() => setError('')}>×</button>
+                    <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
                 </div>
             )}
 
@@ -237,7 +200,11 @@ const Domains = () => {
             {/* Domains List */}
             <h2 className="section-title">Domains</h2>
 
-            {domains.length === 0 ? (
+            {loading ? (
+                <div className="empty-state">
+                    <p>Loading domains...</p>
+                </div>
+            ) : domains.length === 0 ? (
                 <div className="empty-state">
                     <Globe size={48} />
                     <h3>No domains configured</h3>
@@ -335,7 +302,7 @@ const Domains = () => {
             {/* SSL Certificates */}
             {sslStatus && sslStatus.certificates && sslStatus.certificates.length > 0 && (
                 <>
-                    <h2 className="section-title mt-10">SSL Certificates</h2>
+                    <h2 className="section-title" style={{ marginTop: '40px' }}>SSL Certificates</h2>
                     <div className="cert-list">
                         {sslStatus.certificates.map((cert, index) => (
                             <div key={index} className="cert-item">
@@ -472,17 +439,6 @@ const Domains = () => {
                     </div>
                 </div>
             )}
-            <ConfirmDialog
-                isOpen={confirmState.isOpen}
-                title={confirmState.title}
-                message={confirmState.message}
-                confirmText={confirmState.confirmText}
-                cancelText={confirmState.cancelText}
-                variant={confirmState.variant}
-                onConfirm={handleConfirm}
-                onCancel={handleCancel}
-            />
-            </>}
         </div>
     );
 };

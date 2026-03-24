@@ -495,6 +495,50 @@
     }
 }
 
+// Nav item row (parent with optional expand button)
+.nav-item-row {
+    display: flex;
+    align-items: center;
+
+    .nav-item {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &.has-children .nav-item {
+        padding-right: 0;
+    }
+}
+
+.nav-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: $text-tertiary;
+    cursor: pointer;
+    border-radius: $radius-sm;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    margin-right: 4px;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: $text-primary;
+    }
+
+    svg {
+        transition: transform 0.2s ease;
+    }
+
+    &.expanded svg {
+        transform: rotate(90deg);
+    }
+}
+
 // Sub Navigation Item (indented under parent)
 .nav-sub-item {
     padding-left: 2.25rem;

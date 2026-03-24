@@ -1,11 +1,8 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
-import Spinner, { LoadingState } from '../components/Spinner';
+import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
-import useTabParam from '../hooks/useTabParam';
-
-const FTPServer = lazy(() => import('./FTPServer'));
 import {
     Folder, File, FileCode, FileText, FileImage, FileVideo, FileAudio,
     FileArchive, Database, Terminal, Upload, FolderPlus, FilePlus,
@@ -19,11 +16,7 @@ import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip, Legen
 const SIDEBAR_VISIBLE_KEY = 'serverkit-fm-sidebar';
 const DISK_COLLAPSED_KEY = 'serverkit-fm-disk-collapsed';
 
-const FILE_TABS = ['files', 'ftp'];
-const FILE_TAB_LABELS = { files: 'File Manager', ftp: 'FTP Server' };
-
 function FileManager() {
-    const [activeTab, setActiveTab] = useTabParam('/files', FILE_TABS);
     const [currentPath, setCurrentPath] = useState('/home');
     const [entries, setEntries] = useState([]);
     const [parentPath, setParentPath] = useState(null);
@@ -333,29 +326,6 @@ function FileManager() {
 
     const displayedEntries = searchResults || entries;
 
-    if (activeTab === 'ftp') {
-        return (
-            <div className="file-manager">
-                <div className="page-header">
-                    <div className="page-header-content">
-                        <h1>File Manager</h1>
-                        <p className="page-description">Browse, edit, and manage your server files</p>
-                    </div>
-                </div>
-                <div className="tabs-nav">
-                    {FILE_TABS.map(tab => (
-                        <button key={tab} className={`tab-btn ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
-                            {FILE_TAB_LABELS[tab]}
-                        </button>
-                    ))}
-                </div>
-                <Suspense fallback={<LoadingState />}>
-                    <FTPServer />
-                </Suspense>
-            </div>
-        );
-    }
-
     return (
         <div className={`file-manager ${sidebarVisible ? 'sidebar-open' : ''}`}>
             <div className="page-header">
@@ -379,18 +349,10 @@ function FileManager() {
                     <input
                         type="file"
                         ref={fileInputRef}
-                        className="hidden"
+                        style={{ display: 'none' }}
                         onChange={handleUpload}
                     />
                 </div>
-            </div>
-
-            <div className="tabs-nav">
-                {FILE_TABS.map(tab => (
-                    <button key={tab} className={`tab-btn ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
-                        {FILE_TAB_LABELS[tab]}
-                    </button>
-                ))}
             </div>
 
             {uploadProgress !== null && (

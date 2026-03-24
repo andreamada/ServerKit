@@ -185,6 +185,132 @@
 }
 
 // ============================================
+// COMPACT NODE VARIANTS (Trigger, Script, Logic, Notification)
+// ============================================
+
+// Shared compact node layout
+.node-trigger,
+.node-script,
+.node-logic,
+.node-notification {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-3;
+    min-width: 180px;
+    position: relative;
+
+    &.node-selected {
+        border-color: $accent-primary;
+        box-shadow: 0 0 0 2px $accent-glow;
+    }
+}
+
+.node-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    background: $bg-elevated;
+    border-radius: $radius-md;
+    color: $text-secondary;
+}
+
+.node-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.node-label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.node-sublabel {
+    font-size: $font-size-xs;
+    color: $text-tertiary;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// Node icon color variants
+.node-icon-manual { color: #3b82f6; }
+.node-icon-cron { color: #a855f7; }
+.node-icon-webhook { color: #10b981; }
+.node-icon-event { color: #f59e0b; }
+.node-icon-bash { color: $text-secondary; }
+.node-icon-python { color: #93c5fd; }
+.node-icon-logic { color: #f97316; }
+.node-icon-discord { color: #818cf8; }
+.node-icon-slack { color: #ec4899; }
+.node-icon-email { color: #3b82f6; }
+
+// Node status glow variants
+.node-status-active { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+.node-status-success { border-color: $success; box-shadow: 0 0 10px rgba(34, 197, 94, 0.3); }
+.node-status-error { border-color: $danger; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+.node-status-inactive { border-color: $border-subtle; }
+
+// Logic If/Else branching outputs
+.node-outputs {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    margin-top: $space-2;
+    padding-top: $space-2;
+    border-top: 1px solid $border-subtle;
+}
+
+.node-output-branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.node-branch-label {
+    font-size: 10px;
+    font-weight: 700;
+    margin-bottom: $space-1;
+
+    &.node-branch-true { color: $success; }
+    &.node-branch-false { color: $danger; }
+}
+
+// Compact handle styles
+.handle-input,
+.handle-output {
+    width: 10px !important;
+    height: 10px !important;
+    background: $bg-card !important;
+    border: 2px solid $border-active !important;
+    transition: all $transition-fast;
+
+    &:hover {
+        background: $accent-primary !important;
+        border-color: $accent-primary !important;
+        transform: scale(1.2);
+    }
+}
+
+.handle-true {
+    border-color: $success !important;
+    &:hover { background: $success !important; }
+}
+
+.handle-false {
+    border-color: $danger !important;
+    &:hover { background: $danger !important; }
+}
+
+// ============================================
 // HANDLE STYLES
 // ============================================
 
@@ -731,6 +857,265 @@
 // PORT LIST (Docker Config Panel)
 // ============================================
 
+// ============================================
+// CONFIG PANEL ELEMENTS
+// ============================================
+
+// Trigger type selector grid
+.trigger-type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $space-2;
+}
+
+.trigger-type-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-1;
+    padding: $space-3;
+    background: $bg-body;
+    border: 1px solid $border-subtle;
+    border-radius: $radius-lg;
+    color: $text-tertiary;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+        border-color: $border-active;
+        color: $text-secondary;
+    }
+
+    &.active {
+        background: rgba($accent-primary-raw, 0.1);
+        border-color: $accent-primary;
+        color: $accent-primary;
+    }
+
+    .trigger-type-name {
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+    }
+
+    .trigger-type-desc {
+        font-size: $font-size-xs;
+        color: $text-tertiary;
+        text-align: center;
+        line-height: $line-height-tight;
+    }
+}
+
+// Notification channel selector
+.channel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: $space-2;
+}
+
+.channel-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-1;
+    padding: $space-2;
+    background: $bg-body;
+    border: 1px solid $border-subtle;
+    border-radius: $radius-md;
+    color: $text-tertiary;
+    font-size: $font-size-xs;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+        border-color: $border-active;
+        color: $text-secondary;
+    }
+
+    &.active {
+        background: rgba($accent-primary-raw, 0.1);
+        border-color: $accent-primary;
+        color: $accent-primary;
+    }
+}
+
+// Language toggle
+.lang-toggle {
+    display: flex;
+    gap: $space-2;
+}
+
+.lang-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $space-2;
+    padding: $space-2;
+    background: $bg-body;
+    border: 1px solid $border-subtle;
+    border-radius: $radius-md;
+    color: $text-tertiary;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover { border-color: $border-active; color: $text-secondary; }
+    &.active { background: rgba($accent-primary-raw, 0.1); border-color: $accent-primary; color: $accent-primary; }
+}
+
+// Script editor textarea
+.script-editor {
+    min-height: 240px;
+    font-size: $font-size-xs;
+    line-height: 1.6;
+    tab-size: 4;
+}
+
+// Toggle switch
+.toggle-label {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    background: $bg-tertiary;
+    border: none;
+    border-radius: $radius-full;
+    cursor: pointer;
+    transition: background $transition-fast;
+
+    &.active { background: $success; }
+
+    .toggle-knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        background: white;
+        border-radius: 50%;
+        transition: transform $transition-fast;
+    }
+
+    &.active .toggle-knob {
+        transform: translateX(16px);
+    }
+}
+
+// Input with action button (e.g. copy)
+.input-with-action {
+    display: flex;
+    gap: $space-2;
+
+    input { flex: 1; }
+}
+
+.input-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $space-2 $space-3;
+    background: $bg-body;
+    border: 1px solid $border-subtle;
+    border-radius: $radius-md;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover { background: $bg-hover; color: $text-primary; }
+}
+
+// Info boxes in panels
+.panel-info-box {
+    padding: $space-3;
+    background: rgba($accent-primary-raw, 0.08);
+    border: 1px solid rgba($accent-primary-raw, 0.2);
+    border-radius: $radius-md;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+    line-height: 1.6;
+    margin-top: $space-3;
+
+    code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: $font-size-xs;
+        color: $accent-primary;
+    }
+
+    &.panel-info-warning {
+        background: rgba($warning, 0.08);
+        border-color: rgba($warning, 0.2);
+
+        code { color: $warning; }
+    }
+}
+
+// Delete node button
+.btn-delete-node {
+    width: 100%;
+    padding: $space-2 $space-4;
+    background: transparent;
+    border: 1px solid $danger;
+    border-radius: $radius-md;
+    color: $danger;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+        background: $danger;
+        color: white;
+    }
+}
+
+// Branch legend (If/Else panel)
+.branch-legend {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    margin-top: $space-4;
+}
+
+.branch-legend-item {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+}
+
+.branch-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+
+    &.branch-dot-true { background: $success; }
+    &.branch-dot-false { background: $danger; }
+}
+
+// 3-col form row
+.form-row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: $space-3;
+}
+
+// Font mono utility
+.font-mono {
+    font-family: $font-mono !important;
+}
+
+// ============================================
+// PORT LIST (Docker Config Panel)
+// ============================================
+
 .port-list {
     display: flex;
     flex-direction: column;
@@ -994,6 +1379,22 @@
         border-color: darken($accent-primary-raw, 5%);
         color: white;
     }
+}
+
+.toolbar-btn-execute {
+    color: $success;
+
+    &:hover {
+        background: rgba($success, 0.1);
+        border-color: $success;
+    }
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: $border-subtle;
+    margin: 0 $space-1;
 }
 
 .toolbar-message {

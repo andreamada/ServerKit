@@ -1,54 +1,54 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ResourceTierProvider } from './contexts/ResourceTierContext';
 import { ToastContainer } from './components/Toast';
-import { LoadingState } from './components/Spinner';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Setup from './pages/Setup';
+import Applications from './pages/Applications';
+import ApplicationDetail from './pages/ApplicationDetail';
+import Docker from './pages/Docker';
+import Databases from './pages/Databases';
+import Domains from './pages/Domains';
+import Monitoring from './pages/Monitoring';
+import Backups from './pages/Backups';
+import Terminal from './pages/Terminal';
+import Settings from './pages/Settings';
+import FileManager from './pages/FileManager';
+import FTPServer from './pages/FTPServer';
+// Firewall is now part of Security page
+import Git from './pages/Git';
+import CronJobs from './pages/CronJobs';
+import Security from './pages/Security';
 import Services from './pages/Services';
 import ServiceDetail from './pages/ServiceDetail';
-
-// Lazy-loaded pages
-const Applications = lazy(() => import('./pages/Applications'));
-const ApplicationDetail = lazy(() => import('./pages/ApplicationDetail'));
-const Docker = lazy(() => import('./pages/Docker'));
-const Databases = lazy(() => import('./pages/Databases'));
-const Domains = lazy(() => import('./pages/Domains'));
-const Monitoring = lazy(() => import('./pages/Monitoring'));
-const Backups = lazy(() => import('./pages/Backups'));
-const Terminal = lazy(() => import('./pages/Terminal'));
-const Settings = lazy(() => import('./pages/Settings'));
-const FileManager = lazy(() => import('./pages/FileManager'));
-// FTPServer — absorbed into FileManager page as tab
-// Firewall is now part of Security page
-const Git = lazy(() => import('./pages/Git'));
-const CronJobs = lazy(() => import('./pages/CronJobs'));
-const Security = lazy(() => import('./pages/Security'));
-const Templates = lazy(() => import('./pages/Templates'));
-const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'));
-const Servers = lazy(() => import('./pages/Servers'));
-const ServerDetail = lazy(() => import('./pages/ServerDetail'));
-// Downloads — absorbed into Marketplace page as tab
-const WordPress = lazy(() => import('./pages/WordPress'));
-const WordPressDetail = lazy(() => import('./pages/WordPressDetail'));
-const WordPressProjects = lazy(() => import('./pages/WordPressProjects'));
-const WordPressProject = lazy(() => import('./pages/WordPressProject'));
-// SSLCertificates — absorbed into Domains page as tab
-const Email = lazy(() => import('./pages/Email'));
-const SSOCallback = lazy(() => import('./pages/SSOCallback'));
-const DatabaseMigration = lazy(() => import('./pages/DatabaseMigration'));
-// AgentPlugins, ServerTemplates — absorbed into Servers page as tabs
-const Workspaces = lazy(() => import('./pages/Workspaces'));
-// DNSZones, SSLCertificates — absorbed into Domains page as tabs
-// StatusPages — absorbed into Monitoring page as a tab
-// CloudProvision, AgentFleet, FleetMonitor — absorbed into Servers page as tabs
-const Marketplace = lazy(() => import('./pages/Marketplace'));
+import Templates from './pages/Templates';
+import WorkflowBuilder from './pages/WorkflowBuilder';
+import Servers from './pages/Servers';
+import ServerDetail from './pages/ServerDetail';
+import AgentFleet from './pages/AgentFleet';
+import FleetMonitor from './pages/FleetMonitor';
+import Downloads from './pages/Downloads';
+import WordPress from './pages/WordPress';
+import WordPressDetail from './pages/WordPressDetail';
+import WordPressProjects from './pages/WordPressProjects';
+import WordPressProject from './pages/WordPressProject';
+import SSLCertificates from './pages/SSLCertificates';
+import Email from './pages/Email';
+import SSOCallback from './pages/SSOCallback';
+import DatabaseMigration from './pages/DatabaseMigration';
+import AgentPlugins from './pages/AgentPlugins';
+import ServerTemplates from './pages/ServerTemplates';
+import Workspaces from './pages/Workspaces';
+import DNSZones from './pages/DNSZones';
+import StatusPages from './pages/StatusPages';
+import CloudProvision from './pages/CloudProvision';
+import Marketplace from './pages/Marketplace';
 
 // Page title mapping
 const PAGE_TITLES = {
@@ -64,13 +64,13 @@ const PAGE_TITLES = {
     '/workflow': 'Workflow Builder',
     '/domains': 'Domains',
     '/databases': 'Databases',
-    // SSL absorbed into Domains
+    '/ssl': 'SSL Certificates',
     '/docker': 'Docker',
     '/servers': 'Servers',
-    // Downloads absorbed into Marketplace
+    '/downloads': 'Downloads',
     '/git': 'Git Repositories',
     '/files': 'File Manager',
-    // FTP absorbed into File Manager
+    '/ftp': 'FTP Server',
     '/monitoring': 'Monitoring',
     '/backups': 'Backups',
     '/cron': 'Cron Jobs',
@@ -79,9 +79,14 @@ const PAGE_TITLES = {
     '/terminal': 'Terminal',
     '/settings': 'Settings',
     '/migrate': 'Database Migration',
-    // Fleet, Fleet Monitor, Agent Plugins, Server Templates, Cloud — absorbed into Servers
+    '/fleet': 'Agent Fleet',
+    '/fleet-monitor': 'Fleet Monitor',
+    '/agent-plugins': 'Agent Plugins',
+    '/server-templates': 'Server Templates',
     '/workspaces': 'Workspaces',
-    // DNS absorbed into Domains, Status Pages absorbed into Monitoring, Cloud absorbed into Servers
+    '/dns': 'DNS Zones',
+    '/status-pages': 'Status Pages',
+    '/cloud': 'Cloud Provisioning',
     '/marketplace': 'Marketplace',
 };
 
@@ -116,7 +121,7 @@ function PrivateRoute({ children }) {
     const { isAuthenticated, loading, needsSetup, needsMigration } = useAuth();
 
     if (loading) {
-        return <LoadingState />;
+        return <div className="loading">Loading...</div>;
     }
 
     // Priority: migrations > setup > auth
@@ -135,7 +140,7 @@ function PublicRoute({ children }) {
     const { isAuthenticated, loading, needsSetup, needsMigration } = useAuth();
 
     if (loading) {
-        return <LoadingState />;
+        return <div className="loading">Loading...</div>;
     }
 
     // Priority: migrations > setup > auth
@@ -154,7 +159,7 @@ function SetupRoute({ children }) {
     const { loading, needsSetup, isAuthenticated } = useAuth();
 
     if (loading) {
-        return <LoadingState />;
+        return <div className="loading">Loading...</div>;
     }
 
     // If setup is not needed, redirect appropriately
@@ -167,7 +172,6 @@ function SetupRoute({ children }) {
 
 function AppRoutes() {
     return (
-        <Suspense fallback={<LoadingState />}>
         <Routes>
             <Route path="/migrate" element={<DatabaseMigration />} />
             <Route path="/setup" element={
@@ -210,37 +214,30 @@ function AppRoutes() {
                 <Route path="templates" element={<Templates />} />
                 <Route path="workflow" element={<WorkflowBuilder />} />
                 <Route path="domains" element={<Domains />} />
-                <Route path="domains/:tab" element={<Domains />} />
                 <Route path="databases" element={<Databases />} />
                 <Route path="databases/:tab" element={<Databases />} />
-                <Route path="ssl" element={<Navigate to="/domains/ssl" replace />} />
+                <Route path="ssl" element={<SSLCertificates />} />
                 <Route path="docker" element={<Docker />} />
                 <Route path="docker/:tab" element={<Docker />} />
                 <Route path="servers" element={<Servers />} />
-                <Route path="servers/fleet" element={<Servers />} />
-                <Route path="servers/monitor" element={<Servers />} />
-                <Route path="servers/cloud" element={<Servers />} />
-                <Route path="servers/plugins" element={<Servers />} />
-                <Route path="servers/config" element={<Servers />} />
                 <Route path="servers/:id" element={<ServerDetail />} />
                 <Route path="servers/:id/:tab" element={<ServerDetail />} />
-                <Route path="fleet" element={<Navigate to="/servers/fleet" replace />} />
-                <Route path="fleet-monitor" element={<Navigate to="/servers/monitor" replace />} />
-                <Route path="agent-plugins" element={<Navigate to="/servers/plugins" replace />} />
-                <Route path="server-templates" element={<Navigate to="/servers/config" replace />} />
-                <Route path="cloud" element={<Navigate to="/servers/cloud" replace />} />
+                <Route path="fleet" element={<AgentFleet />} />
+                <Route path="fleet-monitor" element={<FleetMonitor />} />
+                <Route path="agent-plugins" element={<AgentPlugins />} />
+                <Route path="server-templates" element={<ServerTemplates />} />
                 <Route path="workspaces" element={<Workspaces />} />
-                <Route path="dns" element={<Navigate to="/domains/dns" replace />} />
-                <Route path="status-pages" element={<Navigate to="/monitoring/status-pages" replace />} />
+                <Route path="dns" element={<DNSZones />} />
+                <Route path="status-pages" element={<StatusPages />} />
+                <Route path="cloud" element={<CloudProvision />} />
                 <Route path="marketplace" element={<Marketplace />} />
-                <Route path="marketplace/:tab" element={<Marketplace />} />
-                <Route path="downloads" element={<Navigate to="/marketplace/downloads" replace />} />
+                <Route path="downloads" element={<Downloads />} />
                 <Route path="firewall" element={<Navigate to="/security/firewall" replace />} />
                 <Route path="git" element={<Git />} />
                 <Route path="git/:tab" element={<Git />} />
                 <Route path="files" element={<FileManager />} />
-                <Route path="files/:tab" element={<FileManager />} />
-                <Route path="ftp" element={<Navigate to="/files/ftp" replace />} />
+                <Route path="ftp" element={<FTPServer />} />
+                <Route path="ftp/:tab" element={<FTPServer />} />
                 <Route path="monitoring" element={<Monitoring />} />
                 <Route path="monitoring/:tab" element={<Monitoring />} />
                 <Route path="backups" element={<Backups />} />
@@ -256,7 +253,6 @@ function AppRoutes() {
                 <Route path="settings/:tab" element={<Settings />} />
             </Route>
         </Routes>
-        </Suspense>
     );
 }
 

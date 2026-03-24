@@ -1,12 +1,9 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import useTabParam from '../hooks/useTabParam';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
-import { LoadingState } from '../components/Spinner';
 
-const StatusPages = lazy(() => import('./StatusPages'));
-
-const VALID_TABS = ['overview', 'alerts', 'config', 'thresholds', 'status-pages'];
+const VALID_TABS = ['overview', 'alerts', 'config', 'thresholds'];
 
 const Monitoring = () => {
     const toast = useToast();
@@ -206,12 +203,6 @@ const Monitoring = () => {
                     onClick={() => setActiveTab('thresholds')}
                 >
                     Thresholds
-                </button>
-                <button
-                    className={`tab ${activeTab === 'status-pages' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('status-pages')}
-                >
-                    Status Pages
                 </button>
             </div>
 
@@ -519,12 +510,6 @@ const Monitoring = () => {
                         </form>
                     </div>
                 </div>
-            )}
-
-            {activeTab === 'status-pages' && (
-                <Suspense fallback={<LoadingState />}>
-                    <StatusPages />
-                </Suspense>
             )}
         </div>
     );

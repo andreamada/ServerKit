@@ -1,27 +1,35 @@
 import React, { useState } from 'react';
-import { X, Play, Clock, Webhook, Zap, Copy, Check } from 'lucide-react';
+import ConfigPanel from '../ConfigPanel';
+import { Play, Clock, Webhook, Zap, Copy, Check } from 'lucide-react';
 
-const TriggerConfigPanel = ({ node, onChange, onClose }) => {
+const TriggerConfigPanel = ({ node, onChange, onClose, onDelete }) => {
     const { data } = node;
-    const { triggerType = 'manual', label = 'Trigger', triggerConfig = {} } = data;
+    const { triggerType = 'manual', label = 'Trigger', isActive = true, triggerConfig = {} } = data;
     const [copied, setCopied] = useState(false);
 
     const handleTypeChange = (type) => {
+        const typeLabels = {
+            manual: 'Manual Trigger',
+            cron: 'Scheduled Task',
+            webhook: 'Webhook Trigger',
+            event: 'Event Listener'
+        };
         onChange({
             ...data,
             triggerType: type,
-            label: `${type.charAt(0).toUpperCase() + type.slice(1)} Trigger`
+            label: typeLabels[type] || `${type} Trigger`
         });
     };
 
     const handleConfigChange = (key, value) => {
         onChange({
             ...data,
-            triggerConfig: {
-                ...triggerConfig,
-                [key]: value
-            }
+            triggerConfig: { ...triggerConfig, [key]: value }
         });
+    };
+
+    const toggleActive = () => {
+        onChange({ ...data, isActive: !isActive });
     };
 
     const webhookUrl = triggerConfig.webhook_id
@@ -36,130 +44,132 @@ const TriggerConfigPanel = ({ node, onChange, onClose }) => {
         }
     };
 
+    const triggerTypes = [
+        { id: 'manual', icon: Play, label: 'Manual', desc: 'Run on demand via button or API' },
+        { id: 'cron', icon: Clock, label: 'Schedule', desc: 'Run on a cron schedule' },
+        { id: 'webhook', icon: Webhook, label: 'Webhook', desc: 'Triggered by HTTP POST' },
+        { id: 'event', icon: Zap, label: 'Event', desc: 'React to system events' },
+    ];
+
     return (
-        <div className="config-panel">
-            <div className="panel-header">
-                <h3>Trigger Configuration</h3>
-                <button onClick={onClose}><X size={18} /></button>
+        <ConfigPanel
+            title="Trigger"
+            icon={<Play size={16} />}
+            color="#3b82f6"
+            onClose={onClose}
+            footer={onDelete && (
+                <button className="btn-delete-node" onClick={onDelete}>
+                    Remove Node
+                </button>
+            )}
+        >
+            <div className="form-group">
+                <label>Label</label>
+                <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => onChange({ ...data, label: e.target.value })}
+                />
             </div>
 
-            <div className="panel-body">
+            <div className="form-group">
+                <label>Trigger Type</label>
+                <div className="trigger-type-grid">
+                    {triggerTypes.map(({ id, icon: Icon, label: typeLabel, desc }) => (
+                        <button
+                            key={id}
+                            className={`trigger-type-btn ${triggerType === id ? 'active' : ''}`}
+                            onClick={() => handleTypeChange(id)}
+                        >
+                            <Icon size={18} />
+                            <span className="trigger-type-name">{typeLabel}</span>
+                            <span className="trigger-type-desc">{desc}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="form-group">
+                <label className="toggle-label">
+                    <span>Enabled</span>
+                    <button
+                        className={`toggle-switch ${isActive ? 'active' : ''}`}
+                        onClick={toggleActive}
+                    >
+                        <span className="toggle-knob" />
+                    </button>
+                </label>
+            </div>
+
+            {triggerType === 'cron' && (
                 <div className="form-group">
-                    <label>Node Label</label>
+                    <label>Cron Expression</label>
                     <input
                         type="text"
-                        value={label}
-                        onChange={(e) => onChange({ ...data, label: e.target.value })}
+                        className="font-mono"
+                        value={triggerConfig.cron || '0 * * * *'}
+                        onChange={(e) => handleConfigChange('cron', e.target.value)}
+                        placeholder="e.g. 0 0 * * *"
                     />
+                    <span className="form-hint">
+                        Format: minute hour day month weekday. Examples: <code>*/5 * * * *</code> (every 5 min), <code>0 0 * * *</code> (daily midnight)
+                    </span>
                 </div>
+            )}
 
+            {triggerType === 'webhook' && (
                 <div className="form-group">
-                    <label>Trigger Type</label>
-                    <div className="trigger-type-grid grid grid-cols-2 gap-2 mt-2">
-                        <button
-                            className={`p-3 rounded-lg border flex flex-col items-center gap-2 transition-colors ${triggerType === 'manual' ? 'bg-blue-900/30 border-blue-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}
-                            onClick={() => handleTypeChange('manual')}
-                        >
-                            <Play size={20} className={triggerType === 'manual' ? 'text-blue-400' : 'text-gray-400'} />
-                            <span className="text-xs">Manual</span>
-                        </button>
-                        <button
-                            className={`p-3 rounded-lg border flex flex-col items-center gap-2 transition-colors ${triggerType === 'cron' ? 'bg-purple-900/30 border-purple-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}
-                            onClick={() => handleTypeChange('cron')}
-                        >
-                            <Clock size={20} className={triggerType === 'cron' ? 'text-purple-400' : 'text-gray-400'} />
-                            <span className="text-xs">Schedule</span>
-                        </button>
-                        <button
-                            className={`p-3 rounded-lg border flex flex-col items-center gap-2 transition-colors ${triggerType === 'webhook' ? 'bg-green-900/30 border-green-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}
-                            onClick={() => handleTypeChange('webhook')}
-                        >
-                            <Webhook size={20} className={triggerType === 'webhook' ? 'text-green-400' : 'text-gray-400'} />
-                            <span className="text-xs">Webhook</span>
-                        </button>
-                        <button
-                            className={`p-3 rounded-lg border flex flex-col items-center gap-2 transition-colors ${triggerType === 'event' ? 'bg-yellow-900/30 border-yellow-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}
-                            onClick={() => handleTypeChange('event')}
-                        >
-                            <Zap size={20} className={triggerType === 'event' ? 'text-yellow-400' : 'text-gray-400'} />
-                            <span className="text-xs">System Event</span>
-                        </button>
-                    </div>
-                </div>
-
-                {triggerType === 'cron' && (
-                    <div className="form-group animate-in fade-in slide-in-from-top-1">
-                        <label>Cron Expression</label>
-                        <input
-                            type="text"
-                            value={triggerConfig.cron || '0 * * * *'}
-                            onChange={(e) => handleConfigChange('cron', e.target.value)}
-                            placeholder="e.g. 0 0 * * *"
-                        />
-                        <p className="text-[10px] text-gray-500 mt-1">
-                            (Min Hour Day Month Week)
-                        </p>
-                    </div>
-                )}
-
-                {triggerType === 'webhook' && (
-                    <div className="form-group animate-in fade-in slide-in-from-top-1">
-                        <label>Webhook URL</label>
-                        {webhookUrl ? (
-                            <>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={webhookUrl}
-                                        readOnly
-                                        className="bg-gray-900 text-gray-300 cursor-default font-mono text-xs flex-1"
-                                    />
-                                    <button
-                                        onClick={copyWebhookUrl}
-                                        className="px-3 py-1 rounded border border-gray-600 bg-gray-800 hover:bg-gray-700 transition-colors"
-                                        title="Copy URL"
-                                    >
-                                        {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="text-gray-400" />}
-                                    </button>
-                                </div>
-                                <p className="text-[10px] text-gray-500 mt-1">
-                                    Send POST requests to this URL to trigger the workflow.
-                                </p>
-                            </>
-                        ) : (
-                            <p className="text-[10px] text-yellow-400 mt-1">
-                                Save the workflow to generate the webhook URL.
-                            </p>
-                        )}
-                        <div className="mt-3 p-3 bg-gray-800 rounded border border-gray-700">
-                            <p className="text-[10px] text-gray-400">
-                                <strong>Request body</strong> is available in your workflow as <code>context.body</code>.
-                                Query parameters are in <code>context.query</code>.
-                            </p>
+                    <label>Webhook URL</label>
+                    {webhookUrl ? (
+                        <>
+                            <div className="input-with-action">
+                                <input
+                                    type="text"
+                                    value={webhookUrl}
+                                    readOnly
+                                    className="input-readonly font-mono"
+                                />
+                                <button className="input-action-btn" onClick={copyWebhookUrl} title="Copy URL">
+                                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                                </button>
+                            </div>
+                            <span className="form-hint">
+                                Send a POST request to this URL to trigger the workflow. Request body is available as <code>context.body</code>.
+                            </span>
+                        </>
+                    ) : (
+                        <div className="panel-info-box panel-info-warning">
+                            Save the workflow first to generate the webhook URL.
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
+            )}
 
-                {triggerType === 'event' && (
-                    <div className="form-group animate-in fade-in slide-in-from-top-1">
-                        <label>System Event</label>
-                        <select
-                            value={triggerConfig.eventType || 'health_check_failed'}
-                            onChange={(e) => handleConfigChange('eventType', e.target.value)}
-                        >
-                            <option value="health_check_failed">Health Check Failed</option>
-                            <option value="high_cpu">High CPU Usage (&gt;80%)</option>
-                            <option value="high_memory">High Memory Usage (&gt;80%)</option>
-                            <option value="git_push">Git Push Received</option>
-                            <option value="app_stopped">Application Stopped</option>
-                        </select>
-                        <p className="text-[10px] text-gray-500 mt-1">
-                            Event data is available as <code>context.event_data</code>.
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
+            {triggerType === 'event' && (
+                <div className="form-group">
+                    <label>System Event</label>
+                    <select
+                        value={triggerConfig.eventType || 'health_check_failed'}
+                        onChange={(e) => handleConfigChange('eventType', e.target.value)}
+                    >
+                        <option value="health_check_failed">Health Check Failed</option>
+                        <option value="high_cpu">High CPU Usage (&gt;80%)</option>
+                        <option value="high_memory">High Memory Usage (&gt;80%)</option>
+                        <option value="git_push">Git Push Received</option>
+                        <option value="app_stopped">Application Stopped</option>
+                    </select>
+                    <span className="form-hint">
+                        Event data is available as <code>context.event_data</code> in scripts and conditions.
+                    </span>
+                </div>
+            )}
+
+            {triggerType === 'manual' && (
+                <div className="panel-info-box">
+                    Click <strong>Execute</strong> in the toolbar or call the workflow API to run manually.
+                </div>
+            )}
+        </ConfigPanel>
     );
 };
 

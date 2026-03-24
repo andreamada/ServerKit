@@ -67,119 +67,73 @@ const edgeTypes = {
 let nodeId = 0;
 const getId = () => `node_${nodeId++}`;
 
-const NodePalette = ({ onAddNode, templates, onAddFromTemplate, existingApps, onAddExistingApp }) => {
-    const [showTemplates, setShowTemplates] = useState(false);
-    const [showExistingApps, setShowExistingApps] = useState(false);
-
+const NodePalette = ({ onAddNode }) => {
     return (
         <div className="workflow-palette">
             <div className="palette-section">
-                <div className="palette-header">Add Application</div>
-                <button
-                    className="palette-item palette-item-docker"
-                    onClick={() => setShowTemplates(!showTemplates)}
-                >
-                    <Plus size={16} />
-                    <span>From Template</span>
-                </button>
-                {showTemplates && templates.length > 0 && (
-                    <div className="palette-submenu">
-                        {templates.map((template) => (
-                            <button
-                                key={template.id}
-                                className="palette-subitem"
-                                onClick={() => {
-                                    onAddFromTemplate(template);
-                                    setShowTemplates(false);
-                                }}
-                            >
-                                {template.name}
-                            </button>
-                        ))}
-                    </div>
-                )}
-                {showTemplates && templates.length === 0 && (
-                    <div className="palette-empty">No templates available</div>
-                )}
-
-                {existingApps.length > 0 && (
-                    <>
-                        <button
-                            className="palette-item palette-item-service"
-                            onClick={() => setShowExistingApps(!showExistingApps)}
-                        >
-                            <Server size={16} />
-                            <span>Existing App</span>
-                        </button>
-                        {showExistingApps && (
-                            <div className="palette-submenu">
-                                {existingApps.map((app) => (
-                                    <button
-                                        key={app.id}
-                                        className="palette-subitem"
-                                        onClick={() => {
-                                            onAddExistingApp(app);
-                                            setShowExistingApps(false);
-                                        }}
-                                    >
-                                        {app.name}
-                                        <span className={`status-badge status-${app.status}`}>
-                                            {app.status}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </>
-                )}
-            </div>
-
-            <div className="palette-section">
-                <div className="palette-header">Network</div>
-                <button
-                    className="palette-item palette-item-domain"
-                    onClick={() => onAddNode('domain', { name: 'example.com', ssl: 'none', dnsStatus: 'pending' })}
-                >
-                    <Globe size={16} />
-                    <span>Domain</span>
-                </button>
-            </div>
-
-            <div className="palette-section">
-                <div className="palette-header">Automation</div>
+                <div className="palette-header">Triggers</div>
                 <button
                     className="palette-item palette-item-trigger"
                     onClick={() => onAddNode('trigger', { label: 'Manual Trigger', triggerType: 'manual', isActive: true })}
                 >
                     <Play size={16} />
-                    <span>Trigger</span>
+                    <span>Manual</span>
                 </button>
                 <button
-                    className="palette-item palette-item-logic"
-                    onClick={() => onAddNode('logic_if', { label: 'If/Else', condition: '' })}
+                    className="palette-item palette-item-trigger"
+                    onClick={() => onAddNode('trigger', { label: 'Scheduled Task', triggerType: 'cron', isActive: true, triggerConfig: { cron: '0 * * * *' } })}
                 >
-                    <Layout size={16} />
-                    <span>Logic (If/Else)</span>
+                    <Activity size={16} />
+                    <span>Schedule (Cron)</span>
                 </button>
+                <button
+                    className="palette-item palette-item-trigger"
+                    onClick={() => onAddNode('trigger', { label: 'Webhook Trigger', triggerType: 'webhook', isActive: true, triggerConfig: {} })}
+                >
+                    <Globe size={16} />
+                    <span>Webhook</span>
+                </button>
+                <button
+                    className="palette-item palette-item-trigger"
+                    onClick={() => onAddNode('trigger', { label: 'Event Listener', triggerType: 'event', isActive: true, triggerConfig: { eventType: 'health_check_failed' } })}
+                >
+                    <Eye size={16} />
+                    <span>System Event</span>
+                </button>
+            </div>
+
+            <div className="palette-section">
+                <div className="palette-header">Actions</div>
                 <button
                     className="palette-item palette-item-script"
                     onClick={() => onAddNode('script', { label: 'Run Script', language: 'bash', content: '' })}
                 >
                     <Terminal size={16} />
-                    <span>Script</span>
+                    <span>Run Script</span>
                 </button>
                 <button
                     className="palette-item palette-item-notification"
-                    onClick={() => onAddNode('notification', { label: 'Notify', channel: 'discord', message: '' })}
+                    onClick={() => onAddNode('notification', { label: 'Send Notification', channel: 'system', message: '' })}
                 >
                     <Bell size={16} />
                     <span>Notification</span>
                 </button>
             </div>
 
+            <div className="palette-section">
+                <div className="palette-header">Flow Control</div>
+                <button
+                    className="palette-item palette-item-logic"
+                    onClick={() => onAddNode('logic_if', { label: 'If/Else', condition: '' })}
+                >
+                    <Layout size={16} />
+                    <span>Condition (If/Else)</span>
+                </button>
+            </div>
+
             <div className="palette-section palette-section-info">
                 <div className="palette-hint">
-                    Tip: Click "Server Overview" to see all your infrastructure with connections
+                    Add a trigger, connect actions, then save and execute. Press Delete to remove selected nodes.
                 </div>
             </div>
         </div>
@@ -830,11 +784,25 @@ const WorkflowCanvas = () => {
         setSelectedEdge(null);
     }, []);
 
+    const handleDeleteNode = useCallback(() => {
+        if (!selectedNode) return;
+        setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
+        setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
+        setSelectedNode(null);
+    }, [selectedNode, setNodes, setEdges]);
+
     const handleKeyDown = useCallback((event) => {
-        if ((event.key === 'Delete' || event.key === 'Backspace') && selectedEdge) {
-            deleteEdge(selectedEdge.id);
+        // Don't delete when typing in an input/textarea
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') return;
+
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+            if (selectedEdge) {
+                deleteEdge(selectedEdge.id);
+            } else if (selectedNode) {
+                handleDeleteNode();
+            }
         }
-    }, [selectedEdge, deleteEdge]);
+    }, [selectedEdge, selectedNode, deleteEdge, handleDeleteNode]);
 
     React.useEffect(() => {
         document.addEventListener('keydown', handleKeyDown);
@@ -865,7 +833,8 @@ const WorkflowCanvas = () => {
         const panelProps = {
             node: selectedNode,
             onChange: handleNodeDataChange,
-            onClose: handlePanelClose
+            onClose: handlePanelClose,
+            onDelete: handleDeleteNode
         };
 
         switch (selectedNode.type) {
@@ -907,71 +876,56 @@ const WorkflowCanvas = () => {
                 </div>
                 <div className="toolbar-right">
                     <button
-                        className="toolbar-btn toolbar-btn-overview"
-                        onClick={loadServerOverview}
-                        disabled={isLoading}
-                        title="Load full server infrastructure"
-                    >
-                        <Eye size={16} />
-                        <span>{isLoading ? 'Loading...' : 'Server Overview'}</span>
-                    </button>
-                    <button
                         className="toolbar-btn"
                         onClick={newWorkflow}
-                        title="New custom view"
+                        title="New workflow"
                     >
                         <Plus size={16} />
-                        <span>New View</span>
+                        <span>New</span>
                     </button>
                     <button
                         className="toolbar-btn"
                         onClick={() => setShowLoadModal(true)}
-                        title="Load saved view"
+                        title="Load saved workflow"
                     >
                         <FolderOpen size={16} />
                         <span>Load</span>
                     </button>
-                    <div className="toolbar-divider h-6 w-[1px] bg-gray-700 mx-1"></div>
+                    <div className="toolbar-divider" />
                     <button
-                        className={`toolbar-btn ${isExecuting ? 'animate-pulse' : ''}`}
+                        className="toolbar-btn toolbar-btn-execute"
                         onClick={executeWorkflow}
                         disabled={isExecuting || !currentWorkflow}
-                        title="Execute workflow manually"
+                        title="Execute workflow"
                     >
-                        <Play size={16} className="text-green-400" />
-                        <span>Execute</span>
+                        <Play size={16} />
+                        <span>{isExecuting ? 'Running...' : 'Execute'}</span>
                     </button>
                     <button
                         className="toolbar-btn"
                         onClick={() => setShowHistory(true)}
                         disabled={!currentWorkflow}
-                        title="View execution history"
+                        title="Execution history"
                     >
                         <Activity size={16} />
                         <span>History</span>
                     </button>
-                    <div className="toolbar-divider h-6 w-[1px] bg-gray-700 mx-1"></div>
+                    <div className="toolbar-divider" />
                     <button
                         className="toolbar-btn toolbar-btn-primary"
                         onClick={saveWorkflow}
                         disabled={isSaving}
-                        title="Save current view"
+                        title="Save workflow"
                     >
                         <Save size={16} />
-                        <span>{isSaving ? 'Saving...' : 'Save View'}</span>
+                        <span>{isSaving ? 'Saving...' : 'Save'}</span>
                     </button>
                 </div>
                 {saveMessage && (
                     <div className="toolbar-message">{saveMessage}</div>
                 )}
             </div>
-            <NodePalette
-                onAddNode={addNode}
-                templates={templates}
-                onAddFromTemplate={addFromTemplate}
-                existingApps={existingAppsNotInView}
-                onAddExistingApp={addExistingApp}
-            />
+            <NodePalette onAddNode={addNode} />
             {connectionError && (
                 <div className="connection-error-toast">
                     {connectionError}

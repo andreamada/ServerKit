@@ -53,3 +53,63 @@
 .tab-content {
     min-height: 400px;
 }
+
+// tabs-nav variant (used by Servers, Domains, etc.)
+.tabs-nav {
+    display: flex;
+    gap: $space-1;
+    border-bottom: 1px solid $border-subtle;
+    margin-bottom: $space-6;
+
+    &.tabs-nav-scrollable {
+        overflow-x: auto;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+}
+
+.tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+    background: none;
+    border: none;
+    padding: $space-3 $space-5;
+    color: $text-secondary;
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    @include transition();
+    white-space: nowrap;
+
+    &:hover {
+        color: $text-primary;
+    }
+
+    &.active {
+        color: $accent-primary;
+        border-bottom-color: $accent-primary;
+    }
+}
+
+// Hide nested page headers when a page component is embedded as a tab
+.tab-embedded {
+    > .page-container > .page-header,
+    > .page-header,
+    > .top-bar,
+    > div > .page-header,
+    > div > .top-bar {
+        display: none;
+    }
+
+    > [class*="-page"] > .page-header,
+    > [class*="-page"] > header.top-bar,
+    > [class*="-page"] > .top-bar {
+        display: none;
+    }
+}

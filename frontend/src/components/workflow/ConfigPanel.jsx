@@ -4,30 +4,36 @@ import { X } from 'lucide-react';
 const ConfigPanel = ({
     isOpen,
     title,
-    icon: Icon,
-    headerColor = '#6366f1',
+    icon,
+    color,
+    headerColor,
     onClose,
     children,
     footer
 }) => {
+    const borderColor = color || headerColor || '#6366f1';
+
     const handleKeyDown = useCallback((e) => {
-        if (e.key === 'Escape' && isOpen) {
+        if (e.key === 'Escape') {
             onClose();
         }
-    }, [isOpen, onClose]);
+    }, [onClose]);
 
     useEffect(() => {
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [handleKeyDown]);
 
+    // Always show when rendered (panels are conditionally rendered by parent)
+    const panelOpen = isOpen !== undefined ? isOpen : true;
+
     return (
-        <div className={`config-panel ${isOpen ? 'open' : ''}`}>
-            <div className="config-panel-header" style={{ borderColor: headerColor }}>
+        <div className={`config-panel ${panelOpen ? 'open' : ''}`}>
+            <div className="config-panel-header" style={{ borderColor }}>
                 <div className="config-panel-title">
-                    {Icon && (
-                        <div className="config-panel-icon" style={{ backgroundColor: headerColor }}>
-                            <Icon size={18} />
+                    {icon && (
+                        <div className="config-panel-icon" style={{ backgroundColor: borderColor }}>
+                            {typeof icon === 'function' ? React.createElement(icon, { size: 18 }) : icon}
                         </div>
                     )}
                     <h3>{title}</h3>
