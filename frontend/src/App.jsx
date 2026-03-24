@@ -34,7 +34,7 @@ const Templates = lazy(() => import('./pages/Templates'));
 const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'));
 const Servers = lazy(() => import('./pages/Servers'));
 const ServerDetail = lazy(() => import('./pages/ServerDetail'));
-const Downloads = lazy(() => import('./pages/Downloads'));
+// Downloads — absorbed into Marketplace page as tab
 const WordPress = lazy(() => import('./pages/WordPress'));
 const WordPressDetail = lazy(() => import('./pages/WordPressDetail'));
 const WordPressProjects = lazy(() => import('./pages/WordPressProjects'));

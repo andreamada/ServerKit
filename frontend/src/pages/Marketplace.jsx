@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
-import Spinner from '../components/Spinner';
+import Spinner, { LoadingState } from '../components/Spinner';
+import useTabParam from '../hooks/useTabParam';
+
+const Downloads = lazy(() => import('./Downloads'));
+
+const VALID_TABS = ['browse', 'installed', 'downloads'];
 
 const Marketplace = () => {
     const toast = useToast();
@@ -12,7 +17,7 @@ const Marketplace = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('');
-    const [tab, setTab] = useState('browse');
+    const [tab, setTab] = useTabParam('/marketplace', VALID_TABS);
     const [showSubmit, setShowSubmit] = useState(false);
     const [form, setForm] = useState({ name: '', display_name: '', description: '', category: 'utility', version: '1.0.0', author: '' });
 
@@ -84,6 +89,7 @@ const Marketplace = () => {
             <div className="tabs">
                 <button className={`tab ${tab === 'browse' ? 'active' : ''}`} onClick={() => setTab('browse')}>Browse</button>
                 <button className={`tab ${tab === 'installed' ? 'active' : ''}`} onClick={() => setTab('installed')}>Installed ({myExtensions.length})</button>
+                <button className={`tab ${tab === 'downloads' ? 'active' : ''}`} onClick={() => setTab('downloads')}>Downloads</button>
             </div>
 
             {tab === 'browse' && (
@@ -140,6 +146,12 @@ const Marketplace = () => {
                     ))}
                     {myExtensions.length === 0 && <div className="empty-state"><p>No extensions installed.</p></div>}
                 </div>
+            )}
+
+            {tab === 'downloads' && (
+                <Suspense fallback={<LoadingState />}>
+                    <Downloads />
+                </Suspense>
             )}
 
             {showSubmit && (
