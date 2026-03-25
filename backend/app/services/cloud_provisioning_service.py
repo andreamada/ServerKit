@@ -200,6 +200,14 @@ class CloudProvisioningService:
         snapshot = CloudSnapshot.query.get(snapshot_id)
         if not snapshot:
             return False
+        # Delete from cloud provider first
+        try:
+            server = snapshot.server
+            if server and server.provider:
+                CloudProvisioningService._provider_delete_snapshot(
+                    server.provider, server, snapshot)
+        except Exception as e:
+            logger.warning(f'Provider snapshot delete failed: {e}')
         db.session.delete(snapshot)
         db.session.commit()
         return True
@@ -226,22 +234,40 @@ class CloudProvisioningService:
             'by_provider': by_provider,
         }
 
+    # --- Provider API helpers ---
+
+    @staticmethod
+    def _auth_headers(provider):
+        return {
+            'Authorization': f'Bearer {provider.api_key_encrypted}',
+            'Content-Type': 'application/json',
+        }
+
+    # Vultr uses os_id integers instead of image name strings
+    VULTR_OS_MAP = {
+        'Ubuntu 22.04': 1743,
+        'Ubuntu 24.04': 2284,
+        'Debian 12': 2136,
+        'CentOS Stream 9': 2072,
+    }
+
     # --- Provider API calls ---
 
     @staticmethod
     def _provider_create(provider, server, data):
         """Call provider API to create server. Returns dict with id, ip_address, etc."""
+        import requests
         ptype = provider.provider_type
+        headers = CloudProvisioningService._auth_headers(provider)
 
         if ptype == 'digitalocean':
-            import requests
             resp = requests.post('https://api.digitalocean.com/v2/droplets', json={
                 'name': server.name,
                 'region': server.region,
                 'size': server.size,
                 'image': server.image,
                 'ssh_keys': [data.get('ssh_key_id')] if data.get('ssh_key_id') else [],
-            }, headers={'Authorization': f'Bearer {provider.api_key_encrypted}'}, timeout=30)
+            }, headers=headers, timeout=30)
             resp.raise_for_status()
             droplet = resp.json().get('droplet', {})
             networks = droplet.get('networks', {})
@@ -253,13 +279,12 @@ class CloudProvisioningService:
             }
 
         elif ptype == 'hetzner':
-            import requests
             resp = requests.post('https://api.hetzner.cloud/v1/servers', json={
                 'name': server.name,
                 'server_type': server.size,
                 'image': server.image,
                 'location': server.region,
-            }, headers={'Authorization': f'Bearer {provider.api_key_encrypted}'}, timeout=30)
+            }, headers=headers, timeout=30)
             resp.raise_for_status()
             srv = resp.json().get('server', {})
             return {
@@ -267,30 +292,243 @@ class CloudProvisioningService:
                 'ip_address': srv.get('public_net', {}).get('ipv4', {}).get('ip'),
             }
 
-        # Fallback for unsupported or mock
-        return {'id': 'mock-id', 'ip_address': '0.0.0.0'}
+        elif ptype == 'vultr':
+            os_id = CloudProvisioningService.VULTR_OS_MAP.get(server.image, 1743)
+            payload = {
+                'region': server.region,
+                'plan': server.size,
+                'os_id': os_id,
+                'label': server.name,
+                'hostname': server.name,
+            }
+            if data.get('ssh_key_id'):
+                payload['sshkey_id'] = [data['ssh_key_id']]
+            resp = requests.post('https://api.vultr.com/v2/instances', json=payload,
+                                 headers=headers, timeout=30)
+            resp.raise_for_status()
+            instance = resp.json().get('instance', {})
+            return {
+                'id': instance.get('id', ''),
+                'ip_address': instance.get('main_ip'),
+                'ipv6_address': instance.get('v6_main_ip'),
+                'monthly_cost': instance.get('monthly_cost', 0),
+            }
+
+        elif ptype == 'linode':
+            payload = {
+                'region': server.region,
+                'type': server.size,
+                'image': server.image,
+                'label': server.name,
+                'booted': True,
+            }
+            if data.get('root_pass'):
+                payload['root_pass'] = data['root_pass']
+            if data.get('ssh_key_id'):
+                payload['authorized_keys'] = [data['ssh_key_id']]
+            resp = requests.post('https://api.linode.com/v4/linode/instances', json=payload,
+                                 headers=headers, timeout=30)
+            resp.raise_for_status()
+            linode = resp.json()
+            ipv4_list = linode.get('ipv4', [])
+            # Fetch monthly cost from the type endpoint
+            monthly_cost = 0
+            try:
+                type_resp = requests.get(
+                    f'https://api.linode.com/v4/linode/types/{server.size}',
+                    headers=headers, timeout=10)
+                if type_resp.ok:
+                    monthly_cost = type_resp.json().get('price', {}).get('monthly', 0)
+            except Exception:
+                pass
+            return {
+                'id': str(linode.get('id', '')),
+                'ip_address': ipv4_list[0] if ipv4_list else None,
+                'ipv6_address': linode.get('ipv6'),
+                'monthly_cost': monthly_cost,
+            }
+
+        raise ValueError(f'Unsupported provider type: {ptype}')
 
     @staticmethod
     def _provider_destroy(provider, server):
+        """Delete server from the cloud provider."""
         if not server.external_id:
             return
+        import requests
         ptype = provider.provider_type
+        headers = CloudProvisioningService._auth_headers(provider)
+
         if ptype == 'digitalocean':
-            import requests
             requests.delete(
                 f'https://api.digitalocean.com/v2/droplets/{server.external_id}',
-                headers={'Authorization': f'Bearer {provider.api_key_encrypted}'}, timeout=30
-            )
+                headers=headers, timeout=30)
+
+        elif ptype == 'hetzner':
+            requests.delete(
+                f'https://api.hetzner.cloud/v1/servers/{server.external_id}',
+                headers=headers, timeout=30)
+
+        elif ptype == 'vultr':
+            requests.delete(
+                f'https://api.vultr.com/v2/instances/{server.external_id}',
+                headers=headers, timeout=30)
+
+        elif ptype == 'linode':
+            requests.delete(
+                f'https://api.linode.com/v4/linode/instances/{server.external_id}',
+                headers=headers, timeout=30)
 
     @staticmethod
     def _provider_resize(provider, server, new_size):
-        pass  # Provider-specific resize logic
+        """Resize a server to a new plan/type."""
+        if not server.external_id:
+            raise ValueError('Server has no external ID')
+        import requests
+        ptype = provider.provider_type
+        headers = CloudProvisioningService._auth_headers(provider)
+
+        if ptype == 'digitalocean':
+            resp = requests.post(
+                f'https://api.digitalocean.com/v2/droplets/{server.external_id}/actions',
+                json={'type': 'resize', 'size': new_size, 'disk': True},
+                headers=headers, timeout=30)
+            resp.raise_for_status()
+
+        elif ptype == 'hetzner':
+            resp = requests.post(
+                f'https://api.hetzner.cloud/v1/servers/{server.external_id}/actions/change_type',
+                json={'server_type': new_size, 'upgrade_disk': True},
+                headers=headers, timeout=30)
+            resp.raise_for_status()
+
+        elif ptype == 'vultr':
+            resp = requests.patch(
+                f'https://api.vultr.com/v2/instances/{server.external_id}',
+                json={'plan': new_size},
+                headers=headers, timeout=30)
+            resp.raise_for_status()
+
+        elif ptype == 'linode':
+            resp = requests.post(
+                f'https://api.linode.com/v4/linode/instances/{server.external_id}/resize',
+                json={'type': new_size, 'allow_auto_disk_resize': True},
+                headers=headers, timeout=30)
+            resp.raise_for_status()
+
+        else:
+            raise ValueError(f'Unsupported provider type: {ptype}')
 
     @staticmethod
     def _provider_snapshot(provider, server, name):
-        return {'id': 'snap-mock', 'size_gb': 0}
+        """Create a snapshot via the provider API. Returns dict with id, size_gb."""
+        if not server.external_id:
+            raise ValueError('Server has no external ID')
+        import requests
+        ptype = provider.provider_type
+        headers = CloudProvisioningService._auth_headers(provider)
+
+        if ptype == 'digitalocean':
+            resp = requests.post(
+                f'https://api.digitalocean.com/v2/droplets/{server.external_id}/actions',
+                json={'type': 'snapshot', 'name': name},
+                headers=headers, timeout=30)
+            resp.raise_for_status()
+            # Snapshot ID isn't in the action response; fetch from droplet snapshots
+            try:
+                snap_resp = requests.get(
+                    f'https://api.digitalocean.com/v2/droplets/{server.external_id}/snapshots',
+                    headers=headers, timeout=15)
+                if snap_resp.ok:
+                    snapshots = snap_resp.json().get('snapshots', [])
+                    if snapshots:
+                        latest = snapshots[-1]
+                        return {
+                            'id': str(latest.get('id')),
+                            'size_gb': latest.get('size_gigabytes', 0),
+                        }
+            except Exception:
+                pass
+            return {'id': None, 'size_gb': 0}
+
+        elif ptype == 'hetzner':
+            resp = requests.post(
+                f'https://api.hetzner.cloud/v1/servers/{server.external_id}/actions/create_image',
+                json={'type': 'snapshot', 'description': name},
+                headers=headers, timeout=30)
+            resp.raise_for_status()
+            image = resp.json().get('image', {})
+            return {
+                'id': str(image.get('id', '')),
+                'size_gb': image.get('disk_size', 0),
+            }
+
+        elif ptype == 'vultr':
+            resp = requests.post('https://api.vultr.com/v2/snapshots', json={
+                'instance_id': server.external_id,
+                'description': name,
+            }, headers=headers, timeout=30)
+            resp.raise_for_status()
+            snap = resp.json().get('snapshot', {})
+            return {
+                'id': snap.get('id', ''),
+                'size_gb': round(snap.get('size', 0) / (1024 ** 3), 2) if snap.get('size') else 0,
+            }
+
+        elif ptype == 'linode':
+            resp = requests.post(
+                f'https://api.linode.com/v4/linode/instances/{server.external_id}/backups',
+                json={'label': name},
+                headers=headers, timeout=30)
+            resp.raise_for_status()
+            backup = resp.json()
+            return {
+                'id': str(backup.get('id', '')),
+                'size_gb': 0,
+            }
+
+        raise ValueError(f'Unsupported provider type: {ptype}')
+
+    @staticmethod
+    def _provider_delete_snapshot(provider, server, snapshot):
+        """Delete a snapshot from the provider."""
+        if not snapshot.external_id:
+            return
+        import requests
+        ptype = provider.provider_type
+        headers = CloudProvisioningService._auth_headers(provider)
+
+        if ptype == 'digitalocean':
+            requests.delete(
+                f'https://api.digitalocean.com/v2/snapshots/{snapshot.external_id}',
+                headers=headers, timeout=30)
+
+        elif ptype == 'hetzner':
+            requests.delete(
+                f'https://api.hetzner.cloud/v1/images/{snapshot.external_id}',
+                headers=headers, timeout=30)
+
+        elif ptype == 'vultr':
+            requests.delete(
+                f'https://api.vultr.com/v2/snapshots/{snapshot.external_id}',
+                headers=headers, timeout=30)
+
+        elif ptype == 'linode':
+            requests.delete(
+                f'https://api.linode.com/v4/linode/instances/{server.external_id}/backups/{snapshot.external_id}',
+                headers=headers, timeout=30)
 
     @staticmethod
     def _install_agent(server):
-        """SSH into server and install the ServerKit agent."""
-        pass  # Would use paramiko or similar to SSH and run install script
+        """SSH into server and run the ServerKit agent install script."""
+        import subprocess
+        if not server.ip_address:
+            raise ValueError('Server has no IP address')
+        # Use ssh with strict host key checking disabled for fresh servers
+        install_cmd = 'curl -fsSL https://get.serverkit.dev/agent.sh | bash'
+        result = subprocess.run(
+            ['ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=30',
+             f'root@{server.ip_address}', install_cmd],
+            capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            raise RuntimeError(f'Agent install failed: {result.stderr}')
