@@ -1,0 +1,156 @@
+// ============================================
+// PERSISTENT LOGS DRAWER
+// ============================================
+
+.logs-drawer {
+    position: fixed;
+    bottom: 0;
+    left: $sidebar-width;
+    right: 0;
+    z-index: $z-fixed;
+    background: $bg-card;
+    border-top: 1px solid $border-subtle;
+    display: flex;
+    flex-direction: column;
+
+    &--collapsed {
+        height: 36px;
+        cursor: pointer;
+        transition: background $transition-fast;
+
+        &:hover {
+            background: $bg-hover;
+        }
+    }
+
+    &--expanded {
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    // Resize drag handle
+    &__resize-handle {
+        height: 4px;
+        cursor: ns-resize;
+        background: transparent;
+        transition: background $transition-fast;
+        flex-shrink: 0;
+
+        &:hover,
+        &:active {
+            background: $accent-primary;
+        }
+    }
+
+    // Collapsed bar
+    &__collapsed-bar {
+        display: flex;
+        align-items: center;
+        gap: $space-3;
+        padding: 0 $space-4;
+        height: 36px;
+        overflow: hidden;
+    }
+
+    &__collapsed-actions {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    // Header (expanded)
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: $space-2 $space-4;
+        border-bottom: 1px solid $border-subtle;
+        flex-shrink: 0;
+    }
+
+    &__header-left,
+    &__header-right {
+        display: flex;
+        align-items: center;
+        gap: $space-3;
+    }
+
+    &__live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: $radius-full;
+        background: $success;
+        animation: live-pulse 2s infinite;
+        flex-shrink: 0;
+
+        @keyframes live-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+    }
+
+    &__service-name {
+        font-weight: $font-weight-semibold;
+        font-size: $font-size-sm;
+        color: $text-primary;
+        white-space: nowrap;
+    }
+
+    &__line-count {
+        font-size: $font-size-xs;
+        color: $text-tertiary;
+    }
+
+    &__last-line {
+        flex: 1;
+        font-family: $font-mono;
+        font-size: $font-size-xs;
+        color: $text-tertiary;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__toggle {
+        display: flex;
+        align-items: center;
+        gap: $space-1;
+        font-size: $font-size-xs;
+        color: $text-tertiary;
+        cursor: pointer;
+        user-select: none;
+
+        input {
+            accent-color: $accent-primary-raw;
+        }
+    }
+
+    // Log content area
+    &__content {
+        flex: 1;
+        overflow-y: auto;
+        padding: $space-2 $space-4;
+        font-family: $font-mono;
+        font-size: $font-size-xs;
+        line-height: 1.6;
+        background: $bg-body;
+    }
+
+    &__empty {
+        color: $text-tertiary;
+        padding: $space-4;
+        text-align: center;
+    }
+
+    &__line {
+        color: $text-secondary;
+        white-space: pre-wrap;
+        word-break: break-all;
+
+        &--error {
+            color: $danger;
+        }
+
+        &--warn {
+            color: $warning;
+        }
+    }
+}
