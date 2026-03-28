@@ -4,6 +4,8 @@ import Sidebar from '../components/Sidebar';
 import CommandPalette from '../components/CommandPalette';
 import LogsDrawer from '../components/LogsDrawer';
 import { LogsDrawerProvider } from '../contexts/LogsDrawerContext';
+import PluginLoader from '../plugins/PluginLoader';
+import api from '../services/api';
 
 const DashboardLayout = () => {
     const [paletteOpen, setPaletteOpen] = useState(false);
@@ -29,6 +31,7 @@ const DashboardLayout = () => {
                 </main>
                 <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
                 <LogsDrawer />
+                <PluginLoader api={api} />
             </div>
         </LogsDrawerProvider>
     );

@@ -276,6 +276,18 @@ def create_app(config_name=None):
     from app.api.marketplace import marketplace_bp
     app.register_blueprint(marketplace_bp, url_prefix='/api/v1/marketplace')
 
+    # Register blueprints - Plugins
+    from app.api.plugins import plugins_bp
+    app.register_blueprint(plugins_bp, url_prefix='/api/v1/plugins')
+
+    # Load installed plugins (dynamic blueprints)
+    try:
+        from app.services.plugin_service import load_all_plugins
+        load_all_plugins(app)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f'Plugin loader: {e}')
+
     # Handle database migrations (Alembic)
     with app.app_context():
         from app.services.migration_service import MigrationService
