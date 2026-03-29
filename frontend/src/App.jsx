@@ -49,6 +49,7 @@ import DNSZones from './pages/DNSZones';
 import StatusPages from './pages/StatusPages';
 import CloudProvision from './pages/CloudProvision';
 import Marketplace from './pages/Marketplace';
+import StyleGuide from './pages/StyleGuide';
 
 // Page title mapping
 const PAGE_TITLES = {
@@ -88,6 +89,7 @@ const PAGE_TITLES = {
     '/status-pages': 'Status Pages',
     '/cloud': 'Cloud Provisioning',
     '/marketplace': 'Marketplace',
+    '/style-guide': 'Style Guide',
 };
 
 function PageTitleUpdater() {
@@ -231,6 +233,7 @@ function AppRoutes() {
                 <Route path="status-pages" element={<StatusPages />} />
                 <Route path="cloud" element={<CloudProvision />} />
                 <Route path="marketplace" element={<Marketplace />} />
+                <Route path="style-guide" element={<StyleGuide />} />
                 <Route path="downloads" element={<Downloads />} />
                 <Route path="firewall" element={<Navigate to="/security/firewall" replace />} />
                 <Route path="git" element={<Git />} />
