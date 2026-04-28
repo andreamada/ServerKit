@@ -327,6 +327,15 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
     print_info "Generating configuration..."
     SECRET_KEY=$(openssl rand -hex 32)
     JWT_SECRET_KEY=$(openssl rand -hex 32)
+    
+    # Generate a Fernet-compatible encryption key
+    # Try using python3 with cryptography if available, otherwise use openssl as fallback
+    if command -v python3 &>/dev/null && python3 -c "import cryptography" &>/dev/null; then
+        SERVERKIT_ENCRYPTION_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    else
+        # Fallback: Generate a random base64 string that looks like a Fernet key
+        SERVERKIT_ENCRYPTION_KEY=$(openssl rand -base64 32)
+    fi
 
     # Detect server public IP for CORS (try multiple sources)
     SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null \
@@ -347,6 +356,7 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
 # Security Keys (auto-generated, keep secret!)
 SECRET_KEY=$SECRET_KEY
 JWT_SECRET_KEY=$JWT_SECRET_KEY
+SERVERKIT_ENCRYPTION_KEY=$SERVERKIT_ENCRYPTION_KEY
 
 # Database (SQLite by default)
 DATABASE_URL=sqlite:///$INSTALL_DIR/backend/instance/serverkit.db
