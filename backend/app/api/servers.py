@@ -189,41 +189,59 @@ def create_server():
 
     Returns server info with registration token for agent installation.
     """
-    data = request.get_json()
-    user_id = get_jwt_identity()
+    try:
+        data = request.get_json()
+        user_id = get_jwt_identity()
 
-    if not data.get('name'):
-        return jsonify({'error': 'Name is required'}), 400
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
 
-    # Generate registration token
-    registration_token = Server.generate_registration_token()
+        if not data.get('name'):
+            return jsonify({'error': 'Name is required'}), 400
 
-    # Get permissions from profile or custom list
-    permissions = data.get('permissions', [])
-    profile = data.get('permission_profile')
-    if profile and profile in PERMISSION_PROFILES:
-        permissions = PERMISSION_PROFILES[profile]['permissions']
+        # Generate registration token
+        registration_token = Server.generate_registration_token()
 
-    server = Server(
-        name=data['name'],
-        description=data.get('description'),
-        group_id=data.get('group_id'),
-        tags=data.get('tags', []),
-        permissions=permissions,
-        allowed_ips=data.get('allowed_ips', []),
-        registered_by=user_id,
-        registration_token_expires=datetime.utcnow() + timedelta(hours=24)
-    )
-    server.set_registration_token(registration_token)
+        # Get permissions from profile or custom list
+        permissions = data.get('permissions', [])
+        profile = data.get('permission_profile')
+        if profile and profile in PERMISSION_PROFILES:
+            permissions = PERMISSION_PROFILES[profile]['permissions']
 
-    db.session.add(server)
-    db.session.commit()
+        # Ensure we have valid integers/strings for foreign keys
+        group_id = data.get('group_id')
+        if group_id == "":
+            group_id = None
 
-    result = server.to_dict()
-    result['registration_token'] = registration_token
-    result['registration_expires'] = server.registration_token_expires.isoformat()
+        server = Server(
+            name=data['name'],
+            description=data.get('description'),
+            group_id=group_id,
+            tags=data.get('tags', []),
+            permissions=permissions,
+            allowed_ips=data.get('allowed_ips', []),
+            registered_by=int(user_id) if user_id else None,
+            registration_token_expires=datetime.utcnow() + timedelta(hours=24)
+        )
+        server.set_registration_token(registration_token)
 
-    return jsonify(result), 201
+        db.session.add(server)
+        db.session.commit()
+
+        result = server.to_dict()
+        result['registration_token'] = registration_token
+        result['registration_expires'] = server.registration_token_expires.isoformat()
+
+        return jsonify(result), 201
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Error creating server: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': str(e),
+            'traceback': traceback.format_exc() if current_app.debug else None
+        }), 500
 
 
 @servers_bp.route('/<server_id>', methods=['GET'])
