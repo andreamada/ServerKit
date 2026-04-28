@@ -326,6 +326,11 @@ class AgentRegistry:
     def _store_metrics(self, server_id: str, metrics: dict):
         """Store metrics from heartbeat"""
         try:
+            # Verify server exists to avoid FK constraint failure
+            server = Server.query.get(server_id)
+            if not server:
+                return
+
             metric = ServerMetrics(
                 server_id=server_id,
                 cpu_percent=metrics.get('cpu_percent'),
