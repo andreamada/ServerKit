@@ -6,6 +6,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Ensure dev dependencies are installed for build
+ENV NODE_ENV=development
+
 COPY package*.json ./
 RUN npm ci
 

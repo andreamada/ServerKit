@@ -122,12 +122,12 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 30 * time.Second,
+		HandshakeTimeout: 45 * time.Second,
 		NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			// Force IPv4 (tcp4) to avoid issues with IPv6 routing through tunnels
 			return (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
+				Timeout:   45 * time.Second,
+				KeepAlive: 45 * time.Second,
 			}).DialContext(ctx, "tcp4", addr)
 		},
 	}
@@ -141,7 +141,7 @@ func (c *Client) Connect(ctx context.Context) error {
 	headers := http.Header{}
 	headers.Set("X-Agent-ID", c.auth.AgentID())
 	headers.Set("X-API-Key-Prefix", c.auth.GetAPIKeyPrefix())
-	headers.Set("User-Agent", fmt.Sprintf("ServerKit-Agent/%s", "dev"))
+	headers.Set("User-Agent", "ServerKit-Agent/1.0.5")
 	headers.Set("ngrok-skip-browser-warning", "true")
 
 	c.log.Debug("Connecting to Socket.IO", "url", sioURL)
@@ -247,7 +247,7 @@ func (c *Client) connectNamespace() error {
 	c.log.Debug("Waiting for CONNECT ack from namespace", "namespace", c.namespace)
 
 	// Read namespace CONNECT ack
-	c.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+	c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	defer c.conn.SetReadDeadline(time.Time{})
 
 	var msgStr string

@@ -349,8 +349,13 @@ start_service() {
         return
     fi
 
-    log_info "Starting ServerKit Agent..."
-    systemctl start serverkit-agent
+    if systemctl is-active --quiet serverkit-agent; then
+        log_info "Restarting ServerKit Agent..."
+        systemctl restart serverkit-agent
+    else
+        log_info "Starting ServerKit Agent..."
+        systemctl start serverkit-agent
+    fi
 
     sleep 2
 

@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app import create_app, get_socketio
+from app.paths import ensure_paths
+
+# Ensure data directories exist
+ensure_paths()
 
 app = create_app()
 socketio = get_socketio()
