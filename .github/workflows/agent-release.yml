@@ -190,57 +190,10 @@ jobs:
           path: packages/*.rpm
           retention-days: 5
 
-  # Build Docker image
-  build-docker:
-    name: Build Docker Image
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Get version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF#refs/tags/agent-v}"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-        continue-on-error: true
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./agent
-          platforms: linux/amd64,linux/arm64
-          push: ${{ secrets.DOCKERHUB_USERNAME != '' }}
-          tags: |
-            andreamada/serverkit-agent:latest
-            andreamada/serverkit-agent:${{ steps.version.outputs.version }}
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
-            BUILD_TIME=${{ github.event.repository.updated_at }}
-            GIT_COMMIT=${{ github.sha }}
-
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [build, build-deb, build-rpm, build-docker]
+    needs: [build, build-deb, build-rpm]
     permissions:
       contents: write
 
@@ -316,12 +269,6 @@ jobs:
 
             > **New:** Run `serverkit-agent tray` to launch the **System Tray Application** which provides a visual indicator that the agent is running, along with quick access to status, logs, and service controls.
 
-            #### Docker
-            ```bash
-            docker pull andreamada/serverkit-agent:${{ steps.version.outputs.version }}
-            docker pull andreamada/serverkit-agent:latest
-            ```
-
             ### Quick Install
 
             **Debian/Ubuntu:**
@@ -346,14 +293,6 @@ jobs:
             .\serverkit-agent.exe start
             ```
 
-            **Docker:**
-            ```bash
-            docker run -d --name serverkit-agent \
-              -v /var/run/docker.sock:/var/run/docker.sock:ro \
-              -v serverkit-config:/etc/serverkit-agent \
-              andreamada/serverkit-agent:${{ steps.version.outputs.version }}
-            ```
-
             ### Verification
 
             Verify downloads using the checksums in `checksums.txt`:
@@ -370,7 +309,7 @@ jobs:
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build, build-deb, build-rpm, build-docker, release]
+    needs: [build, build-deb, build-rpm, release]
 
     steps:
       - name: Get version
@@ -405,7 +344,6 @@ jobs:
           echo "| DEB | arm64 | ✅ Built |" >> $GITHUB_STEP_SUMMARY
           echo "| RPM | x86_64 | ✅ Built |" >> $GITHUB_STEP_SUMMARY
           echo "| RPM | aarch64 | ✅ Built |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker | multi-arch | ✅ Built |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Release" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
