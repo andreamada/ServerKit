@@ -357,7 +357,7 @@ DATABASE_URL=sqlite:///$INSTALL_DIR/backend/instance/serverkit.db
 CORS_ORIGINS=$CORS_ORIGINS
 
 # Ports
-PORT=80
+PORT=5000
 SSL_PORT=443
 
 # Environment
