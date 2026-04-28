@@ -91,7 +91,7 @@ func (u *Updater) UpdateTo(ctx context.Context, version, downloadURL, checksumsU
 func (u *Updater) CheckForUpdate(ctx context.Context) (*VersionInfo, error) {
 	u.log.Debug("Checking for updates", "current_version", u.currentVersion)
 
-	url := fmt.Sprintf("%s/api/servers/agent/version/check", u.serverURL)
+	url := fmt.Sprintf("%s/api/v1/servers/agent/version/check", u.serverURL)
 
 	payload := map[string]string{
 		"current_version": u.currentVersion,

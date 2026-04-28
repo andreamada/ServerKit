@@ -201,6 +201,47 @@ download_agent() {
     log_success "Agent installed to ${INSTALL_DIR}/${AGENT_BINARY}"
 }
 
+install_docker() {
+    if command -v docker &> /dev/null; then
+        log_info "Docker is already installed"
+        return
+    fi
+
+    log_info "Docker not found. Installing Docker..."
+
+    # Check for apt-get (Debian/Ubuntu)
+    if command -v apt-get &> /dev/null; then
+        log_info "Installing Docker via apt..."
+        apt-get update
+        apt-get install -y ca-certificates curl gnupg lsb-release
+        
+        # Use Docker's official convenience script
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sh get-docker.sh
+        rm get-docker.sh
+        
+    # Check for yum (CentOS/RHEL)
+    elif command -v yum &> /dev/null; then
+        log_info "Installing Docker via yum..."
+        yum install -y yum-utils
+        
+        # Use Docker's official convenience script
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sh get-docker.sh
+        rm get-docker.sh
+    else
+        log_warn "Could not detect package manager (apt/yum). Please install Docker manually."
+        return
+    fi
+
+    # Start and enable Docker
+    if command -v systemctl &> /dev/null; then
+        systemctl enable --now docker
+    fi
+
+    log_success "Docker installed successfully"
+}
+
 create_user() {
     if id "$SERVICE_USER" &>/dev/null; then
         log_info "User $SERVICE_USER already exists"
@@ -337,6 +378,7 @@ main() {
     check_dependencies
     get_latest_version
     download_agent
+    install_docker
     create_user
     create_config_dir
     register_agent

@@ -36,7 +36,10 @@ def init_socketio(app):
     socketio.init_app(
         app,
         cors_allowed_origins=cors_allowed_origins,
-        async_mode='threading'
+        async_mode='threading',
+        ping_timeout=60,
+        ping_interval=25,
+        max_http_buffer_size=1e7
     )
     return socketio
 

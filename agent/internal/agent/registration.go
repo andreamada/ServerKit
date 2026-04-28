@@ -115,6 +115,7 @@ func (r *Registration) Register(serverURL, token, name string) (*RegistrationRes
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", fmt.Sprintf("ServerKit-Agent/%s", Version))
+	req.Header.Set("ngrok-skip-browser-warning", "true")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -203,4 +204,4 @@ func (r *Registration) Unregister(serverURL, agentID, apiKey, apiSecret string) 
 }
 
 // Version is set during build
-var Version = "dev"
+var Version = "1.0.4-dev"

@@ -20,8 +20,9 @@ try:
                       ('admin', 'admin@admin.com', password_hash, 'admin'))
         print("Created new admin user with password: admin1234")
     
-    # Force setup as completed
+    # Force setup as completed and enable registration for dev
     cursor.execute("INSERT OR REPLACE INTO system_settings (key, value, value_type) VALUES ('setup_completed', 'true', 'boolean')")
+    cursor.execute("INSERT OR REPLACE INTO system_settings (key, value, value_type) VALUES ('registration_enabled', 'true', 'boolean')")
     
     conn.commit()
     print("Persistence guaranteed: Admin user ready and setup marked as complete.")

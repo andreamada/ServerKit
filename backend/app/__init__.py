@@ -60,20 +60,47 @@ def create_app(config_name=None):
             if origin not in cors_origins:
                 cors_origins.append(origin)
         
-        # Also allow ngrok origins if they appear in requests
+        # Also allow ngrok origins if they appear in requests, 
+        # and ensure localhost origins are allowed even when proxying through ngrok
         @app.after_request
-        def add_ngrok_cors(response):
+        def add_dev_cors(response):
             origin = request.headers.get('Origin')
-            if origin and ('.ngrok-free.app' in origin or '.ngrok.io' in origin):
+            if origin:
+                if ('.ngrok-free.app' in origin or '.ngrok.io' in origin or 
+                    'localhost:' in origin or '127.0.0.1:' in origin):
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-API-Key, Accept, Origin, ngrok-skip-browser-warning'
+                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+            return response
+            
+        # Log unexpected errors in development
+        @app.errorhandler(500)
+        def handle_500(e):
+            import traceback
+            app.logger.error(f"Internal Server Error: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            
+            # Create response
+            response = jsonify({
+                'error': 'Internal Server Error',
+                'message': str(e),
+                'traceback': traceback.format_exc() if app.debug else None
+            })
+            
+            # Explicitly add CORS headers to error response in dev
+            origin = request.headers.get('Origin')
+            if origin:
                 response.headers['Access-Control-Allow-Origin'] = origin
                 response.headers['Access-Control-Allow-Credentials'] = 'true'
-            return response
+                
+            return response, 500
     
     CORS(
         app,
         origins=cors_origins,
         supports_credentials=True,
-        allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'Accept', 'Origin'],
+        allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'Accept', 'Origin', 'ngrok-skip-browser-warning'],
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
         expose_headers=['Content-Type', 'Authorization']
     )

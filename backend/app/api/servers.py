@@ -386,7 +386,9 @@ def register_agent():
     db.session.commit()
 
     # Construct WebSocket URL
-    ws_scheme = 'wss' if request.is_secure else 'ws'
+    # Force wss if we're behind ngrok or if the request is secure
+    is_ngrok = 'ngrok' in request.host
+    ws_scheme = 'wss' if (request.is_secure or is_ngrok) else 'ws'
     ws_url = f"{ws_scheme}://{request.host}/agent"
 
     # Security note: api_secret is returned once during registration so the agent
