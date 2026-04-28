@@ -1,29 +1,30 @@
 # Backend Dockerfile for ServerKit
-FROM python:3.11-slim-bookworm
+FROM ubuntu:24.04
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     FLASK_ENV=production \
-    PORT=5000
+    PORT=5000 \
+    DEBIAN_FRONTEND=noninteractive
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies including ClamAV for security scanning
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Build dependencies
-    gcc \
+    python3 \
+    python3-pip \
     python3-dev \
+    python3-venv \
+    gcc \
     libpq-dev \
     libffi-dev \
     libssl-dev \
     libevent-dev \
-    # ClamAV antivirus
     clamav \
     clamav-daemon \
     clamav-freshclam \
-    # Utilities
     curl \
     procps \
     && rm -rf /var/lib/apt/lists/* \
@@ -36,8 +37,9 @@ RUN mkdir -p /etc/serverkit /var/serverkit/apps /app/logs /var/quarantine /app/i
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir gunicorn gevent gevent-websocket
+# Note: On Ubuntu 24.04, we need to use --break-system-packages or a venv for global pip
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt \
+    && pip3 install --no-cache-dir --break-system-packages gunicorn gevent gevent-websocket
 
 # Copy application code
 COPY . .

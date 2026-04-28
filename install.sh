@@ -478,7 +478,7 @@ print_success "Frontend built (Production Mode)"
 # Package frontend into nginx container
 print_info "Building frontend container..."
 cd "$INSTALL_DIR"
-docker compose build
+docker compose build frontend
 
 print_info "Starting services..."
 
@@ -486,7 +486,7 @@ print_info "Starting services..."
 systemctl start serverkit
 
 # Start frontend (Docker)
-docker compose up -d
+docker compose up -d frontend
 
 # Start nginx
 systemctl start nginx

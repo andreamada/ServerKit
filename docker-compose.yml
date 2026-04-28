@@ -51,9 +51,6 @@ services:
     container_name: serverkit-frontend
     ports:
       - "3847:80"
-    depends_on:
-      backend:
-        condition: service_healthy
     networks:
       - serverkit-network
     restart: unless-stopped
