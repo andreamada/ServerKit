@@ -7,7 +7,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+# Use npm install --include=dev to ensure vite and other build tools are available
+RUN npm install --include=dev
 
 COPY . .
 RUN npm run build

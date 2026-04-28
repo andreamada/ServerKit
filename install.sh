@@ -469,7 +469,8 @@ setup_swap
 # Build frontend on host (avoids Docker memory overhead on low-RAM VPS)
 print_info "Building frontend..."
 cd "$INSTALL_DIR/frontend"
-npm ci --prefer-offline 2>&1 | tail -1
+# Use npm install --include=dev for robustness on fresh installs
+npm install --include=dev --prefer-offline 2>&1 | tail -1
 NODE_OPTIONS="--max-old-space-size=1024" npm run build
 print_success "Frontend built"
 
