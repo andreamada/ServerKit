@@ -100,27 +100,46 @@ fi
 check_ram
 setup_swap
 
-# Detect OS family
-OS_FAMILY="unknown"
+# Detect OS
+OS_ID="unknown"
+OS_TYPE="unknown"
+
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [ "$ID" = "ubuntu" ]; then
-        OS_FAMILY="ubuntu"
-    elif [ "$ID" = "debian" ]; then
+    OS_ID="$ID"
+    # Differentiate between Ubuntu and Debian while keeping track of the family
+    if [ "$ID" = "ubuntu" ] || [[ "$ID_LIKE" == *"ubuntu"* ]]; then
+        OS_TYPE="ubuntu"
         OS_FAMILY="debian"
-    elif [ "$ID" = "fedora" ]; then
+    elif [ "$ID" = "debian" ] || [[ "$ID_LIKE" == *"debian"* ]]; then
+        OS_TYPE="debian"
+        OS_FAMILY="debian"
+    elif [ "$ID" = "fedora" ] || [[ "$ID_LIKE" == *"fedora"* ]]; then
+        OS_TYPE="fedora"
         OS_FAMILY="fedora"
     else
-        print_warning "Unsupported OS ($ID). This script is designed for Ubuntu/Debian/Fedora."
+        OS_FAMILY="unknown"
+        print_warning "Unsupported OS ($ID). This script is designed for Ubuntu, Debian, or Fedora."
     fi
 else
-    print_warning "Cannot detect OS. Proceeding with caution."
+    OS_FAMILY="unknown"
+    print_warning "Cannot detect OS (/etc/os-release missing). Proceeding with caution."
 fi
 
-echo ""
-print_info "Installing system dependencies for $OS_FAMILY..."
+# Function to wait for apt lock
+wait_for_apt_lock() {
+    if [ "$OS_FAMILY" != "debian" ]; then return; fi
+    print_info "Waiting for other package managers to finish..."
+    while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontends >/dev/null 2>&1; do
+        sleep 2
+    done
+}
 
-if [ "$OS_FAMILY" = "ubuntu" ] || [ "$OS_FAMILY" = "debian" ] || [ "$OS_FAMILY" = "unknown" ]; then
+echo ""
+print_info "Installing system dependencies on $OS_ID..."
+
+if [ "$OS_FAMILY" = "debian" ]; then
+    wait_for_apt_lock
     # Configure needrestart for non-interactive mode (Ubuntu 22.04+)
     # This prevents the "Which services should be restarted?" dialog
     # and avoids dpkg lock issues during automated installs
@@ -154,42 +173,32 @@ if [ "$OS_FAMILY" = "ubuntu" ] || [ "$OS_FAMILY" = "debian" ] || [ "$OS_FAMILY" 
     if [ -z "$PYTHON_BIN" ]; then
         print_info "Installing Python 3.12..."
 
-        if [ "$OS_FAMILY" = "ubuntu" ]; then
+        if [ "$OS_TYPE" = "ubuntu" ]; then
             # Ubuntu: use deadsnakes PPA
+            wait_for_apt_lock
             apt-get install -y software-properties-common
             add-apt-repository -y ppa:deadsnakes/ppa
+            wait_for_apt_lock
             apt-get update
             apt-get install -y python3.12 python3.12-venv python3.12-dev
             PYTHON_BIN="python3.12"
-        elif [ "$OS_FAMILY" = "debian" ]; then
-            # Debian: Try to use backports if available, otherwise build from source
-            print_info "Configuring Python 3.12 for Debian..."
-            # Check if bullseye/bookworm
-            if [[ "$VERSION_ID" == "11" ]]; then
-                # Debian 11 Bullseye needs source build for 3.12
-                BUILD_FROM_SOURCE=true
-            elif [[ "$VERSION_ID" == "12" ]]; then
-                # Debian 12 Bookworm has 3.11, but 3.12 might be in backports
-                apt-get install -y python3.12 python3.12-venv python3.12-dev 2>/dev/null && PYTHON_BIN="python3.12" || BUILD_FROM_SOURCE=true
-            else
-                BUILD_FROM_SOURCE=true
-            fi
-
-            if [ "$BUILD_FROM_SOURCE" = true ]; then
-                print_info "Building Python 3.12 from source on Debian (this may take a few minutes)..."
-                apt-get install -y wget zlib1g-dev libbz2-dev libreadline-dev \
-                    libsqlite3-dev libncurses5-dev libncursesw5-dev \
-                    xz-utils tk-dev liblzma-dev
-                cd /tmp
-                wget -q https://www.python.org/ftp/python/3.12.8/Python-3.12.8.tgz
-                tar xzf Python-3.12.8.tgz
-                cd Python-3.12.8
-                ./configure --enable-optimizations --prefix=/usr/local 2>&1 | tail -1
-                make -j"$(nproc)" 2>&1 | tail -1
-                make altinstall 2>&1 | tail -1
-                cd /tmp && rm -rf Python-3.12.8 Python-3.12.8.tgz
-                PYTHON_BIN="python3.12"
-            fi
+        elif [ "$OS_TYPE" = "debian" ]; then
+            # Debian: Try to use bookworm-backports or similar if available, 
+            # but usually building from source is safer for specific versions on Debian
+            print_info "Building Python 3.12 from source for Debian (this may take a few minutes)..."
+            wait_for_apt_lock
+            apt-get install -y wget zlib1g-dev libbz2-dev libreadline-dev \
+                libsqlite3-dev libncurses5-dev libncursesw5-dev \
+                xz-utils tk-dev liblzma-dev
+            cd /tmp
+            wget -q https://www.python.org/ftp/python/3.12.8/Python-3.12.8.tgz
+            tar xzf Python-3.12.8.tgz
+            cd Python-3.12.8
+            ./configure --enable-optimizations --prefix=/usr/local 2>&1 | tail -1
+            make -j"$(nproc)" 2>&1 | tail -1
+            make altinstall 2>&1 | tail -1
+            cd /tmp && rm -rf Python-3.12.8 Python-3.12.8.tgz
+            PYTHON_BIN="python3.12"
         fi
 
         if ! command -v "$PYTHON_BIN" &>/dev/null; then
@@ -280,7 +289,9 @@ if ! command -v node &> /dev/null; then
         curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
         dnf install -y nodejs
     else
+        wait_for_apt_lock
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        wait_for_apt_lock
         apt-get install -y nodejs
     fi
     print_success "Node.js $(node --version) installed"
@@ -401,6 +412,7 @@ print_info "Setting up nginx reverse proxy..."
 if [ "$OS_FAMILY" = "fedora" ]; then
     dnf install -y nginx
 else
+    wait_for_apt_lock
     apt-get install -y nginx
 fi
 
