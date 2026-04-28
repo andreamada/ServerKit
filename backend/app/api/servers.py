@@ -1585,57 +1585,64 @@ def _get_latest_agent_release():
     if _releases_cache['data'] and _releases_cache['expires'] and _releases_cache['expires'] > now:
         return _releases_cache['data']
 
-    try:
-        # Fetch releases from GitHub
-        response = requests.get(
-            f'https://api.github.com/repos/{GITHUB_REPO}/releases',
-            headers={'Accept': 'application/vnd.github.v3+json'},
-            timeout=10
-        )
-        response.raise_for_status()
-        releases = response.json()
+    def fetch_from_repo(repo):
+        try:
+            response = requests.get(
+                f'https://api.github.com/repos/{repo}/releases',
+                headers={'Accept': 'application/vnd.github.v3+json'},
+                timeout=10
+            )
+            if response.status_code != 200:
+                return None
+            
+            releases = response.json()
+            for release in releases:
+                if release.get('tag_name', '').startswith('agent-v'):
+                    version = release['tag_name'].replace('agent-v', '')
+                    assets = {}
+                    for asset in release.get('assets', []):
+                        name = asset['name']
+                        if 'linux-amd64' in name:
+                            assets['linux-amd64'] = asset['browser_download_url']
+                        elif 'linux-arm64' in name:
+                            assets['linux-arm64'] = asset['browser_download_url']
+                        elif 'windows-amd64' in name:
+                            assets['windows-amd64'] = asset['browser_download_url']
+                        elif name == 'checksums.txt':
+                            assets['checksums'] = asset['browser_download_url']
 
-        # Find latest agent release
-        for release in releases:
-            if release.get('tag_name', '').startswith('agent-v'):
-                version = release['tag_name'].replace('agent-v', '')
+                    return {
+                        'version': version,
+                        'tag': release['tag_name'],
+                        'published_at': release['published_at'],
+                        'release_url': release['html_url'],
+                        'assets': assets,
+                        'body': release.get('body', '')
+                    }
+            return None
+        except Exception as e:
+            current_app.logger.error(f"Failed to fetch releases from {repo}: {e}")
+            return None
 
-                # Build assets map
-                assets = {}
-                for asset in release.get('assets', []):
-                    name = asset['name']
-                    if 'linux-amd64' in name:
-                        assets['linux-amd64'] = asset['browser_download_url']
-                    elif 'linux-arm64' in name:
-                        assets['linux-arm64'] = asset['browser_download_url']
-                    elif 'windows-amd64' in name:
-                        assets['windows-amd64'] = asset['browser_download_url']
-                    elif name == 'checksums.txt':
-                        assets['checksums'] = asset['browser_download_url']
+    # Try configured repo
+    result = fetch_from_repo(GITHUB_REPO)
+    
+    # Fallback to official repo if no releases found and we aren't already using it
+    if not result and GITHUB_REPO != 'jhd3197/ServerKit':
+        current_app.logger.info(f"No releases found in {GITHUB_REPO}, falling back to official repo.")
+        result = fetch_from_repo('jhd3197/ServerKit')
 
-                result = {
-                    'version': version,
-                    'tag': release['tag_name'],
-                    'published_at': release['published_at'],
-                    'release_url': release['html_url'],
-                    'assets': assets,
-                    'body': release.get('body', '')
-                }
+    if result:
+        # Cache for 5 minutes
+        _releases_cache['data'] = result
+        _releases_cache['expires'] = now + timedelta(minutes=5)
+        return result
 
-                # Cache for 5 minutes
-                _releases_cache['data'] = result
-                _releases_cache['expires'] = now + timedelta(minutes=5)
-
-                return result
-
-        return None
-
-    except Exception as e:
-        current_app.logger.error(f"Failed to fetch GitHub releases: {e}")
-        # Return cached data if available, even if expired
-        if _releases_cache['data']:
-            return _releases_cache['data']
-        return None
+    # Return cached data if available, even if expired, as a last resort
+    if _releases_cache['data']:
+        return _releases_cache['data']
+    
+    return None
 
 
 @servers_bp.route('/agent/version', methods=['GET'])

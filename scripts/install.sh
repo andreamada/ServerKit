@@ -168,8 +168,19 @@ get_latest_version() {
         VERSION=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases" | \
             grep -oP '"tag_name": "agent-v\K[^"]+' | head -1)
 
+        if [[ -z "$VERSION" ]] && [[ "$GITHUB_REPO" != "jhd3197/ServerKit" ]]; then
+            log_warn "No releases found in ${GITHUB_REPO}. Falling back to official repository for binary download."
+            FALLBACK_REPO="jhd3197/ServerKit"
+            VERSION=$(curl -fsSL "https://api.github.com/repos/${FALLBACK_REPO}/releases" | \
+                grep -oP '"tag_name": "agent-v\K[^"]+' | head -1)
+            
+            if [[ -n "$VERSION" ]]; then
+                GITHUB_REPO="$FALLBACK_REPO"
+            fi
+        fi
+
         if [[ -z "$VERSION" ]]; then
-            log_error "Failed to fetch latest version"
+            log_error "Failed to fetch latest version from ${GITHUB_REPO}"
         fi
         log_info "Latest version: v${VERSION}"
     fi
