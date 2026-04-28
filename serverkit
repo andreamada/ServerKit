@@ -441,6 +441,7 @@ cmd_update() {
     # Restore executable permissions
     chmod +x "$INSTALL_DIR/serverkit"
     chmod +x "$INSTALL_DIR/scripts/"*.sh 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/uninstall.sh" 2>/dev/null || true
 
     # Get new version from VERSION file
     NEW_VERSION=$(get_local_version)
