@@ -251,23 +251,32 @@ class Server(db.Model):
             return False
         if '*' in self.permissions:
             return True
-        # Check exact match or wildcard
+
+        # Check exact match
+        if scope in self.permissions:
+            return True
+
         scope_parts = scope.split(':')
         for perm in self.permissions:
-            if perm == scope:
-                return True
-            # Check wildcard patterns like 'docker:*'
             perm_parts = perm.split(':')
-            if len(perm_parts) <= len(scope_parts):
-                match = True
-                for i, part in enumerate(perm_parts):
-                    if part == '*':
-                        break
-                    if i >= len(scope_parts) or part != scope_parts[i]:
-                        match = False
-                        break
-                if match:
+
+            # Handle wildcard match (e.g., 'docker:*' matches 'docker:container:list')
+            if '*' in perm_parts:
+                star_idx = perm_parts.index('*')
+                if scope_parts[:star_idx] == perm_parts[:star_idx]:
                     return True
+
+            # Handle sub-scope match (e.g., 'system:metrics:read' matches 'system:metrics')
+            # This is useful for backward compatibility with old permission formats
+            if len(perm_parts) > len(scope_parts):
+                if perm_parts[:len(scope_parts)] == scope_parts:
+                    return True
+
+            # Handle parent-scope match (e.g., 'system:metrics' matches 'system:metrics:read')
+            if len(scope_parts) > len(perm_parts):
+                if scope_parts[:len(perm_parts)] == perm_parts:
+                    return True
+
         return False
 
     def to_dict(self, include_metrics=False):
