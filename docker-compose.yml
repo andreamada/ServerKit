@@ -27,6 +27,8 @@ services:
     container_name: serverkit-frontend
     ports:
       - "3847:80"
+    extra_hosts:
+      - "backend:host-gateway"
     networks:
       - serverkit-network
     restart: unless-stopped
