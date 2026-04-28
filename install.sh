@@ -100,46 +100,25 @@ fi
 check_ram
 setup_swap
 
-# Detect OS
-OS_ID="unknown"
-OS_TYPE="unknown"
-
+# Detect OS family
+OS_FAMILY="unknown"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    OS_ID="$ID"
-    # Differentiate between Ubuntu and Debian while keeping track of the family
-    if [ "$ID" = "ubuntu" ] || [[ "$ID_LIKE" == *"ubuntu"* ]]; then
-        OS_TYPE="ubuntu"
+    if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
         OS_FAMILY="debian"
-    elif [ "$ID" = "debian" ] || [[ "$ID_LIKE" == *"debian"* ]]; then
-        OS_TYPE="debian"
-        OS_FAMILY="debian"
-    elif [ "$ID" = "fedora" ] || [[ "$ID_LIKE" == *"fedora"* ]]; then
-        OS_TYPE="fedora"
+    elif [ "$ID" = "fedora" ]; then
         OS_FAMILY="fedora"
     else
-        OS_FAMILY="unknown"
-        print_warning "Unsupported OS ($ID). This script is designed for Ubuntu, Debian, or Fedora."
+        print_warning "Unsupported OS ($ID). This script is designed for Ubuntu/Debian/Fedora."
     fi
 else
-    OS_FAMILY="unknown"
-    print_warning "Cannot detect OS (/etc/os-release missing). Proceeding with caution."
+    print_warning "Cannot detect OS. Proceeding with caution."
 fi
 
-# Function to wait for apt lock
-wait_for_apt_lock() {
-    if [ "$OS_FAMILY" != "debian" ]; then return; fi
-    print_info "Waiting for other package managers to finish..."
-    while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontends >/dev/null 2>&1; do
-        sleep 2
-    done
-}
-
 echo ""
-print_info "Installing system dependencies on $OS_ID..."
+print_info "Installing system dependencies..."
 
-if [ "$OS_FAMILY" = "debian" ]; then
-    wait_for_apt_lock
+if [ "$OS_FAMILY" = "debian" ] || [ "$OS_FAMILY" = "unknown" ]; then
     # Configure needrestart for non-interactive mode (Ubuntu 22.04+)
     # This prevents the "Which services should be restarted?" dialog
     # and avoids dpkg lock issues during automated installs
@@ -173,20 +152,16 @@ if [ "$OS_FAMILY" = "debian" ]; then
     if [ -z "$PYTHON_BIN" ]; then
         print_info "Installing Python 3.12..."
 
-        if [ "$OS_TYPE" = "ubuntu" ]; then
+        if [ "$ID" = "ubuntu" ]; then
             # Ubuntu: use deadsnakes PPA
-            wait_for_apt_lock
             apt-get install -y software-properties-common
             add-apt-repository -y ppa:deadsnakes/ppa
-            wait_for_apt_lock
             apt-get update
             apt-get install -y python3.12 python3.12-venv python3.12-dev
             PYTHON_BIN="python3.12"
-        elif [ "$OS_TYPE" = "debian" ]; then
-            # Debian: Try to use bookworm-backports or similar if available, 
-            # but usually building from source is safer for specific versions on Debian
-            print_info "Building Python 3.12 from source for Debian (this may take a few minutes)..."
-            wait_for_apt_lock
+        else
+            # Debian / other apt-based: build from source
+            print_info "Building Python 3.12 from source (this may take a few minutes)..."
             apt-get install -y wget zlib1g-dev libbz2-dev libreadline-dev \
                 libsqlite3-dev libncurses5-dev libncursesw5-dev \
                 xz-utils tk-dev liblzma-dev
@@ -289,9 +264,7 @@ if ! command -v node &> /dev/null; then
         curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
         dnf install -y nodejs
     else
-        wait_for_apt_lock
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-        wait_for_apt_lock
         apt-get install -y nodejs
     fi
     print_success "Node.js $(node --version) installed"
@@ -412,7 +385,6 @@ print_info "Setting up nginx reverse proxy..."
 if [ "$OS_FAMILY" = "fedora" ]; then
     dnf install -y nginx
 else
-    wait_for_apt_lock
     apt-get install -y nginx
 fi
 
@@ -469,14 +441,12 @@ setup_swap
 # Build frontend on host (avoids Docker memory overhead on low-RAM VPS)
 print_info "Building frontend..."
 cd "$INSTALL_DIR/frontend"
-# Install dependencies including build tools
-npm install --include=dev --prefer-offline 2>&1 | tail -1
-# Execute the production build
-NODE_OPTIONS="--max-old-space-size=1024" npx vite build
-print_success "Frontend built (Production Mode)"
+npm ci --prefer-offline 2>&1 | tail -1
+NODE_OPTIONS="--max-old-space-size=1024" npm run build
+print_success "Frontend built"
 
-# Package frontend into nginx container
-print_info "Building containers..."
+# Package pre-built frontend assets into the nginx container (no npm inside Docker)
+print_info "Building frontend container..."
 cd "$INSTALL_DIR"
 docker compose build
 
@@ -485,7 +455,7 @@ print_info "Starting services..."
 # Start backend (systemd)
 systemctl start serverkit
 
-# Start frontend and backend (Docker)
+# Start frontend (Docker)
 docker compose up -d
 
 # Start nginx

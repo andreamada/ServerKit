@@ -481,8 +481,19 @@ cmd_update() {
     docker network prune -f 2>/dev/null || true
     docker system prune -f 2>/dev/null || true
 
-    # Rebuild frontend (no cache to ensure fresh build)
-    print_info "Rebuilding frontend..."
+    # Build frontend on host first (Docker image copies the pre-built dist/)
+    print_info "Building frontend assets..."
+    cd "$INSTALL_DIR/frontend"
+    if [ "$SAFE_MODE" = true ] 2>/dev/null || [ "$(free -m | awk '/Mem:/ {print $2}')" -le 700 ]; then
+        NODE_OPTIONS="--max-old-space-size=512" npm ci --prefer-offline || npm ci
+    else
+        NODE_OPTIONS="--max-old-space-size=1024" npm ci --prefer-offline || npm ci
+    fi
+    NODE_OPTIONS="--max-old-space-size=1024" npm run build
+
+    # Rebuild nginx container from pre-built assets (no cache)
+    print_info "Rebuilding frontend container..."
+    cd "$INSTALL_DIR"
     docker compose build --no-cache
 
     # Reload systemd in case service file changed
