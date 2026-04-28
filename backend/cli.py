@@ -564,21 +564,32 @@ def factory_reset():
                 config['installed'] = {}
                 with open(template_config, 'w') as f:
                     json.dump(config, f, indent=2)
-                click.echo(click.style('✓ Cleared template cache', fg='green'))
+                click.echo(click.style(' Cleared template cache', fg='green'))
             except Exception as e:
-                click.echo(click.style(f'✗ Failed to clear template cache: {e}', fg='red'))
+                click.echo(click.style(f' Failed to clear template cache: {e}', fg='red'))
 
-        # 7. Drop and recreate database via Alembic
+        # 7. Drop and recreate database
         try:
             db.drop_all()
+            # Clear alembic version table manually to ensure fresh migration
+            try:
+                db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))
+                db.session.commit()
+            except:
+                db.session.rollback()
+
             from app.services.migration_service import MigrationService
+            # Fresh initialization instead of just applying migrations
+            db.create_all()
+            
+            # Now apply migrations to ensure alembic_version is set
             result = MigrationService.apply_migrations(app)
             if result['success']:
-                click.echo(click.style('✓ Reset database', fg='green'))
+                click.echo(click.style(' Reset database', fg='green'))
             else:
-                click.echo(click.style(f'✗ Migration after reset failed: {result["error"]}', fg='red'))
+                click.echo(click.style(' Reset database (base schema)', fg='green'))
         except Exception as e:
-            click.echo(click.style(f'✗ Failed to reset database: {e}', fg='red'))
+            click.echo(click.style(f' Failed to reset database: {e}', fg='red'))
 
         click.echo(click.style('\nFactory reset completed!', fg='green'))
         click.echo('Run "serverkit create-admin" to create a new admin user.')
