@@ -2,8 +2,29 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import User, Application
 from app.services.docker_service import DockerService
+from app.services.firewall_service import FirewallService
 from app.middleware.rbac import admin_required
 from app import db, paths
+
+
+def _open_firewall_ports(port_specs):
+    """Open host-facing ports from a list of docker port specs.
+    Skips 127.0.0.1-bound specs (localhost-only, accessed via nginx proxy).
+    Errors are silently ignored — firewall may not be active."""
+    for spec in port_specs or []:
+        parts = str(spec).split(':')
+        try:
+            if len(parts) == 3:
+                ip, host_port, _ = parts
+                if ip == '127.0.0.1':
+                    continue
+                FirewallService.allow_port(int(host_port))
+            elif len(parts) == 2:
+                FirewallService.allow_port(int(parts[0]))
+            elif len(parts) == 1:
+                FirewallService.allow_port(int(parts[0]))
+        except (ValueError, Exception):
+            pass
 
 docker_bp = Blueprint('docker', __name__)
 
@@ -697,6 +718,27 @@ def create_docker_app():
     # Start the compose stack
     up_result = DockerService.compose_up(data['path'])
 
+    # Open firewall ports for externally-bound port mappings
+    ports = data.get('ports', [])
+    if up_result['success'] and ports:
+        _open_firewall_ports(ports)
+
+    # Derive the primary host port for the app record
+    primary_port = None
+    for spec in ports:
+        parts = str(spec).split(':')
+        try:
+            if len(parts) == 3 and parts[0] != '127.0.0.1':
+                primary_port = int(parts[1])
+            elif len(parts) == 2:
+                primary_port = int(parts[0])
+            elif len(parts) == 1:
+                primary_port = int(parts[0])
+            if primary_port:
+                break
+        except (ValueError, Exception):
+            pass
+
     # Create application record
     current_user_id = get_jwt_identity()
     app = Application(
@@ -704,6 +746,7 @@ def create_docker_app():
         app_type='docker',
         status='running' if up_result['success'] else 'stopped',
         root_path=data['path'],
+        port=primary_port,
         user_id=current_user_id
     )
     db.session.add(app)

@@ -306,7 +306,7 @@ const OverviewTab = ({ server, metrics, systemInfo }) => {
                             <span className="info-label">Operating System</span>
                             <span className="info-value">
                                 {systemInfo?.os || server.os_type || 'Unknown'}
-                                {systemInfo?.os_version && ` ${systemInfo.os_version}`}
+                                {(systemInfo?.os_version || server.os_version) && ` ${systemInfo?.os_version || server.os_version}`}
                             </span>
                         </div>
                         <div className="info-item">
@@ -316,17 +316,17 @@ const OverviewTab = ({ server, metrics, systemInfo }) => {
                         <div className="info-item">
                             <span className="info-label">CPU</span>
                             <span className="info-value">
-                                {systemInfo?.cpu?.model || systemInfo?.cpu_model || 'N/A'}
-                                {(systemInfo?.cpu?.cores || systemInfo?.cpu_cores) && ` (${systemInfo?.cpu?.cores || systemInfo?.cpu_cores} cores)`}
+                                {systemInfo?.cpu?.model || systemInfo?.cpu_model || server.cpu_model || 'N/A'}
+                                {(systemInfo?.cpu?.cores || systemInfo?.cpu_cores || server.cpu_cores) && ` (${systemInfo?.cpu?.cores || systemInfo?.cpu_cores || server.cpu_cores} cores)`}
                             </span>
                         </div>
                         <div className="info-item">
                             <span className="info-label">Total Memory</span>
-                            <span className="info-value">{formatBytes(systemInfo?.total_memory)}</span>
+                            <span className="info-value">{formatBytes(systemInfo?.total_memory || server.total_memory)}</span>
                         </div>
                         <div className="info-item">
                             <span className="info-label">Total Disk</span>
-                            <span className="info-value">{formatBytes(systemInfo?.total_disk)}</span>
+                            <span className="info-value">{formatBytes(systemInfo?.total_disk || server.total_disk)}</span>
                         </div>
                     </div>
                 </div>

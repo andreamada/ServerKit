@@ -262,6 +262,18 @@ def get_server(server_id):
     result = server.to_dict(include_metrics=True)
     result['is_connected'] = agent_registry.is_agent_connected(server.id)
 
+    # Augment with live connection IP (agent registry → last active session → server record)
+    if not result.get('ip_address'):
+        agent = agent_registry.get_agent(server.id)
+        if agent and agent.ip_address:
+            result['ip_address'] = agent.ip_address
+        else:
+            session = AgentSession.query.filter_by(
+                server_id=server.id, is_active=True
+            ).order_by(AgentSession.connected_at.desc()).first()
+            if session and session.ip_address:
+                result['ip_address'] = session.ip_address
+
     return jsonify(result)
 
 
