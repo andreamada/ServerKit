@@ -4,6 +4,31 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 
+# Maps generic convenience permissions to the specific action names they cover.
+# Used so servers registered with broad roles (e.g. system:read) can still
+# pass the per-action permission check in has_permission().
+PERMISSION_ALIASES = {
+    'system:read': ['system:info', 'system:metrics', 'system:processes'],
+    'docker:read': [
+        'docker:container:list', 'docker:container:inspect',
+        'docker:container:stats', 'docker:container:logs',
+        'docker:image:list',
+        'docker:compose:list', 'docker:compose:ps', 'docker:compose:logs',
+        'docker:volume:list',
+        'docker:network:list',
+    ],
+    'docker:write': [
+        'docker:container:start', 'docker:container:stop',
+        'docker:container:restart', 'docker:container:remove',
+        'docker:container:create', 'docker:container:exec',
+        'docker:image:pull', 'docker:image:remove', 'docker:image:build',
+        'docker:volume:create', 'docker:volume:remove',
+        'docker:network:create', 'docker:network:remove',
+        'docker:compose:up', 'docker:compose:down', 'docker:compose:restart',
+        'docker:compose:pull',
+    ],
+}
+
 
 class ServerGroup(db.Model):
     """Group servers for organization"""
@@ -278,6 +303,13 @@ class Server(db.Model):
         if scope in perms:
             logger.debug(f"Permission check for {scope}: True (exact match)")
             return True
+
+        # Check alias expansion (e.g. 'system:read' grants 'system:info', 'system:metrics')
+        for perm in perms:
+            granted = PERMISSION_ALIASES.get(str(perm), [])
+            if scope in granted:
+                logger.debug(f"Permission check for {scope}: True (alias match via {perm})")
+                return True
 
         scope_parts = scope.split(':')
         for perm in perms:
