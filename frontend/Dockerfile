@@ -6,14 +6,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Set environment to development to ensure all devDependencies are installed
-ENV NODE_ENV=development
-
 COPY package*.json ./
-RUN npm install
+# Install ALL dependencies (including dev) to ensure Vite is available for the build
+RUN npm install --include=dev
 
 COPY . .
-# Use npx to ensure vite is found even if pathing is tricky
+# Vite build automatically generates a production-optimized bundle
 RUN npx vite build
 
 # Stage 2: Serve
