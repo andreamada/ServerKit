@@ -22,7 +22,7 @@ ExecStartPre=/bin/bash -c '\
     chmod 644 /opt/serverkit/backend/instance/serverkit.db && \
     rm -f /opt/serverkit/backend/instance/serverkit.db-wal \
           /opt/serverkit/backend/instance/serverkit.db-shm'
-ExecStart=/opt/serverkit/venv/bin/gunicorn --worker-class gevent --workers 1 --bind 127.0.0.1:5000 --timeout 120 run:app
+ExecStart=/opt/serverkit/venv/bin/gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --bind 127.0.0.1:5000 --timeout 120 run:app
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=5
