@@ -237,7 +237,7 @@ const ServiceDetail = () => {
                                 )}
                                 {service.port && (
                                     <a
-                                        href={`http://localhost:${service.port}`}
+                                        href={`http://${window.location.hostname}:${service.port}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={() => setShowMoreMenu(false)}

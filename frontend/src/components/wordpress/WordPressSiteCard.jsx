@@ -7,6 +7,9 @@ const WordPressSiteCard = ({ site, onDelete }) => {
     const navigate = useNavigate();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const isRunning = site.status === 'running';
+    const siteUrl = site.port
+        ? `http://${window.location.hostname}:${site.port}`
+        : null;
 
     function getEnvironmentCount() {
         return site.environments?.length || 0;
@@ -14,15 +17,15 @@ const WordPressSiteCard = ({ site, onDelete }) => {
 
     function handleVisitSite(e) {
         e.stopPropagation();
-        if (site.url) {
-            window.open(site.url, '_blank');
+        if (siteUrl) {
+            window.open(siteUrl, '_blank');
         }
     }
 
     function handleOpenDashboard(e) {
         e.stopPropagation();
-        if (site.url) {
-            window.open(`${site.url}/wp-admin`, '_blank');
+        if (siteUrl) {
+            window.open(`${siteUrl}/wp-admin`, '_blank');
         }
     }
 
@@ -50,8 +53,8 @@ const WordPressSiteCard = ({ site, onDelete }) => {
                 </div>
                 <div className="wp-site-info">
                     <h3 className="wp-site-name">{site.name}</h3>
-                    {site.url && (
-                        <span className="wp-site-url">{site.url}</span>
+                    {siteUrl && (
+                        <span className="wp-site-url">{siteUrl}</span>
                     )}
                 </div>
                 <span className={`wp-site-status ${isRunning ? 'running' : 'stopped'}`}>
@@ -90,7 +93,7 @@ const WordPressSiteCard = ({ site, onDelete }) => {
                 <button
                     className="btn btn-ghost btn-sm"
                     onClick={handleVisitSite}
-                    disabled={!site.url}
+                    disabled={!siteUrl}
                     title="Visit Site"
                 >
                     <ExternalLink size={14} />
@@ -99,7 +102,7 @@ const WordPressSiteCard = ({ site, onDelete }) => {
                 <button
                     className="btn btn-ghost btn-sm"
                     onClick={handleOpenDashboard}
-                    disabled={!site.url}
+                    disabled={!siteUrl}
                     title="Open Dashboard"
                 >
                     <Settings size={14} />

@@ -120,7 +120,7 @@ const ApplicationDetail = () => {
                 <div className="app-detail-actions">
                     {app.port && (
                         <a
-                            href={`http://localhost:${app.port}`}
+                            href={`http://${window.location.hostname}:${app.port}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-ghost"

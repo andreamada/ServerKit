@@ -102,6 +102,9 @@ const WordPressDetail = () => {
     }
 
     const isRunning = site.status === 'running';
+    const siteUrl = site.port
+        ? `http://${window.location.hostname}:${site.port}`
+        : null;
 
     return (
         <div className="app-detail-page wp-detail-page">
@@ -113,10 +116,10 @@ const WordPressDetail = () => {
                     <span className="current">{site.name}</span>
                 </div>
                 <div className="app-detail-actions">
-                    {site.url && (
+                    {siteUrl && (
                         <>
                             <a
-                                href={site.url}
+                                href={siteUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="btn btn-ghost"
@@ -125,7 +128,7 @@ const WordPressDetail = () => {
                                 Visit Site
                             </a>
                             <a
-                                href={`${site.url}/wp-admin`}
+                                href={`${siteUrl}/wp-admin`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="btn btn-ghost"
@@ -161,10 +164,10 @@ const WordPressDetail = () => {
                     </h1>
                     <div className="app-detail-subtitle">
                         <span>WordPress {site.wp_version || ''}</span>
-                        {site.url && (
+                        {siteUrl && (
                             <>
                                 <span className="separator">•</span>
-                                <span className="mono">{site.url}</span>
+                                <span className="mono">{siteUrl}</span>
                             </>
                         )}
                     </div>
@@ -314,9 +317,9 @@ const OverviewTab = ({ site, onUpdate }) => {
                             <div className="app-info-item full-width">
                                 <span className="app-info-label">Site URL</span>
                                 <span className="app-info-value">
-                                    {site.url ? (
-                                        <a href={site.url} target="_blank" rel="noopener noreferrer">
-                                            {site.url}
+                                    {siteUrl ? (
+                                        <a href={siteUrl} target="_blank" rel="noopener noreferrer">
+                                            {siteUrl}
                                         </a>
                                     ) : '-'}
                                 </span>
@@ -383,10 +386,10 @@ const OverviewTab = ({ site, onUpdate }) => {
                     <div className="app-panel-header">Quick Actions</div>
                     <div className="app-panel-body">
                         <div className="quick-actions-grid">
-                            {site.url && (
+                            {siteUrl && (
                                 <>
                                     <a
-                                        href={site.url}
+                                        href={siteUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="quick-action-btn"
@@ -395,7 +398,7 @@ const OverviewTab = ({ site, onUpdate }) => {
                                         Visit Site
                                     </a>
                                     <a
-                                        href={`${site.url}/wp-admin`}
+                                        href={`${siteUrl}/wp-admin`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="quick-action-btn"
