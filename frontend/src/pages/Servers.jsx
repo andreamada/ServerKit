@@ -580,7 +580,162 @@ const ServerRow = ({ server, selected, onToggle, onPing, onDelete, onCopyInstall
     );
 };
 
+const PairAgentForm = ({ groups, onClose, onClaimed }) => {
+    const [pairCode, setPairCode] = useState('');
+    const [passphrase, setPassphrase] = useState('');
+    const [name, setName] = useState('');
+    const [groupId, setGroupId] = useState('');
+    const [lookupResult, setLookupResult] = useState(null);
+    const [lookupError, setLookupError] = useState('');
+    const [claimError, setClaimError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const toast = useToast();
+
+    const formattedCode = pairCode
+        .toUpperCase()
+        .replace(/[^0-9A-Z]/g, '')
+        .replace(/[01OIL]/g, '')
+        .slice(0, 6);
+
+    async function handleLookup() {
+        setLookupError('');
+        setLookupResult(null);
+        if (formattedCode.length !== 6) {
+            setLookupError('Pair code must be 6 characters');
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await api.lookupPairCode(formattedCode);
+            setLookupResult(res);
+            if (!name && res.suggested_name) setName(res.suggested_name);
+        } catch (err) {
+            setLookupError(err.message || 'Pair code not found');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleClaim(e) {
+        e.preventDefault();
+        setClaimError('');
+        if (!passphrase) {
+            setClaimError('Passphrase is required');
+            return;
+        }
+        setLoading(true);
+        try {
+            await api.claimPairedAgent({
+                pair_code: formattedCode,
+                passphrase,
+                name: name || undefined,
+                group_id: groupId || undefined,
+                trust_fingerprint: true
+            });
+            toast.success('Agent paired successfully');
+            onClaimed();
+        } catch (err) {
+            setClaimError(err.message || 'Failed to claim agent');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function formatDisplay(code) {
+        if (!code) return '------';
+        return code.length > 3 ? `${code.slice(0, 3)}-${code.slice(3)}` : code;
+    }
+
+    return (
+        <form className="server-setup-form" onSubmit={handleClaim}>
+            <div className="server-setup-form__body">
+                <div className="form-group">
+                    <label>Pair code</label>
+                    <input
+                        type="text"
+                        value={formatDisplay(formattedCode)}
+                        onChange={(e) => {
+                            setPairCode(e.target.value);
+                            setLookupResult(null);
+                            setLookupError('');
+                        }}
+                        onBlur={handleLookup}
+                        placeholder="ABC-123"
+                        autoFocus
+                        autoComplete="off"
+                        spellCheck={false}
+                        style={{ fontFamily: 'monospace', fontSize: '1.25rem', letterSpacing: '0.15em', textAlign: 'center' }}
+                        required
+                    />
+                    <span className="form-hint">Run <code>serverkit-agent pair</code> on the target machine and read the code from its output (or system tray).</span>
+                    {lookupError && <div className="error-message" style={{ marginTop: '0.5rem' }}>{lookupError}</div>}
+                </div>
+
+                {lookupResult && (
+                    <div className="success-banner" style={{ marginTop: '0.5rem' }}>
+                        <div>
+                            <strong>Agent found</strong>
+                            <p className="success-subtitle">
+                                Hostname: <code>{lookupResult.hostname || 'unknown'}</code><br />
+                                Fingerprint: <code style={{ fontFamily: 'monospace' }}>{lookupResult.pubkey_fpr}</code>
+                            </p>
+                            <p className="text-muted" style={{ marginTop: '0.25rem', fontSize: '0.85em' }}>
+                                Confirm this fingerprint matches the one shown by the agent before continuing.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="form-group">
+                    <label>Passphrase *</label>
+                    <input
+                        type="password"
+                        value={passphrase}
+                        onChange={(e) => setPassphrase(e.target.value)}
+                        placeholder="The passphrase set when pairing started"
+                        autoComplete="new-password"
+                        required
+                    />
+                </div>
+
+                <div className="form-row">
+                    <div className="form-group">
+                        <label>Server name</label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="prod-web-01 (optional)"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>Group</label>
+                        <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                            <option value="">No Group</option>
+                            {groups.map(g => (
+                                <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {claimError && <div className="error-message">{claimError}</div>}
+            </div>
+
+            <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={onClose}>
+                    Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={loading || formattedCode.length !== 6}>
+                    {loading ? 'Pairing…' : 'Pair Agent'}
+                </button>
+            </div>
+        </form>
+    );
+};
+
 const AddServerModal = ({ groups, onClose, onCreated }) => {
+    const [mode, setMode] = useState('pair');
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         name: '',
@@ -636,13 +791,39 @@ Install-ServerKitAgent -Server "${window.location.origin}" -Token "${registratio
                 <div className="modal-header">
                     <div>
                         <span className="servers-eyebrow">{step === 1 ? 'New agent' : 'Registration ready'}</span>
-                        <h2>{step === 1 ? 'Add Server' : 'Install Agent'}</h2>
-                        <p>{step === 1 ? 'Give it a name, then run the install command on the target machine.' : 'Run one command on the target machine to bring it online.'}</p>
+                        <h2>{step === 1 ? 'Add Server' : (mode === 'pair' ? 'Pair Agent' : 'Install Agent')}</h2>
+                        <p>{step === 1 ? 'Pair an already-running agent with a short code, or generate an install script for a new machine.' : (mode === 'pair' ? 'Enter the 6-char code shown on the agent and your passphrase.' : 'Run one command on the target machine to bring it online.')}</p>
                     </div>
                     <button className="modal-close" onClick={onClose}>&times;</button>
                 </div>
 
-                {step === 1 ? (
+                {step === 1 && (
+                    <div className="install-tabs" style={{ padding: '0 1.5rem', marginTop: '0.5rem' }}>
+                        <button
+                            type="button"
+                            className={`btn ${mode === 'pair' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setMode('pair')}
+                            style={{ marginRight: '0.5rem' }}
+                        >
+                            Pair existing agent
+                        </button>
+                        <button
+                            type="button"
+                            className={`btn ${mode === 'install' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setMode('install')}
+                        >
+                            Install new agent
+                        </button>
+                    </div>
+                )}
+
+                {step === 1 && mode === 'pair' ? (
+                    <PairAgentForm
+                        groups={groups}
+                        onClose={onClose}
+                        onClaimed={onCreated}
+                    />
+                ) : step === 1 ? (
                     <form className="server-setup-form" onSubmit={handleCreateServer}>
                         <div className="server-setup-form__body">
                             {error && <div className="error-message">{error}</div>}

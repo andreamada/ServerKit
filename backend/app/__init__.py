@@ -282,6 +282,10 @@ def create_app(config_name=None):
     from app.api.plugins import plugins_bp
     app.register_blueprint(plugins_bp, url_prefix='/api/v1/plugins')
 
+    # Register blueprints - Agent Pairing (RustDesk-style short-code flow)
+    from app.api.pairing import pairing_bp
+    app.register_blueprint(pairing_bp, url_prefix='/api/v1/pairing')
+
     # Load installed plugins (dynamic blueprints)
     try:
         from app.services.plugin_service import load_all_plugins
@@ -317,6 +321,9 @@ def create_app(config_name=None):
 
         # Start hourly analytics aggregation and event retry threads
         _start_api_background_threads(app)
+
+        # Start hourly pruner for expired pending agent pairings
+        _start_pairing_pruner(app)
 
     # Request body size limit
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
@@ -444,6 +451,41 @@ def _check_auto_sync_schedules(logger):
 
 
 _api_bg_thread = None
+
+
+def _start_pairing_pruner(app):
+    """Start a background thread that prunes expired PendingAgent rows hourly."""
+    global _pairing_prune_thread
+    if _pairing_prune_thread is not None:
+        return
+
+    import threading
+    import time
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    def prune_loop():
+        # Wait a bit before first run so app is fully initialized.
+        time.sleep(60)
+        while True:
+            try:
+                with app.app_context():
+                    from app.services import pairing_service
+                    pairing_service.prune_expired()
+            except Exception as e:
+                logger.error(f'Pairing pruner error: {e}')
+            time.sleep(3600)
+
+    _pairing_prune_thread = threading.Thread(
+        target=prune_loop,
+        daemon=True,
+        name='pairing-pruner'
+    )
+    _pairing_prune_thread.start()
+
+
+_pairing_prune_thread = None
 
 
 def _start_api_background_threads(app):

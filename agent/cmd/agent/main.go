@@ -42,6 +42,7 @@ enabling remote Docker management, monitoring, and more.`,
 	// Add commands
 	rootCmd.AddCommand(startCmd())
 	rootCmd.AddCommand(registerCmd())
+	rootCmd.AddCommand(pairCmd())
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(versionCmd())
 	rootCmd.AddCommand(configCmd())
