@@ -631,35 +631,6 @@
     }
 }
 
-.deployment-progress {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: $space-3;
-    margin-bottom: $space-3;
-
-    span {
-        font-size: $font-size-sm;
-        color: $text-secondary;
-        text-transform: capitalize;
-        white-space: nowrap;
-    }
-}
-
-.deployment-progress-track {
-    height: 8px;
-    background: $bg-elevated;
-    border: 1px solid $border-subtle;
-    border-radius: $radius-sm;
-    overflow: hidden;
-}
-
-.deployment-progress-fill {
-    height: 100%;
-    background: $accent-primary;
-    transition: width 180ms ease;
-}
-
 // Responsive
 @media (max-width: $breakpoint-md) {
     .templates-grid {

@@ -44,12 +44,15 @@ class AgentNamespace(Namespace):
         """Handle agent connection attempt"""
         # Connection is not authenticated yet
         # Agent must send auth message first
-        print(f"[AgentGateway] New connection from {request.remote_addr}")
+        user_agent = request.headers.get('User-Agent', 'unknown')
+        print(f"[AgentGateway] New connection attempt from {request.remote_addr} (UA: {user_agent})")
+        print(f"[AgentGateway] Sid: {request.sid}")
+        # Note: Socket.IO implicitly sends the 'sid' back to the client after this function returns.
 
-    def on_disconnect(self):
+    def on_disconnect(self, *args):
         """Handle agent disconnection"""
         sid = request.sid
-        print(f"[AgentGateway] Disconnect: {sid}")
+        print(f"[AgentGateway] Disconnect (sid: {sid}, args: {args})")
         agent_registry.unregister_agent(sid, reason='disconnect')
 
     def on_auth(self, data):

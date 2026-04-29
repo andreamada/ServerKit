@@ -17,13 +17,16 @@ def register_api_analytics(app):
     @app.before_request
     def record_request_start():
         """Record request start time."""
+        if request.method == 'OPTIONS':
+            return
+            
         if request.path.startswith('/api/'):
             g.request_start_time = time.time()
 
     @app.after_request
     def record_request_metrics(response):
         """Log API request metrics."""
-        if not request.path.startswith('/api/'):
+        if request.method == 'OPTIONS' or not request.path.startswith('/api/'):
             return response
 
         start_time = getattr(g, 'request_start_time', None)

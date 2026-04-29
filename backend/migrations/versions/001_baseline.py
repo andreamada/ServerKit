@@ -355,7 +355,7 @@ def upgrade():
 
     if 'server_metrics' not in existing_tables:
         op.create_table('server_metrics',
-            sa.Column('id', sa.BigInteger(), primary_key=True, autoincrement=True),
+            sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
             sa.Column('server_id', sa.String(36), sa.ForeignKey('servers.id'), nullable=False, index=True),
             sa.Column('timestamp', sa.DateTime(), server_default=sa.func.now(), index=True),
             sa.Column('cpu_percent', sa.Float()),

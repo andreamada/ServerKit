@@ -4,6 +4,31 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 
+# Maps generic convenience permissions to the specific action names they cover.
+# Used so servers registered with broad roles (e.g. system:read) can still
+# pass the per-action permission check in has_permission().
+PERMISSION_ALIASES = {
+    'system:read': ['system:info', 'system:metrics', 'system:processes'],
+    'docker:read': [
+        'docker:container:list', 'docker:container:inspect',
+        'docker:container:stats', 'docker:container:logs',
+        'docker:image:list',
+        'docker:compose:list', 'docker:compose:ps', 'docker:compose:logs',
+        'docker:volume:list',
+        'docker:network:list',
+    ],
+    'docker:write': [
+        'docker:container:start', 'docker:container:stop',
+        'docker:container:restart', 'docker:container:remove',
+        'docker:container:create', 'docker:container:exec',
+        'docker:image:pull', 'docker:image:remove', 'docker:image:build',
+        'docker:volume:create', 'docker:volume:remove',
+        'docker:network:create', 'docker:network:remove',
+        'docker:compose:up', 'docker:compose:down', 'docker:compose:restart',
+        'docker:compose:pull',
+    ],
+}
+
 
 class ServerGroup(db.Model):
     """Group servers for organization"""
@@ -53,15 +78,6 @@ class ServerGroup(db.Model):
 class Server(db.Model):
     """Represents a remote server managed by ServerKit"""
     __tablename__ = 'servers'
-
-    DOCKER_READ_ACTIONS = {
-        'container': {'list', 'inspect', 'logs', 'stats'},
-        'image': {'list'},
-        'volume': {'list'},
-        'network': {'list'},
-        'compose': {'list', 'ps', 'logs'},
-    }
-    SYSTEM_READ_ACTIONS = {'metrics', 'info', 'processes'}
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
@@ -256,64 +272,71 @@ class Server(db.Model):
 
     def has_permission(self, scope):
         """Check if server/agent has a specific permission scope"""
-        if not self.permissions:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Ensure scope is a string
+        scope = str(scope)
+        
+        # Ensure permissions is a list
+        perms = self.permissions
+        if perms is None:
+            perms = []
+        if isinstance(perms, str):
+            import json
+            try:
+                perms = json.loads(perms)
+            except:
+                perms = [perms]
+        if not isinstance(perms, list):
+            perms = []
+
+        if not perms:
+            logger.debug(f"Permission check for {scope}: False (no permissions)")
             return False
-        if '*' in self.permissions:
+        
+        if '*' in perms:
+            logger.debug(f"Permission check for {scope}: True (wildcard *)")
             return True
 
-        candidate_scopes = self._expand_permission_scope(scope)
-        for perm in self.permissions:
-            for candidate in candidate_scopes:
-                if self._permission_matches(perm, candidate):
-                    return True
-        return False
-
-    @classmethod
-    def _expand_permission_scope(cls, scope):
-        """Add profile and legacy aliases for an agent command scope."""
-        candidate_scopes = {scope}
-        scope_parts = scope.split(':')
-
-        if len(scope_parts) >= 3 and scope_parts[0] == 'docker':
-            resource = scope_parts[1]
-            action = scope_parts[2]
-            read_actions = cls.DOCKER_READ_ACTIONS.get(resource, set())
-
-            if action in read_actions:
-                candidate_scopes.add(f'docker:{resource}:read')
-                candidate_scopes.add('docker:read')
-            else:
-                candidate_scopes.add(f'docker:{resource}:write')
-                candidate_scopes.add('docker:write')
-
-        if len(scope_parts) >= 2 and scope_parts[0] == 'system':
-            action = scope_parts[1]
-            if action in cls.SYSTEM_READ_ACTIONS:
-                candidate_scopes.add(f'system:{action}:read')
-                candidate_scopes.add('system:metrics:read')
-                candidate_scopes.add('system:read')
-
-        return candidate_scopes
-
-    @staticmethod
-    def _permission_matches(permission, scope):
-        """Check exact and wildcard patterns like docker:* or docker:container:*."""
-        if permission == scope:
+        # Check exact match
+        if scope in perms:
+            logger.debug(f"Permission check for {scope}: True (exact match)")
             return True
 
-        scope_parts = scope.split(':')
-        perm_parts = permission.split(':')
-
-        if len(perm_parts) > len(scope_parts):
-            return False
-
-        for i, part in enumerate(perm_parts):
-            if part == '*':
+        # Check alias expansion (e.g. 'system:read' grants 'system:info', 'system:metrics')
+        for perm in perms:
+            granted = PERMISSION_ALIASES.get(str(perm), [])
+            if scope in granted:
+                logger.debug(f"Permission check for {scope}: True (alias match via {perm})")
                 return True
-            if i >= len(scope_parts) or part != scope_parts[i]:
-                return False
 
-        return True
+        scope_parts = scope.split(':')
+        for perm in perms:
+            perm = str(perm)
+            perm_parts = perm.split(':')
+
+            # Handle wildcard match (e.g., 'docker:*' matches 'docker:container:list')
+            if '*' in perm_parts:
+                star_idx = perm_parts.index('*')
+                if scope_parts[:star_idx] == perm_parts[:star_idx]:
+                    logger.debug(f"Permission check for {scope}: True (wildcard match with {perm})")
+                    return True
+
+            # Handle sub-scope match (e.g., 'system:metrics:read' matches 'system:metrics')
+            if len(perm_parts) > len(scope_parts):
+                if perm_parts[:len(scope_parts)] == scope_parts:
+                    logger.debug(f"Permission check for {scope}: True (sub-scope match with {perm})")
+                    return True
+
+            # Handle parent-scope match (e.g., 'system:metrics' matches 'system:metrics:read')
+            if len(scope_parts) > len(perm_parts):
+                if scope_parts[:len(perm_parts)] == perm_parts:
+                    logger.debug(f"Permission check for {scope}: True (parent-scope match with {perm})")
+                    return True
+
+        logger.debug(f"Permission check for {scope}: False (no match found in {perms})")
+        return False
 
     def to_dict(self, include_metrics=False):
         result = {
@@ -361,7 +384,7 @@ class ServerMetrics(db.Model):
     """Historical metrics from servers"""
     __tablename__ = 'server_metrics'
 
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     server_id = db.Column(db.String(36), db.ForeignKey('servers.id'), nullable=False, index=True)
 
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)

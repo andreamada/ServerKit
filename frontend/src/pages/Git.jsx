@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import useTabParam from '../hooks/useTabParam';
 import { api } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { copyToClipboard } from '../utils/clipboard';
 import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -201,7 +202,7 @@ function Git() {
     const copyWebhookUrl = (webhook) => {
         const baseUrl = window.location.origin;
         const url = `${baseUrl}/api${webhook.webhook_url}`;
-        navigator.clipboard.writeText(url);
+        copyToClipboard(url);
         toast.success('Webhook URL copied');
     };
 
@@ -772,7 +773,7 @@ function Git() {
                                         <button
                                             className="btn btn-secondary"
                                             onClick={() => {
-                                                navigator.clipboard.writeText(`git clone ssh://git@${window.location.hostname}:${status?.ssh_port}/user/repo.git`);
+                                                copyToClipboard(`git clone ssh://git@${window.location.hostname}:${status?.ssh_port}/user/repo.git`);
                                                 toast.success('SSH URL copied to clipboard');
                                             }}
                                         >
@@ -1098,7 +1099,7 @@ function Git() {
                                         <button
                                             className="btn btn-sm btn-secondary"
                                             onClick={() => {
-                                                navigator.clipboard.writeText(getGiteaUrl());
+                                                copyToClipboard(getGiteaUrl());
                                                 toast.success('URL copied');
                                             }}
                                         >
@@ -1114,7 +1115,7 @@ function Git() {
                                         <button
                                             className="btn btn-sm btn-secondary"
                                             onClick={() => {
-                                                navigator.clipboard.writeText(`ssh://git@${window.location.hostname}:${status?.ssh_port}/username/repo.git`);
+                                                copyToClipboard(`ssh://git@${window.location.hostname}:${status?.ssh_port}/username/repo.git`);
                                                 toast.success('URL copied');
                                             }}
                                         >
@@ -1679,7 +1680,7 @@ function Git() {
                                 <button
                                     className="btn btn-sm btn-secondary"
                                     onClick={() => {
-                                        navigator.clipboard.writeText(webhookSecret);
+                                        copyToClipboard(webhookSecret);
                                         toast.success('Secret copied to clipboard');
                                     }}
                                 >

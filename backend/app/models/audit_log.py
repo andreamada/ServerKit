@@ -11,7 +11,7 @@ class AuditLog(db.Model):
     action = db.Column(db.String(100), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     target_type = db.Column(db.String(50), nullable=True)  # user, app, setting, etc.
-    target_id = db.Column(db.Integer, nullable=True)
+    target_id = db.Column(db.String(64), nullable=True)
     details = db.Column(db.Text, nullable=True)  # JSON string
     ip_address = db.Column(db.String(45), nullable=True)  # IPv6 compatible
     user_agent = db.Column(db.String(500), nullable=True)
@@ -52,6 +52,14 @@ class AuditLog(db.Model):
     ACTION_INVITATION_ACCEPT = 'invitation.accept'
     ACTION_USER_PERMISSIONS_UPDATE = 'user.permissions_update'
     ACTION_USER_PERMISSIONS_RESET = 'user.permissions_reset'
+    
+    # Workspace actions
+    ACTION_WORKSPACE_CREATE = 'workspace.create'
+    ACTION_WORKSPACE_UPDATE = 'workspace.update'
+    ACTION_WORKSPACE_DELETE = 'workspace.delete'
+    ACTION_WORKSPACE_ARCHIVE = 'workspace.archive'
+    ACTION_WORKSPACE_RESTORE = 'workspace.restore'
+    ACTION_RESOURCE_CREATE = 'resource.create' # Legacy/Common
 
     def get_details(self):
         """Return parsed details JSON."""

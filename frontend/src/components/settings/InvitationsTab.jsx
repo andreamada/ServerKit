@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import InviteModal from './InviteModal';
+import { copyToClipboard as clipboardWrite } from '../../utils/clipboard';
 
 const InvitationsTab = () => {
     const [invitations, setInvitations] = useState([]);
@@ -43,7 +44,7 @@ const InvitationsTab = () => {
 
     function copyLink(token) {
         const url = `${window.location.origin}/register?invite=${token}`;
-        navigator.clipboard.writeText(url);
+        clipboardWrite(url);
         setCopied(token);
         setTimeout(() => setCopied(null), 2000);
     }

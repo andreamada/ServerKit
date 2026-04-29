@@ -413,11 +413,6 @@ func (c *Client) ListNetworks(ctx context.Context) ([]NetworkInfo, error) {
 	return result, nil
 }
 
-// RemoveNetwork removes a network
-func (c *Client) RemoveNetwork(ctx context.Context, id string) error {
-	return c.cli.NetworkRemove(ctx, id)
-}
-
 // GetContainerCount returns the number of containers
 func (c *Client) GetContainerCount(ctx context.Context) (total int, running int, err error) {
 	allContainers, err := c.cli.ContainerList(ctx, types.ContainerListOptions{All: true})

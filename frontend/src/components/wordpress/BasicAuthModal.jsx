@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Copy, Check, AlertTriangle } from 'lucide-react';
 import Spinner from '../Spinner';
 import Modal from '../Modal';
+import { copyToClipboard as clipboardWrite } from '../../utils/clipboard';
 
 const BasicAuthModal = ({ environment, prodId, onClose, api }) => {
     const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ const BasicAuthModal = ({ environment, prodId, onClose, api }) => {
     }
 
     function copyToClipboard(text, field) {
-        navigator.clipboard.writeText(text);
+        clipboardWrite(text);
         setCopied(field);
         setTimeout(() => setCopied(null), 2000);
     }

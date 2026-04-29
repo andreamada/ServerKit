@@ -146,20 +146,8 @@ export async function getRemoteVolumes(serverId) {
     return this.request(`/servers/${serverId}/docker/volumes`);
 }
 
-export async function removeRemoteVolume(serverId, volumeName, force = false) {
-    return this.request(`/servers/${serverId}/docker/volumes/${encodeURIComponent(volumeName)}?force=${force}`, {
-        method: 'DELETE'
-    });
-}
-
 export async function getRemoteNetworks(serverId) {
     return this.request(`/servers/${serverId}/docker/networks`);
-}
-
-export async function removeRemoteNetwork(serverId, networkId) {
-    return this.request(`/servers/${serverId}/docker/networks/${encodeURIComponent(networkId)}`, {
-        method: 'DELETE'
-    });
 }
 
 export async function getRemoteSystemMetrics(serverId) {
@@ -359,7 +347,7 @@ export async function getAgentVersion() {
 
 export async function getAgentDownloadUrl(os, arch) {
     const baseUrl = this.baseUrl.replace('/api/v1', '');
-    return `${baseUrl}/api/v1/servers/agent/download/${os}/${arch}`;
+    return `${baseUrl}/api/servers/agent/download/${os}/${arch}`;
 }
 
 // Agent Fleet Management endpoints

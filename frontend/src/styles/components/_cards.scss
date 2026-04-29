@@ -8,6 +8,9 @@
     position: relative;
     overflow: hidden;
 
+    &:hover {
+        transform: translateY(-2px);
+    }
 }
 
 .card-header {
@@ -191,8 +194,7 @@
     border-radius: $radius-xl;
     border: 1px solid $border-subtle;
 
-    > svg,
-    &__icon svg {
+    svg {
         color: $text-tertiary;
         margin-bottom: $space-4;
     }
@@ -209,17 +211,6 @@
     }
 }
 
-// Card body (content area below card-header)
-.card-body {
-    padding: 0;
-}
-
-// Card actions (button row inside card-header)
-.card-actions {
-    display: flex;
-    gap: $space-2;
-}
-
 // Section header
 .section-header {
     @include flex-between();
@@ -233,19 +224,16 @@
 
 // Danger zone card
 .danger-zone {
-    @include flex-between();
-    padding: $space-6;
-    border: 1px solid fade($danger, 30%);
+    border-color: fade($danger, 30%);
     background: fade($danger, 5%);
-    border-radius: $radius-xl;
 
-    h3, h4 {
+    h4 {
         color: $danger;
         margin-bottom: $space-2;
     }
 
     p {
         color: $text-secondary;
-        margin: 0;
+        margin-bottom: $space-4;
     }
 }

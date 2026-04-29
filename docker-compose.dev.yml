@@ -1,0 +1,81 @@
+# ============================================
+# ServerKit Docker Compose — Development
+# ============================================
+# Runs both backend and frontend in Docker.
+# Note: System management features (PHP install,
+# firewall, etc.) won't work in Docker.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build -d
+#
+# Access:
+#   Frontend: http://localhost:3847
+#   Backend:  http://localhost:5849
+# ============================================
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: serverkit-backend
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=dev-secret-key-not-for-production
+      - JWT_SECRET_KEY=dev-jwt-key-not-for-production
+      - DATABASE_URL=sqlite:////app/instance/serverkit.db
+      - CORS_ORIGINS=http://localhost,http://localhost:3847,http://localhost:5173
+    ports:
+      - "5849:5000"
+    volumes:
+      - serverkit-data:/app/instance
+      - serverkit-config:/etc/serverkit
+    networks:
+      - serverkit-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/system/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: serve
+    container_name: serverkit-frontend
+    ports:
+      - "3847:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - serverkit-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  serverkit-network:
+    driver: bridge
+    name: serverkit-network
+
+volumes:
+  serverkit-data:
+    name: serverkit-data
+  serverkit-config:
+    name: serverkit-config

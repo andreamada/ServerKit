@@ -300,7 +300,38 @@
     }
 }
 
-// Alert Messages — see components/_alerts.scss
+// Alert Messages
+.alert {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-3 $space-4;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    margin-bottom: $space-4;
+
+    &.alert-success,
+    &.alert--success {
+        background: $success-bg;
+        border: 1px solid $success-border;
+        color: $success;
+    }
+
+    &.alert-danger,
+    &.alert--danger,
+    &.alert--error {
+        background: $danger-bg;
+        border: 1px solid $danger-border;
+        color: $danger;
+    }
+
+    &.alert-warning,
+    &.alert--warning {
+        background: $warning-bg;
+        border: 1px solid $warning-border;
+        color: $warning;
+    }
+}
 
 // Session Items
 .session-item {

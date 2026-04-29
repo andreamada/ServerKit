@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import PermissionEditor from './PermissionEditor';
 import Modal from '../Modal';
+import { copyToClipboard as clipboardWrite } from '../../utils/clipboard';
 
 const InviteModal = ({ onClose, onCreated }) => {
     const [email, setEmail] = useState('');
@@ -59,7 +60,7 @@ const InviteModal = ({ onClose, onCreated }) => {
 
     function copyLink() {
         if (result?.invite_url) {
-            navigator.clipboard.writeText(result.invite_url);
+            clipboardWrite(result.invite_url);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }

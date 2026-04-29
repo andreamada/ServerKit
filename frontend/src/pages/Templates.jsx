@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { copyToClipboard } from '../utils/clipboard';
 import {
     Search, X, Star, ExternalLink, BookOpen, Container, Globe, BarChart3,
     Database, Shield, Cloud, MessageSquare, Video, Music, Image, Home,
@@ -549,7 +550,7 @@ const Templates = () => {
                                             <button
                                                 className="copy-btn"
                                                 onClick={() => {
-                                                    navigator.clipboard.writeText('docker-compose.yml available after install');
+                                                    copyToClipboard('docker-compose.yml available after install');
                                                     setCopiedCompose(true);
                                                     setTimeout(() => setCopiedCompose(false), 2000);
                                                 }}
@@ -605,13 +606,8 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
     const toast = useToast();
     const [appName, setAppName] = useState(template.id.toLowerCase().replace(/[^a-z0-9-]/g, '-'));
     const [variables, setVariables] = useState({});
-    const [servers, setServers] = useState([{ id: 'local', name: 'Local server', is_local: true }]);
-    const [selectedServerId, setSelectedServerId] = useState('local');
     const [installing, setInstalling] = useState(false);
     const [errors, setErrors] = useState([]);
-    const [job, setJob] = useState(null);
-    const [jobLogs, setJobLogs] = useState([]);
-    const pollRef = useRef(null);
 
     useEffect(() => {
         // Initialize variables with defaults
@@ -624,65 +620,10 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
         setVariables(defaults);
     }, [template]);
 
-    useEffect(() => {
-        loadServers();
-        return () => {
-            if (pollRef.current) {
-                clearInterval(pollRef.current);
-            }
-        };
-    }, []);
-
-    async function loadServers() {
-        try {
-            const data = await api.getAvailableServers();
-            const list = Array.isArray(data) ? data : [];
-            if (list.length > 0) {
-                setServers(list);
-                setSelectedServerId(list[0].id);
-            }
-        } catch {
-            setServers([{ id: 'local', name: 'Local server', is_local: true }]);
-            setSelectedServerId('local');
-        }
-    }
-
-    function startPolling(jobId) {
-        if (pollRef.current) {
-            clearInterval(pollRef.current);
-        }
-
-        pollRef.current = setInterval(async () => {
-            try {
-                const data = await api.getDeploymentJob(jobId, true);
-                const latestJob = data.job;
-                setJob(latestJob);
-                setJobLogs(latestJob.logs || []);
-
-                if (latestJob.status === 'succeeded' && latestJob.result?.app_id) {
-                    clearInterval(pollRef.current);
-                    pollRef.current = null;
-                    setInstalling(false);
-                    onSuccess(latestJob.result?.app_id);
-                } else if (latestJob.status === 'failed') {
-                    clearInterval(pollRef.current);
-                    pollRef.current = null;
-                    setInstalling(false);
-                    setErrors([latestJob.error_message || 'Deployment failed']);
-                    toast.error(latestJob.error_message || 'Deployment failed');
-                }
-            } catch (err) {
-                console.error('Failed to poll deployment job:', err);
-            }
-        }, 1500);
-    }
-
     async function handleInstall(e) {
         e.preventDefault();
         setInstalling(true);
         setErrors([]);
-        setJob(null);
-        setJobLogs([]);
 
         try {
             // Validate first
@@ -694,21 +635,15 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
             }
 
             // Install
-            const result = await api.installTemplate(template.id, appName, variables, {
-                serverId: selectedServerId
-            });
-            if (result.success && result.job_id) {
-                setJob(result.job);
-                setJobLogs(result.job?.logs || []);
-                startPolling(result.job_id);
-            } else if (result.success) {
+            const result = await api.installTemplate(template.id, appName, variables);
+            if (result.success) {
                 onSuccess(result.app_id);
             } else {
                 setErrors([result.error || 'Installation failed']);
-                setInstalling(false);
             }
         } catch (err) {
             setErrors([err.message || 'Installation failed']);
+        } finally {
             setInstalling(false);
         }
     }
@@ -741,21 +676,6 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
                                 required
                             />
                             <span className="form-help">Lowercase letters, numbers, and hyphens only (min 2 chars)</span>
-                        </div>
-
-                        <div className="form-group">
-                            <label>Target Server</label>
-                            <select
-                                value={selectedServerId}
-                                onChange={(e) => setSelectedServerId(e.target.value)}
-                                disabled={installing}
-                            >
-                                {servers.map(server => (
-                                    <option key={server.id} value={server.id}>
-                                        {server.name}{server.is_local ? ' (local)' : ''}
-                                    </option>
-                                ))}
-                            </select>
                         </div>
 
                         {(template.variables || []).filter(v => !v.hidden).length > 0 && (
@@ -801,27 +721,6 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
                                     </div>
                                 ))}
                             </>
-                        )}
-
-                        {job && (
-                            <div className="detail-section">
-                                <h4>Deployment Status</h4>
-                                <div className="deployment-progress">
-                                    <div className="deployment-progress-track">
-                                        <div
-                                            className="deployment-progress-fill"
-                                            style={{ width: `${job.progress_percent || 0}%` }}
-                                        />
-                                    </div>
-                                    <span>{job.status} {job.progress_percent || 0}%</span>
-                                </div>
-                                <pre className="log-viewer">
-                                    {(jobLogs || []).map(log => {
-                                        const prefix = log.step_index ? `[${log.step_index}] ` : '';
-                                        return `${prefix}${log.message}`;
-                                    }).join('\n') || 'Waiting for deployment logs...'}
-                                </pre>
-                            </div>
                         )}
                     </div>
                     <div className="modal-footer">

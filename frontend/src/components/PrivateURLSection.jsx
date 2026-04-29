@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { copyToClipboard as clipboardWrite } from '../utils/clipboard';
 
 const PrivateURLSection = ({ app, onUpdate }) => {
     const toast = useToast();
@@ -75,7 +76,7 @@ const PrivateURLSection = ({ app, onUpdate }) => {
     }
 
     function copyToClipboard() {
-        navigator.clipboard.writeText(privateUrl);
+        clipboardWrite(privateUrl);
         toast.success('URL copied to clipboard');
     }
 

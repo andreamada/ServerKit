@@ -11,9 +11,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -141,7 +138,6 @@ func (a *Agent) registerHandlers() {
 
 		// Docker network commands
 		a.handlers[protocol.ActionDockerNetworkList] = a.handleDockerNetworkList
-		a.handlers[protocol.ActionDockerNetworkRemove] = a.handleDockerNetworkRemove
 
 		// Docker compose commands
 		a.handlers[protocol.ActionDockerComposeList] = a.handleDockerComposeList
@@ -779,16 +775,6 @@ func (a *Agent) handleDockerNetworkList(ctx context.Context, params json.RawMess
 	return a.docker.ListNetworks(ctx)
 }
 
-func (a *Agent) handleDockerNetworkRemove(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	var p struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(params, &p); err != nil {
-		return nil, fmt.Errorf("invalid params: %w", err)
-	}
-	return map[string]bool{"success": true}, a.docker.RemoveNetwork(ctx, p.ID)
-}
-
 // System command handlers
 
 func (a *Agent) handleSystemMetrics(ctx context.Context, params json.RawMessage) (interface{}, error) {
@@ -815,9 +801,6 @@ func (a *Agent) handleFileRead(ctx context.Context, params json.RawMessage) (int
 	if p.Path == "" {
 		return nil, fmt.Errorf("path is required")
 	}
-	if err := a.validateFileAccess(p.Path); err != nil {
-		return nil, err
-	}
 
 	data, err := os.ReadFile(p.Path)
 	if err != nil {
@@ -833,19 +816,15 @@ func (a *Agent) handleFileRead(ctx context.Context, params json.RawMessage) (int
 
 func (a *Agent) handleFileWrite(ctx context.Context, params json.RawMessage) (interface{}, error) {
 	var p struct {
-		Path       string `json:"path"`
-		Content    string `json:"content"` // base64 encoded
-		Mode       uint32 `json:"mode"`
-		CreateDirs bool   `json:"create_dirs"`
+		Path    string `json:"path"`
+		Content string `json:"content"` // base64 encoded
+		Mode    uint32 `json:"mode"`
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
 	if p.Path == "" {
 		return nil, fmt.Errorf("path is required")
-	}
-	if err := a.validateFileAccess(p.Path); err != nil {
-		return nil, err
 	}
 
 	data, err := base64.StdEncoding.DecodeString(p.Content)
@@ -856,12 +835,6 @@ func (a *Agent) handleFileWrite(ctx context.Context, params json.RawMessage) (in
 	mode := os.FileMode(0644)
 	if p.Mode != 0 {
 		mode = os.FileMode(p.Mode)
-	}
-
-	if p.CreateDirs {
-		if err := os.MkdirAll(filepath.Dir(p.Path), 0755); err != nil {
-			return nil, fmt.Errorf("failed to create parent directories: %w", err)
-		}
 	}
 
 	if err := os.WriteFile(p.Path, data, mode); err != nil {
@@ -884,9 +857,6 @@ func (a *Agent) handleFileList(ctx context.Context, params json.RawMessage) (int
 	}
 	if p.Path == "" {
 		p.Path = "/"
-	}
-	if err := a.validateFileAccess(p.Path); err != nil {
-		return nil, err
 	}
 
 	entries, err := os.ReadDir(p.Path)
@@ -914,48 +884,6 @@ func (a *Agent) handleFileList(ctx context.Context, params json.RawMessage) (int
 	}, nil
 }
 
-func (a *Agent) validateFileAccess(path string) error {
-	allowedPaths := a.cfg.Security.AllowedPaths
-	if len(allowedPaths) == 0 {
-		return fmt.Errorf("file access denied: no allowed_paths configured")
-	}
-
-	target, err := filepath.Abs(filepath.Clean(path))
-	if err != nil {
-		return fmt.Errorf("invalid path: %w", err)
-	}
-
-	for _, allowedPath := range allowedPaths {
-		if strings.TrimSpace(allowedPath) == "" {
-			continue
-		}
-		allowed, err := filepath.Abs(filepath.Clean(allowedPath))
-		if err != nil {
-			continue
-		}
-
-		if pathWithinAllowedRoot(target, allowed) {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("file access denied for path: %s", path)
-}
-
-func pathWithinAllowedRoot(target, allowed string) bool {
-	if runtime.GOOS == "windows" {
-		target = strings.ToLower(target)
-		allowed = strings.ToLower(allowed)
-	}
-
-	if target == allowed {
-		return true
-	}
-
-	allowedWithSeparator := strings.TrimRight(allowed, string(os.PathSeparator)) + string(os.PathSeparator)
-	return strings.HasPrefix(target, allowedWithSeparator)
-}
-
 // Docker Compose command handlers
 
 func (a *Agent) handleDockerComposeList(ctx context.Context, params json.RawMessage) (interface{}, error) {
@@ -969,9 +897,6 @@ func (a *Agent) handleDockerComposePs(ctx context.Context, params json.RawMessag
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	if err := a.validateFileAccess(p.ProjectPath); err != nil {
-		return nil, err
-	}
 	return a.docker.ComposePsProject(ctx, p.ProjectPath)
 }
 
@@ -983,9 +908,6 @@ func (a *Agent) handleDockerComposeUp(ctx context.Context, params json.RawMessag
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
-	}
-	if err := a.validateFileAccess(p.ProjectPath); err != nil {
-		return nil, err
 	}
 
 	// Default to detached mode
@@ -1017,9 +939,6 @@ func (a *Agent) handleDockerComposeDown(ctx context.Context, params json.RawMess
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	if err := a.validateFileAccess(p.ProjectPath); err != nil {
-		return nil, err
-	}
 
 	output, err := a.docker.ComposeDown(ctx, p.ProjectPath, p.Volumes, p.RemoveOrphans)
 	if err != nil {
@@ -1045,9 +964,6 @@ func (a *Agent) handleDockerComposeLogs(ctx context.Context, params json.RawMess
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	if err := a.validateFileAccess(p.ProjectPath); err != nil {
-		return nil, err
-	}
 
 	// Default tail to 100
 	if p.Tail == 0 {
@@ -1072,9 +988,6 @@ func (a *Agent) handleDockerComposeRestart(ctx context.Context, params json.RawM
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	if err := a.validateFileAccess(p.ProjectPath); err != nil {
-		return nil, err
-	}
 
 	output, err := a.docker.ComposeRestart(ctx, p.ProjectPath, p.Service)
 	if err != nil {
@@ -1098,9 +1011,6 @@ func (a *Agent) handleDockerComposePull(ctx context.Context, params json.RawMess
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
-	}
-	if err := a.validateFileAccess(p.ProjectPath); err != nil {
-		return nil, err
 	}
 
 	output, err := a.docker.ComposePull(ctx, p.ProjectPath, p.Service)

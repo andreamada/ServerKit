@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Star, Settings, LogOut, Sun, Moon, Monitor, ChevronRight, ChevronDown, ChevronUp, Layers, Palette, PanelLeft, Check } from 'lucide-react';
 import { api } from '../services/api';
 import ServerKitLogo from './ServerKitLogo';
-import { SIDEBAR_CATEGORIES, CATEGORY_LABELS, SIDEBAR_PRESETS, getVisibleItems, SIDEBAR_ITEMS } from './sidebarItems';
+import { SIDEBAR_CATEGORIES, CATEGORY_LABELS, SIDEBAR_PRESETS, getVisibleItems } from './sidebarItems';
 
 const Sidebar = () => {
     const { user, logout, updateUser } = useAuth();
@@ -239,23 +239,6 @@ const Sidebar = () => {
                     );
                 })}
             </div>
-
-            {import.meta.env.DEV && (
-                <>
-                    <div className="nav-category">Dev Tools</div>
-                    <nav className="nav">
-                        <NavLink
-                            to="/style-guide"
-                            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                        >
-                            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <circle cx="13.5" cy="6.5" r="2.5"/><path d="M17 2H7a5 5 0 0 0-5 5v10a5 5 0 0 0 5 5h10a5 5 0 0 0 5-5V7a5 5 0 0 0-5-5z"/><path d="M9.5 14.5l-3 3"/><path d="M14.5 9.5l3-3"/>
-                            </svg>
-                            Style Guide
-                        </NavLink>
-                    </nav>
-                </>
-            )}
 
             <div className="sidebar-footer" ref={menuRef}>
                 {menuOpen && (

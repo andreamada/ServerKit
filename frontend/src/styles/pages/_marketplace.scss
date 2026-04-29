@@ -74,50 +74,11 @@
         justify-content: space-between;
         align-items: center;
         padding: $spacing-md;
-        flex-wrap: wrap;
 
         &__info {
             display: flex;
             align-items: baseline;
             gap: $spacing-sm;
-            flex-wrap: wrap;
-        }
-
-        &__actions {
-            display: flex;
-            gap: $spacing-sm;
-        }
-
-        &--error {
-            border-color: rgba(239, 68, 68, 0.3);
-        }
-    }
-
-    // Plugin install section
-    .plugins-section {
-        margin-top: $spacing-lg;
-    }
-
-    .plugin-install-form {
-        padding: $spacing-lg;
-        margin-bottom: $spacing-lg;
-
-        h3 {
-            margin: 0 0 $space-1;
-        }
-
-        p {
-            margin: 0 0 $spacing-md;
-            font-size: $font-size-sm;
-        }
-    }
-
-    .plugin-install-row {
-        display: flex;
-        gap: $spacing-sm;
-
-        .form-input {
-            flex: 1;
         }
     }
 }

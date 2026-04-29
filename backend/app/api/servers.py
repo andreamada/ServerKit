@@ -22,32 +22,6 @@ from app.middleware.rbac import admin_required, developer_required
 servers_bp = Blueprint('servers', __name__)
 
 
-def _get_external_base_url():
-    """Return the public origin agents should use when this app sits behind a proxy."""
-    public_url = current_app.config.get('PUBLIC_URL') or os.environ.get('SERVERKIT_PUBLIC_URL')
-    if public_url:
-        return public_url.rstrip('/')
-
-    forwarded_proto = request.headers.get('X-Forwarded-Proto', request.scheme)
-    forwarded_host = request.headers.get('X-Forwarded-Host', request.host)
-
-    scheme = forwarded_proto.split(',')[0].strip() or request.scheme
-    host = forwarded_host.split(',')[0].strip() or request.host
-
-    return f"{scheme}://{host}".rstrip('/')
-
-
-def _get_external_websocket_url():
-    base_url = _get_external_base_url()
-
-    if base_url.startswith('https://'):
-        return f"wss://{base_url[len('https://'):]}/agent"
-    if base_url.startswith('http://'):
-        return f"ws://{base_url[len('http://'):]}/agent"
-
-    return f"{base_url}/agent"
-
-
 # ==================== Permission Profiles ====================
 
 PERMISSION_PROFILES = {
@@ -55,12 +29,18 @@ PERMISSION_PROFILES = {
         'name': 'Docker Read-Only',
         'description': 'View containers, images, and metrics',
         'permissions': [
-            'docker:container:read',
-            'docker:image:read',
-            'docker:compose:read',
-            'docker:volume:read',
-            'docker:network:read',
-            'system:metrics:read',
+            'docker:container:list',
+            'docker:container:inspect',
+            'docker:container:stats',
+            'docker:container:logs',
+            'docker:image:list',
+            'docker:compose:list',
+            'docker:compose:ps',
+            'docker:compose:logs',
+            'docker:volume:list',
+            'docker:network:list',
+            'system:metrics',
+            'system:info',
         ]
     },
     'docker_manager': {
@@ -72,24 +52,9 @@ PERMISSION_PROFILES = {
             'docker:compose:*',
             'docker:volume:*',
             'docker:network:*',
-            'system:metrics:read',
-            'system:logs:read',
-        ]
-    },
-    'deployment_runner': {
-        'name': 'Deployment Runner',
-        'description': 'Deploy and operate ServerKit-managed Docker Compose apps',
-        'permissions': [
-            'docker:container:*',
-            'docker:image:*',
-            'docker:compose:*',
-            'docker:volume:*',
-            'docker:network:*',
-            'file:read',
-            'file:write',
-            'file:list',
-            'system:metrics:read',
-            'system:logs:read',
+            'system:metrics',
+            'system:info',
+            'system:processes',
         ]
     },
     'full_access': {
@@ -231,41 +196,59 @@ def create_server():
 
     Returns server info with registration token for agent installation.
     """
-    data = request.get_json()
-    user_id = get_jwt_identity()
+    try:
+        data = request.get_json()
+        user_id = get_jwt_identity()
 
-    if not data.get('name'):
-        return jsonify({'error': 'Name is required'}), 400
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
 
-    # Generate registration token
-    registration_token = Server.generate_registration_token()
+        if not data.get('name'):
+            return jsonify({'error': 'Name is required'}), 400
 
-    # Get permissions from profile or custom list
-    permissions = data.get('permissions', [])
-    profile = data.get('permission_profile')
-    if profile and profile in PERMISSION_PROFILES:
-        permissions = PERMISSION_PROFILES[profile]['permissions']
+        # Generate registration token
+        registration_token = Server.generate_registration_token()
 
-    server = Server(
-        name=data['name'],
-        description=data.get('description'),
-        group_id=data.get('group_id'),
-        tags=data.get('tags', []),
-        permissions=permissions,
-        allowed_ips=data.get('allowed_ips', []),
-        registered_by=user_id,
-        registration_token_expires=datetime.utcnow() + timedelta(hours=24)
-    )
-    server.set_registration_token(registration_token)
+        # Get permissions from profile or custom list
+        permissions = data.get('permissions', [])
+        profile = data.get('permission_profile')
+        if profile and profile in PERMISSION_PROFILES:
+            permissions = PERMISSION_PROFILES[profile]['permissions']
 
-    db.session.add(server)
-    db.session.commit()
+        # Ensure we have valid integers/strings for foreign keys
+        group_id = data.get('group_id')
+        if group_id == "":
+            group_id = None
 
-    result = server.to_dict()
-    result['registration_token'] = registration_token
-    result['registration_expires'] = server.registration_token_expires.isoformat()
+        server = Server(
+            name=data['name'],
+            description=data.get('description'),
+            group_id=group_id,
+            tags=data.get('tags', []),
+            permissions=permissions,
+            allowed_ips=data.get('allowed_ips', []),
+            registered_by=int(user_id) if user_id else None,
+            registration_token_expires=datetime.utcnow() + timedelta(hours=24)
+        )
+        server.set_registration_token(registration_token)
 
-    return jsonify(result), 201
+        db.session.add(server)
+        db.session.commit()
+
+        result = server.to_dict()
+        result['registration_token'] = registration_token
+        result['registration_expires'] = server.registration_token_expires.isoformat()
+
+        return jsonify(result), 201
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Error creating server: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': str(e),
+            'traceback': traceback.format_exc() if current_app.debug else None
+        }), 500
 
 
 @servers_bp.route('/<server_id>', methods=['GET'])
@@ -278,6 +261,18 @@ def get_server(server_id):
 
     result = server.to_dict(include_metrics=True)
     result['is_connected'] = agent_registry.is_agent_connected(server.id)
+
+    # Augment with live connection IP (agent registry → last active session → server record)
+    if not result.get('ip_address'):
+        agent = agent_registry.get_agent(server.id)
+        if agent and agent.ip_address:
+            result['ip_address'] = agent.ip_address
+        else:
+            session = AgentSession.query.filter_by(
+                server_id=server.id, is_active=True
+            ).order_by(AgentSession.connected_at.desc()).first()
+            if session and session.ip_address:
+                result['ip_address'] = session.ip_address
 
     return jsonify(result)
 
@@ -427,6 +422,12 @@ def register_agent():
 
     db.session.commit()
 
+    # Construct WebSocket URL
+    # Force wss if we're behind ngrok or if the request is secure
+    is_ngrok = 'ngrok' in request.host
+    ws_scheme = 'wss' if (request.is_secure or is_ngrok) else 'ws'
+    ws_url = f"{ws_scheme}://{request.host}/agent"
+
     # Security note: api_secret is returned once during registration so the agent
     # can store it. The server-side copy is stored encrypted. The registration token
     # is already cleared above (single-use), preventing re-registration.
@@ -435,7 +436,7 @@ def register_agent():
         'name': server.name,
         'api_key': api_key,
         'api_secret': api_secret,
-        'websocket_url': _get_external_websocket_url(),
+        'websocket_url': ws_url,
         'server_id': server.id
     })
 
@@ -1094,22 +1095,6 @@ def list_remote_volumes(server_id):
     return jsonify(result.get('data', []))
 
 
-@servers_bp.route('/<server_id>/docker/volumes/<volume_name>', methods=['DELETE'])
-@jwt_required()
-@developer_required
-def remove_remote_volume(server_id, volume_name):
-    """Remove a volume on a remote server"""
-    user_id = get_jwt_identity()
-    force = request.args.get('force', 'false').lower() == 'true'
-
-    result = RemoteDockerService.remove_volume(server_id, volume_name, force=force, user_id=user_id)
-
-    if not result.get('success'):
-        return jsonify(result), 500
-
-    return jsonify({'message': 'Volume removed'})
-
-
 @servers_bp.route('/<server_id>/docker/networks', methods=['GET'])
 @jwt_required()
 def list_remote_networks(server_id):
@@ -1124,19 +1109,21 @@ def list_remote_networks(server_id):
     return jsonify(result.get('data', []))
 
 
-@servers_bp.route('/<server_id>/docker/networks/<network_id>', methods=['DELETE'])
-@jwt_required()
-@developer_required
-def remove_remote_network(server_id, network_id):
-    """Remove a network on a remote server"""
-    user_id = get_jwt_identity()
-
-    result = RemoteDockerService.remove_network(server_id, network_id, user_id=user_id)
-
-    if not result.get('success'):
-        return jsonify(result), 500
-
-    return jsonify({'message': 'Network removed'})
+def _handle_agent_response(result):
+    """Common handler for agent service responses to return appropriate HTTP status codes."""
+    if result.get('success'):
+        return jsonify(result.get('data'))
+    
+    code = result.get('code')
+    status = 500
+    if code == 'PERMISSION_DENIED':
+        status = 403
+    elif code == 'AGENT_OFFLINE':
+        status = 503
+    elif code == 'TIMEOUT':
+        status = 504
+        
+    return jsonify(result), status
 
 
 @servers_bp.route('/<server_id>/system/metrics', methods=['GET'])
@@ -1144,13 +1131,8 @@ def remove_remote_network(server_id, network_id):
 def get_remote_system_metrics(server_id):
     """Get system metrics from a remote server"""
     user_id = get_jwt_identity()
-
     result = RemoteDockerService.get_system_metrics(server_id, user_id=user_id)
-
-    if not result.get('success'):
-        return jsonify(result), 500
-
-    return jsonify(result.get('data'))
+    return _handle_agent_response(result)
 
 
 @servers_bp.route('/<server_id>/system/info', methods=['GET'])
@@ -1158,13 +1140,8 @@ def get_remote_system_metrics(server_id):
 def get_remote_system_info(server_id):
     """Get system info from a remote server"""
     user_id = get_jwt_identity()
-
     result = RemoteDockerService.get_system_info(server_id, user_id=user_id)
-
-    if not result.get('success'):
-        return jsonify(result), 500
-
-    return jsonify(result.get('data'))
+    return _handle_agent_response(result)
 
 
 # ==================== Remote Docker Compose Operations ====================
@@ -1516,7 +1493,7 @@ def get_install_script_linux():
     the ServerKit agent on Linux systems.
 
     Usage:
-        curl -fsSL https://your-server/api/v1/servers/install.sh | sudo bash -s -- \\
+        curl -fsSL https://your-server/api/servers/install.sh | sudo bash -s -- \\
             --token "YOUR_TOKEN" --server "https://your-server"
     """
     script_path = os.path.join(_get_scripts_dir(), 'install.sh')
@@ -1528,7 +1505,7 @@ def get_install_script_linux():
         content = f.read()
 
     # Replace placeholders with actual values
-    server_url = _get_external_base_url()
+    server_url = request.url_root.rstrip('/')
     content = content.replace('https://your-serverkit.com', server_url)
     content = content.replace('jhd3197/ServerKit', GITHUB_REPO)
 
@@ -1551,7 +1528,7 @@ def get_install_script_windows():
     the ServerKit agent on Windows systems.
 
     Usage:
-        irm https://your-server/api/v1/servers/install.ps1 | iex; \\
+        irm https://your-server/api/servers/install.ps1 | iex; \\
             Install-ServerKitAgent -Token "YOUR_TOKEN" -Server "https://your-server"
     """
     script_path = os.path.join(_get_scripts_dir(), 'install.ps1')
@@ -1563,7 +1540,7 @@ def get_install_script_windows():
         content = f.read()
 
     # Replace placeholders with actual values
-    server_url = _get_external_base_url()
+    server_url = request.url_root.rstrip('/')
     content = content.replace('https://your-serverkit.com', server_url)
     content = content.replace('jhd3197/ServerKit', GITHUB_REPO)
 
@@ -1583,8 +1560,8 @@ def get_install_instructions(server_id):
     """
     Get installation instructions for a specific server.
 
-    Returns installation commands with the correct API endpoint. Registration
-    tokens are only shown when they are generated, so the UI supplies the token.
+    Returns the installation commands with the server's registration token
+    already embedded.
     """
     server = Server.query.get(server_id)
     if not server:
@@ -1604,8 +1581,8 @@ def get_install_instructions(server_id):
         }), 400
 
     # Get base URL
-    base_url = _get_external_base_url()
-    api_url = f"{base_url}/api/v1/servers"
+    base_url = request.url_root.rstrip('/')
+    api_url = f"{base_url}/api/servers"
 
     return jsonify({
         'linux': {
@@ -1652,57 +1629,64 @@ def _get_latest_agent_release():
     if _releases_cache['data'] and _releases_cache['expires'] and _releases_cache['expires'] > now:
         return _releases_cache['data']
 
-    try:
-        # Fetch releases from GitHub
-        response = requests.get(
-            f'https://api.github.com/repos/{GITHUB_REPO}/releases',
-            headers={'Accept': 'application/vnd.github.v3+json'},
-            timeout=10
-        )
-        response.raise_for_status()
-        releases = response.json()
+    def fetch_from_repo(repo):
+        try:
+            response = requests.get(
+                f'https://api.github.com/repos/{repo}/releases',
+                headers={'Accept': 'application/vnd.github.v3+json'},
+                timeout=10
+            )
+            if response.status_code != 200:
+                return None
+            
+            releases = response.json()
+            for release in releases:
+                if release.get('tag_name', '').startswith('agent-v'):
+                    version = release['tag_name'].replace('agent-v', '')
+                    assets = {}
+                    for asset in release.get('assets', []):
+                        name = asset['name']
+                        if 'linux-amd64' in name:
+                            assets['linux-amd64'] = asset['browser_download_url']
+                        elif 'linux-arm64' in name:
+                            assets['linux-arm64'] = asset['browser_download_url']
+                        elif 'windows-amd64' in name:
+                            assets['windows-amd64'] = asset['browser_download_url']
+                        elif name == 'checksums.txt':
+                            assets['checksums'] = asset['browser_download_url']
 
-        # Find latest agent release
-        for release in releases:
-            if release.get('tag_name', '').startswith('agent-v'):
-                version = release['tag_name'].replace('agent-v', '')
+                    return {
+                        'version': version,
+                        'tag': release['tag_name'],
+                        'published_at': release['published_at'],
+                        'release_url': release['html_url'],
+                        'assets': assets,
+                        'body': release.get('body', '')
+                    }
+            return None
+        except Exception as e:
+            current_app.logger.error(f"Failed to fetch releases from {repo}: {e}")
+            return None
 
-                # Build assets map
-                assets = {}
-                for asset in release.get('assets', []):
-                    name = asset['name']
-                    if 'linux-amd64' in name:
-                        assets['linux-amd64'] = asset['browser_download_url']
-                    elif 'linux-arm64' in name:
-                        assets['linux-arm64'] = asset['browser_download_url']
-                    elif 'windows-amd64' in name:
-                        assets['windows-amd64'] = asset['browser_download_url']
-                    elif name == 'checksums.txt':
-                        assets['checksums'] = asset['browser_download_url']
+    # Try configured repo
+    result = fetch_from_repo(GITHUB_REPO)
+    
+    # Fallback to official repo if no releases found and we aren't already using it
+    if not result and GITHUB_REPO != 'jhd3197/ServerKit':
+        current_app.logger.info(f"No releases found in {GITHUB_REPO}, falling back to official repo.")
+        result = fetch_from_repo('jhd3197/ServerKit')
 
-                result = {
-                    'version': version,
-                    'tag': release['tag_name'],
-                    'published_at': release['published_at'],
-                    'release_url': release['html_url'],
-                    'assets': assets,
-                    'body': release.get('body', '')
-                }
+    if result:
+        # Cache for 5 minutes
+        _releases_cache['data'] = result
+        _releases_cache['expires'] = now + timedelta(minutes=5)
+        return result
 
-                # Cache for 5 minutes
-                _releases_cache['data'] = result
-                _releases_cache['expires'] = now + timedelta(minutes=5)
-
-                return result
-
-        return None
-
-    except Exception as e:
-        current_app.logger.error(f"Failed to fetch GitHub releases: {e}")
-        # Return cached data if available, even if expired
-        if _releases_cache['data']:
-            return _releases_cache['data']
-        return None
+    # Return cached data if available, even if expired, as a last resort
+    if _releases_cache['data']:
+        return _releases_cache['data']
+    
+    return None
 
 
 @servers_bp.route('/agent/version', methods=['GET'])

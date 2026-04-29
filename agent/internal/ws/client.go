@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,19 +25,19 @@ type MessageHandler func(msgType protocol.MessageType, data []byte)
 
 // Client is a Socket.IO client with auto-reconnect
 type Client struct {
-	cfg           config.ServerConfig
-	auth          *auth.Authenticator
-	log           *logger.Logger
-	conn          *websocket.Conn
-	handler       MessageHandler
-	session       *auth.SessionToken
+	cfg     config.ServerConfig
+	auth    *auth.Authenticator
+	log     *logger.Logger
+	conn    *websocket.Conn
+	handler MessageHandler
+	session *auth.SessionToken
 
-	mu            sync.RWMutex
-	connected     bool
-	reconnecting  bool
+	mu           sync.RWMutex
+	connected    bool
+	reconnecting bool
 
-	sendCh        chan []byte
-	doneCh        chan struct{}
+	sendCh chan []byte
+	doneCh chan struct{}
 
 	reconnectCount int
 
@@ -66,10 +67,10 @@ func (c *Client) SetHandler(handler MessageHandler) {
 
 // buildSocketIOURL converts the configured server URL to a Socket.IO WebSocket URL.
 // Input examples:
-//   - "wss://server.example.com/agent"
+//   - "https://epic-yeti-emerging.ngrok-free.app/agent"
 //   - "ws://localhost:5000/agent"
 //
-// Output: "wss://server.example.com/socket.io/?EIO=4&transport=websocket"
+// Output: "wss://epic-yeti-emerging.ngrok-free.app/socket.io/?EIO=4&transport=websocket"
 func (c *Client) buildSocketIOURL() (string, error) {
 	rawURL := c.cfg.URL
 	if rawURL == "" {
@@ -81,8 +82,23 @@ func (c *Client) buildSocketIOURL() (string, error) {
 		return "", fmt.Errorf("invalid server URL: %w", err)
 	}
 
-	// Keep the scheme (ws/wss), strip the path (e.g. /agent)
-	parsed.Path = "/socket.io/"
+	// If it's an ngrok URL, force wss scheme
+	if strings.Contains(parsed.Host, "ngrok") {
+		parsed.Scheme = "wss"
+	} else if parsed.Scheme == "http" {
+		parsed.Scheme = "ws"
+	} else if parsed.Scheme == "https" {
+		parsed.Scheme = "wss"
+	}
+
+	// Socket.IO expects the base path, not the namespace path
+	// If the URL ends in /agent, we need to strip it
+	parsed.Path = strings.TrimSuffix(parsed.Path, "/agent")
+	if !strings.HasSuffix(parsed.Path, "/") {
+		parsed.Path += "/"
+	}
+	parsed.Path += "socket.io/"
+
 	q := url.Values{}
 	q.Set("EIO", "4")
 	q.Set("transport", "websocket")
@@ -106,7 +122,14 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
+		HandshakeTimeout: 45 * time.Second,
+		NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			// Force IPv4 (tcp4) to avoid issues with IPv6 routing through tunnels
+			return (&net.Dialer{
+				Timeout:   45 * time.Second,
+				KeepAlive: 45 * time.Second,
+			}).DialContext(ctx, "tcp4", addr)
+		},
 	}
 
 	// Only allow insecure TLS when explicitly set via environment variable
@@ -118,7 +141,8 @@ func (c *Client) Connect(ctx context.Context) error {
 	headers := http.Header{}
 	headers.Set("X-Agent-ID", c.auth.AgentID())
 	headers.Set("X-API-Key-Prefix", c.auth.GetAPIKeyPrefix())
-	headers.Set("User-Agent", fmt.Sprintf("ServerKit-Agent/%s", "dev"))
+	headers.Set("User-Agent", "ServerKit-Agent/1.0.6")
+	headers.Set("ngrok-skip-browser-warning", "true")
 
 	c.log.Debug("Connecting to Socket.IO", "url", sioURL)
 
@@ -168,7 +192,7 @@ func (c *Client) Connect(ctx context.Context) error {
 
 // handleEngineIOOpen reads and processes the Engine.IO OPEN packet (type 0)
 func (c *Client) handleEngineIOOpen() error {
-	c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	c.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 	_, msg, err := c.conn.ReadMessage()
 	if err != nil {
 		return fmt.Errorf("failed to read OPEN packet: %w", err)
@@ -185,10 +209,10 @@ func (c *Client) handleEngineIOOpen() error {
 
 	// Parse the JSON payload
 	var openData struct {
-		SID          string `json:"sid"`
+		SID          string   `json:"sid"`
 		Upgrades     []string `json:"upgrades"`
-		PingInterval int    `json:"pingInterval"`
-		PingTimeout  int    `json:"pingTimeout"`
+		PingInterval int      `json:"pingInterval"`
+		PingTimeout  int      `json:"pingTimeout"`
 	}
 	if err := json.Unmarshal([]byte(msgStr[1:]), &openData); err != nil {
 		return fmt.Errorf("failed to parse OPEN data: %w", err)
@@ -208,6 +232,9 @@ func (c *Client) handleEngineIOOpen() error {
 
 // connectNamespace sends a Socket.IO CONNECT packet to the /agent namespace
 func (c *Client) connectNamespace() error {
+	// Small delay to ensure server is ready
+	time.Sleep(200 * time.Millisecond)
+
 	// Socket.IO CONNECT: packet type 4 (MESSAGE) + message type 0 (CONNECT) + namespace
 	// Wire format: "40/agent,"
 	connectMsg := fmt.Sprintf("40%s,", c.namespace)
@@ -217,16 +244,32 @@ func (c *Client) connectNamespace() error {
 		return fmt.Errorf("failed to send CONNECT: %w", err)
 	}
 
-	// Read namespace CONNECT ack
-	c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
-	_, msg, err := c.conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("failed to read CONNECT ack: %w", err)
-	}
-	c.conn.SetReadDeadline(time.Time{})
+	c.log.Debug("Waiting for CONNECT ack from namespace", "namespace", c.namespace)
 
-	msgStr := string(msg)
-	c.log.Debug("Received namespace response", "raw", msgStr)
+	// Read namespace CONNECT ack
+	c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	defer c.conn.SetReadDeadline(time.Time{})
+
+	var msgStr string
+	for {
+		_, msg, err := c.conn.ReadMessage()
+		if err != nil {
+			return fmt.Errorf("failed to read CONNECT ack: %w", err)
+		}
+
+		msgStr = string(msg)
+		c.log.Debug("Received namespace response", "raw", msgStr)
+
+		// Handle Engine.IO ping (2) -> pong (3)
+		if msgStr == "2" {
+			c.log.Debug("Received ping during namespace connect, sending pong")
+			if err := c.conn.WriteMessage(websocket.TextMessage, []byte("3")); err != nil {
+				return fmt.Errorf("failed to send pong during namespace connect: %w", err)
+			}
+			continue
+		}
+		break
+	}
 
 	// Expected: "40/agent,{\"sid\":\"...\"}"
 	// Or error: "44/agent,{\"message\":\"...\"}"
@@ -267,7 +310,7 @@ func (c *Client) authenticate() error {
 	}
 
 	// Wait for auth response event
-	c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	c.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 	defer c.conn.SetReadDeadline(time.Time{})
 
 	for {

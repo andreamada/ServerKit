@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import { copyToClipboard as clipboardWrite } from '../../utils/clipboard';
 import SSOProviderIcon from '../SSOProviderIcon';
 import Modal from '../Modal';
 
@@ -272,7 +273,7 @@ Keep these codes in a safe place.`;
     }
 
     function copyBackupCodes() {
-        navigator.clipboard.writeText(backupCodes.join('\n'));
+        clipboardWrite(backupCodes.join('\n'));
     }
 
     return (

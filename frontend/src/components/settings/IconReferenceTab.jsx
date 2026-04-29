@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { copyToClipboard as clipboardWrite } from '../../utils/clipboard';
 import {
     Github, FileText, HelpCircle, MessageSquare, Bug, Check, Download, CheckCircle,
     RefreshCw, ExternalLink, Star, X, Code, Search, Container, Globe, BarChart3,
@@ -55,7 +56,7 @@ const IconReferenceTab = () => {
     const [copiedIcon, setCopiedIcon] = useState(null);
 
     function handleCopyImport(name) {
-        navigator.clipboard.writeText(name);
+        clipboardWrite(name);
         setCopiedIcon(name);
         setTimeout(() => setCopiedIcon(null), 1500);
     }

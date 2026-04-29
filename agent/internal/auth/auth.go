@@ -79,13 +79,13 @@ func (a *Authenticator) VerifyTimestamp(timestamp int64, maxAgeSeconds int64) bo
 	return diff <= maxAgeSeconds*1000
 }
 
-// GetAPIKeyPrefix returns the first 8 characters of the API key
+// GetAPIKeyPrefix returns the first 12 characters of the API key
 // Used for identification without exposing full key
 func (a *Authenticator) GetAPIKeyPrefix() string {
-	if len(a.apiKey) < 8 {
+	if len(a.apiKey) < 12 {
 		return a.apiKey
 	}
-	return a.apiKey[:8]
+	return a.apiKey[:12]
 }
 
 // AgentID returns the agent ID

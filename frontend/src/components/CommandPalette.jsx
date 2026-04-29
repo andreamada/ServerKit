@@ -9,7 +9,6 @@ const STATIC_PAGES = [
     { label: 'Domains', path: '/domains', category: 'Pages', keywords: 'dns nginx' },
     { label: 'SSL Certificates', path: '/ssl', category: 'Pages', keywords: 'https tls' },
     { label: 'Templates', path: '/templates', category: 'Pages', keywords: 'deploy one-click' },
-    { label: 'Deployments', path: '/deployments', category: 'Pages', keywords: 'deploy jobs status logs' },
     { label: 'Workflow Builder', path: '/workflow', category: 'Pages', keywords: 'automation pipeline' },
     { label: 'WordPress', path: '/wordpress', category: 'Pages', keywords: 'wp sites' },
     { label: 'WordPress Projects', path: '/wordpress/projects', category: 'Pages', keywords: 'wp environments' },

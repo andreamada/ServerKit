@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Copy, Check, AlertTriangle } from 'lucide-react';
 import Modal from '../Modal';
+import { copyToClipboard as clipboardWrite } from '../../utils/clipboard';
 
 const SCOPE_OPTIONS = [
     { value: '*', label: 'Full Access' },
@@ -63,7 +64,7 @@ const ApiKeyModal = ({ onClose, onSubmit, createdKey }) => {
 
     const copyKey = () => {
         if (createdKey) {
-            navigator.clipboard.writeText(createdKey);
+            clipboardWrite(createdKey);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }

@@ -5,12 +5,7 @@
 #   ./dev.sh              Start backend + frontend (default)
 #   ./dev.sh backend      Backend only
 #   ./dev.sh frontend     Frontend only
-#   ./dev.sh tunnel       Start backend + frontend + expose backend via ngrok
 #   ./dev.sh validate     Run all linters/checks
-#
-# Environment variables:
-#   NGROK_DOMAIN          Optional reserved ngrok domain (e.g. my-app.ngrok-free.app)
-#   NGROK_AUTHTOKEN       Optional ngrok authtoken (alternatively run `ngrok config add-authtoken`)
 
 set -euo pipefail
 
@@ -83,94 +78,6 @@ start_both() {
         echo "Stopped."
     }
     trap cleanup INT TERM
-
-    echo -e "${DIM}Press Ctrl+C to stop...${NC}"
-    wait
-}
-
-start_tunnel() {
-    if ! command -v ngrok &>/dev/null; then
-        echo -e "${RED}Error:${NC} ngrok is not installed or not in PATH."
-        echo ""
-        echo "Install ngrok:"
-        echo "  - https://ngrok.com/download"
-        echo "  - macOS:   brew install ngrok/ngrok/ngrok"
-        echo "  - Linux:   snap install ngrok  (or download the .tgz)"
-        echo "  - Windows: choco install ngrok  (or scoop install ngrok)"
-        echo ""
-        echo "Then authenticate once:  ngrok config add-authtoken <YOUR_TOKEN>"
-        exit 1
-    fi
-
-    echo ""
-    echo -e "${CYAN}ServerKit Dev Server (with ngrok tunnel)${NC}"
-    echo "  Backend:  http://localhost:5000"
-    echo "  Frontend: http://localhost:5173"
-    echo "  Tunnel:   exposing backend (port 5000) via ngrok"
-    echo ""
-    echo -e "${YELLOW}NOTE:${NC} Agents and remote callers should use the public ngrok URL"
-    echo "       printed below as their --server / control plane URL."
-    echo ""
-
-    # Allow CORS from any ngrok domain by default unless caller already set it.
-    export CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:5173,http://localhost:5000,https://*.ngrok-free.app,https://*.ngrok.app,https://*.ngrok.io}"
-
-    cd "$BACKEND_DIR"
-    if [ -f venv/bin/activate ]; then
-        source venv/bin/activate
-    fi
-    python run.py &
-    BACKEND_PID=$!
-
-    sleep 2
-
-    cd "$FRONTEND_DIR"
-    npm run dev &
-    FRONTEND_PID=$!
-
-    sleep 1
-
-    NGROK_ARGS=(http 5000 --log=stdout)
-    if [ -n "${NGROK_DOMAIN:-}" ]; then
-        NGROK_ARGS+=("--domain=$NGROK_DOMAIN")
-    fi
-    if [ -n "${NGROK_AUTHTOKEN:-}" ]; then
-        NGROK_ARGS+=("--authtoken=$NGROK_AUTHTOKEN")
-    fi
-
-    ngrok "${NGROK_ARGS[@]}" &
-    NGROK_PID=$!
-
-    # Poll the local ngrok API for the public URL and print it prominently.
-    (
-        for _ in $(seq 1 20); do
-            sleep 1
-            if command -v curl &>/dev/null; then
-                URL=$(curl -fsS http://127.0.0.1:4040/api/tunnels 2>/dev/null \
-                    | grep -oE '"public_url":"https://[^"]+' \
-                    | head -n1 \
-                    | sed 's/"public_url":"//')
-                if [ -n "$URL" ]; then
-                    echo ""
-                    echo -e "${GREEN}=========================================================${NC}"
-                    echo -e "${GREEN}  Public tunnel URL: ${NC}${CYAN}$URL${NC}"
-                    echo -e "${GREEN}  Use this as your agent --server / control plane URL.${NC}"
-                    echo -e "${GREEN}=========================================================${NC}"
-                    echo ""
-                    break
-                fi
-            fi
-        done
-    ) &
-
-    cleanup_tunnel() {
-        echo ""
-        echo -e "${YELLOW}Stopping...${NC}"
-        kill "$BACKEND_PID" "$FRONTEND_PID" "$NGROK_PID" 2>/dev/null || true
-        wait "$BACKEND_PID" "$FRONTEND_PID" "$NGROK_PID" 2>/dev/null || true
-        echo "Stopped."
-    }
-    trap cleanup_tunnel INT TERM
 
     echo -e "${DIM}Press Ctrl+C to stop...${NC}"
     wait
@@ -266,7 +173,6 @@ MODE="${1:-start}"
 case "$MODE" in
     backend)  start_backend ;;
     frontend) start_frontend ;;
-    tunnel)   start_tunnel ;;
     validate) run_validate_watch ;;
     start|*)  start_both ;;
 esac

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../services/api';
 import { useLogsDrawer } from '../../contexts/LogsDrawerContext';
+import { copyToClipboard as clipboardWrite } from '../../utils/clipboard';
 
 const LOG_LEVELS = ['all', 'error', 'warn', 'info', 'debug'];
 
@@ -97,7 +98,7 @@ const LogsTab = ({ app }) => {
     }
 
     function handleCopy() {
-        navigator.clipboard.writeText(rawLogs);
+        clipboardWrite(rawLogs);
     }
 
     const matchCount = searchTerm ? filteredLines.length : null;

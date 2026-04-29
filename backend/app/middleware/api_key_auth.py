@@ -8,6 +8,9 @@ def register_api_key_auth(app):
     @app.before_request
     def authenticate_api_key():
         """Check for X-API-Key header and validate."""
+        if request.method == 'OPTIONS':
+            return
+
         api_key_header = request.headers.get('X-API-Key')
 
         if not api_key_header:

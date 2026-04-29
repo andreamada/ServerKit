@@ -10,8 +10,19 @@ Group=root
 WorkingDirectory=/opt/serverkit/backend
 Environment="PATH=/opt/serverkit/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="FLASK_ENV=production"
+Environment="PYTHONUNBUFFERED=1"
 EnvironmentFile=/opt/serverkit/.env
-ExecStart=/opt/serverkit/venv/bin/gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 -b 0.0.0.0:5000 --timeout 120 --access-logfile /var/log/serverkit/access.log --error-logfile /var/log/serverkit/error.log run:app
+# Ensure the instance directory exists, is writable, and has no stale WAL/SHM files
+# (stale WAL/SHM from a crashed run make SQLite report "attempt to write a readonly database")
+ExecStartPre=/bin/bash -c '\
+    mkdir -p /opt/serverkit/backend/instance && \
+    chmod 755 /opt/serverkit/backend/instance && \
+    chattr -i /opt/serverkit/backend/instance/serverkit.db 2>/dev/null || true && \
+    touch /opt/serverkit/backend/instance/serverkit.db && \
+    chmod 644 /opt/serverkit/backend/instance/serverkit.db && \
+    rm -f /opt/serverkit/backend/instance/serverkit.db-wal \
+          /opt/serverkit/backend/instance/serverkit.db-shm'
+ExecStart=/opt/serverkit/venv/bin/gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --bind 127.0.0.1:5000 --timeout 120 run:app
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=5

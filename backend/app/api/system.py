@@ -126,6 +126,9 @@ def get_metrics():
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
 
+    if not user:
+        return jsonify({'error': 'User not found'}), 401
+
     if user.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
 
@@ -139,6 +142,9 @@ def get_system_info():
     """Get system information (hostname, IP, kernel, CPU info)."""
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
+
+    if not user:
+        return jsonify({'error': 'User not found'}), 401
 
     if user.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403

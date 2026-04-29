@@ -326,6 +326,11 @@ class AgentRegistry:
     def _store_metrics(self, server_id: str, metrics: dict):
         """Store metrics from heartbeat"""
         try:
+            # Verify server exists to avoid FK constraint failure
+            server = Server.query.get(server_id)
+            if not server:
+                return
+
             metric = ServerMetrics(
                 server_id=server_id,
                 cpu_percent=metrics.get('cpu_percent'),
@@ -374,6 +379,7 @@ class AgentRegistry:
         # Check permissions
         server = Server.query.get(server_id)
         if server and not server.has_permission(action):
+            logger.warning(f"Permission denied: server={server_id}, action={action}, server_perms={server.permissions}")
             return {
                 'success': False,
                 'error': f'Permission denied for action: {action}',
@@ -529,7 +535,9 @@ class AgentRegistry:
 
         # Check timestamp (allow 5 minute window)
         now = int(time.time() * 1000)
-        if abs(now - timestamp) > 60000:  # 60 seconds
+        drift = abs(now - timestamp)
+        if drift > 60000:  # 60 seconds
+            print(f"[AgentRegistry] Auth failed: Timestamp drift too high ({drift}ms). Now: {now}, Sent: {timestamp}")
             if ip_address:
                 anomaly_detection_service.track_auth_attempt(None, False, ip_address)
             return None
@@ -537,6 +545,7 @@ class AgentRegistry:
         # Find server by agent_id
         server = Server.query.filter_by(agent_id=agent_id).first()
         if not server:
+            print(f"[AgentRegistry] Auth failed: Agent ID {agent_id} not found in database")
             if ip_address:
                 anomaly_detection_service.track_auth_attempt(None, False, ip_address)
             return None
@@ -550,6 +559,7 @@ class AgentRegistry:
         )
 
         if not prefix_matches and not pending_prefix_matches:
+            print(f"[AgentRegistry] Auth failed: API key prefix mismatch. Expected {server.api_key_prefix}, got {api_key_prefix}")
             anomaly_detection_service.track_auth_attempt(server.id, False, ip_address)
             return None
 
@@ -578,6 +588,7 @@ class AgentRegistry:
             ).hexdigest()
 
             if not hmac.compare_digest(signature, expected_signature):
+                print(f"[AgentRegistry] Auth failed: Signature mismatch for server {server.id}. Message: {message}")
                 anomaly_detection_service.track_auth_attempt(server.id, False, ip_address)
                 return None
 

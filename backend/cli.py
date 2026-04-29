@@ -564,21 +564,32 @@ def factory_reset():
                 config['installed'] = {}
                 with open(template_config, 'w') as f:
                     json.dump(config, f, indent=2)
-                click.echo(click.style('✓ Cleared template cache', fg='green'))
+                click.echo(click.style(' Cleared template cache', fg='green'))
             except Exception as e:
-                click.echo(click.style(f'✗ Failed to clear template cache: {e}', fg='red'))
+                click.echo(click.style(f' Failed to clear template cache: {e}', fg='red'))
 
-        # 7. Drop and recreate database via Alembic
+        # 7. Drop and recreate database
         try:
             db.drop_all()
+            # Clear alembic version table manually to ensure fresh migration
+            try:
+                db.session.execute(text('DROP TABLE IF EXISTS alembic_version'))
+                db.session.commit()
+            except:
+                db.session.rollback()
+
             from app.services.migration_service import MigrationService
+            # Fresh initialization instead of just applying migrations
+            db.create_all()
+            
+            # Now apply migrations to ensure alembic_version is set
             result = MigrationService.apply_migrations(app)
             if result['success']:
-                click.echo(click.style('✓ Reset database', fg='green'))
+                click.echo(click.style(' Reset database', fg='green'))
             else:
-                click.echo(click.style(f'✗ Migration after reset failed: {result["error"]}', fg='red'))
+                click.echo(click.style(' Reset database (base schema)', fg='green'))
         except Exception as e:
-            click.echo(click.style(f'✗ Failed to reset database: {e}', fg='red'))
+            click.echo(click.style(f' Failed to reset database: {e}', fg='red'))
 
         click.echo(click.style('\nFactory reset completed!', fg='green'))
         click.echo('Run "serverkit create-admin" to create a new admin user.')
@@ -644,106 +655,6 @@ def list_apps(show_all):
             except Exception as e:
                 click.echo(f'  Error: {e}')
 
-        click.echo('')
-
-
-@cli.command('list-servers')
-def list_servers():
-    """List deployment targets."""
-    app = create_app()
-    with app.app_context():
-        from app.services.remote_docker_service import RemoteDockerService
-
-        servers = RemoteDockerService.get_available_servers()
-        click.echo(f"\n{'ID':<38} {'Name':<28} {'Status':<12} {'Target'}")
-        click.echo('-' * 90)
-        for server in servers:
-            target = 'local' if server.get('is_local') else server.get('group_name') or 'remote'
-            click.echo(
-                f"{server.get('id'):<38} "
-                f"{server.get('name'):<28} "
-                f"{server.get('status', '-'):<12} "
-                f"{target}"
-            )
-        click.echo('')
-
-
-@cli.command('deploy-template')
-@click.argument('template_id')
-@click.option('--name', 'app_name', required=True, help='Application name')
-@click.option('--target', 'server_id', default='local', help='Target server ID or "local"')
-@click.option('--var', 'variables', multiple=True, help='Template variable in KEY=VALUE form')
-@click.option('--wait', is_flag=True, help='Wait for deployment to finish')
-def deploy_template(template_id, app_name, server_id, variables, wait):
-    """Deploy a template to local or remote ServerKit target."""
-    app = create_app()
-    with app.app_context():
-        from app.services.deployment_job_service import DeploymentJobService
-
-        parsed_vars = {}
-        for item in variables:
-            if '=' not in item:
-                click.echo(click.style(f'Invalid --var value: {item}. Use KEY=VALUE.', fg='red'))
-                sys.exit(1)
-            key, value = item.split('=', 1)
-            parsed_vars[key] = value
-
-        result = DeploymentJobService.install_template(
-            template_id=template_id,
-            app_name=app_name,
-            user_variables=parsed_vars,
-            server_id=server_id,
-            wait=wait,
-        )
-
-        if not result.get('success'):
-            click.echo(click.style(result.get('error', 'Deployment failed'), fg='red'))
-            sys.exit(1)
-
-        job = result.get('job', {})
-        click.echo(click.style(f'Deployment job created: {job.get("id")}', fg='green'))
-        click.echo(f'Status: {job.get("status")}')
-        click.echo(f'Target: {job.get("target_server_name")}')
-
-        if wait:
-            if job.get('status') == 'succeeded':
-                click.echo(click.style(f'App created: {job.get("result", {}).get("app_name")}', fg='green'))
-            else:
-                click.echo(click.style(job.get('error_message') or 'Deployment did not complete successfully', fg='red'))
-                sys.exit(1)
-        else:
-            click.echo(f'Check status: serverkit deployment-status {job.get("id")}')
-
-
-@cli.command('deployment-status')
-@click.argument('job_id')
-@click.option('--logs', is_flag=True, help='Show job logs')
-def deployment_status(job_id, logs):
-    """Show deployment job status."""
-    app = create_app()
-    with app.app_context():
-        from app.services.deployment_job_service import DeploymentJobService
-
-        job = DeploymentJobService.get_job(job_id, include_logs=logs)
-        if not job:
-            click.echo(click.style('Deployment job not found', fg='red'))
-            sys.exit(1)
-
-        click.echo(f"\nJob:    {job['id']}")
-        click.echo(f"Kind:   {job['kind']}")
-        click.echo(f"Status: {job['status']} ({job['progress_percent']}%)")
-        click.echo(f"Target: {job['target_server_name']}")
-        if job.get('app_name'):
-            click.echo(f"App:    {job['app_name']}")
-        if job.get('error_message'):
-            click.echo(click.style(f"Error:  {job['error_message']}", fg='red'))
-
-        if logs:
-            click.echo('\nLogs')
-            click.echo('-' * 80)
-            for entry in job.get('logs', []):
-                prefix = f"[{entry['step_index']}] " if entry.get('step_index') else ''
-                click.echo(f"{entry['created_at']} {entry['level'].upper():<5} {prefix}{entry['message']}")
         click.echo('')
 
 

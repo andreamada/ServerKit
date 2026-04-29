@@ -405,14 +405,23 @@ class SystemService:
 
     @classmethod
     def get_all_metrics(cls):
-        """Get all system metrics at once."""
-        return {
-            'cpu': cls.get_cpu_metrics(),
-            'memory': cls.get_memory_metrics(),
-            'disk': cls.get_disk_metrics(),
-            'network': cls.get_network_metrics(),
-            'load_average': cls.get_load_average(),
-            'system': cls.get_system_info(),
-            'time': cls.get_server_time(),
-            'timestamp': datetime.utcnow().isoformat()
-        }
+        """Get all system metrics at once with error handling."""
+        try:
+            return {
+                'cpu': cls.get_cpu_metrics(),
+                'memory': cls.get_memory_metrics(),
+                'disk': cls.get_disk_metrics(),
+                'network': cls.get_network_metrics(),
+                'load_average': cls.get_load_average(),
+                'system': cls.get_system_info(),
+                'time': cls.get_server_time(),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error collecting metrics: {e}", exc_info=True)
+            # Return partial data if possible or at least a valid structure
+            return {
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }

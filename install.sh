@@ -281,7 +281,7 @@ if [ -d "$INSTALL_DIR" ]; then
     git fetch origin
     git reset --hard origin/main
 else
-    git clone https://github.com/jhd3197/serverkit.git "$INSTALL_DIR"
+    git clone https://github.com/jhd3197/ServerKit.git "$INSTALL_DIR"
     cd "$INSTALL_DIR"
 fi
 
@@ -292,6 +292,7 @@ print_info "Creating directories..."
 mkdir -p "$LOG_DIR"
 mkdir -p "$DATA_DIR"
 mkdir -p "$INSTALL_DIR/backend/instance"
+chmod 755 "$INSTALL_DIR/backend/instance"
 mkdir -p "$INSTALL_DIR/nginx/ssl"
 mkdir -p /etc/serverkit/templates
 mkdir -p /var/serverkit/apps
@@ -326,6 +327,19 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
     print_info "Generating configuration..."
     SECRET_KEY=$(openssl rand -hex 32)
     JWT_SECRET_KEY=$(openssl rand -hex 32)
+    ENCRYPTION_KEY=$($VENV_DIR/bin/python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || openssl rand -base64 32)
+
+    # Detect server public IP for CORS (try multiple sources)
+    SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null \
+        || curl -s --connect-timeout 5 api.ipify.org 2>/dev/null \
+        || hostname -I 2>/dev/null | awk '{print $1}')
+    SERVER_IP=$(echo "$SERVER_IP" | tr -d '[:space:]')
+
+    CORS_ORIGINS="http://localhost,https://localhost"
+    if [ -n "$SERVER_IP" ]; then
+        CORS_ORIGINS="$CORS_ORIGINS,http://$SERVER_IP,https://$SERVER_IP"
+        print_info "Detected server IP: $SERVER_IP (added to CORS_ORIGINS)"
+    fi
 
     cat > "$INSTALL_DIR/.env" << EOF
 # ServerKit Configuration
@@ -334,12 +348,13 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
 # Security Keys (auto-generated, keep secret!)
 SECRET_KEY=$SECRET_KEY
 JWT_SECRET_KEY=$JWT_SECRET_KEY
+SERVERKIT_ENCRYPTION_KEY=$ENCRYPTION_KEY
 
 # Database (SQLite by default)
 DATABASE_URL=sqlite:///$INSTALL_DIR/backend/instance/serverkit.db
 
-# CORS Origins (comma-separated, add your domain)
-CORS_ORIGINS=http://localhost,https://localhost
+# CORS Origins (comma-separated, add your domain/IP here)
+CORS_ORIGINS=$CORS_ORIGINS
 
 # Ports
 PORT=80
@@ -445,7 +460,7 @@ npm ci --prefer-offline 2>&1 | tail -1
 NODE_OPTIONS="--max-old-space-size=1024" npm run build
 print_success "Frontend built"
 
-# Package frontend into nginx container
+# Package pre-built frontend assets into the nginx container (no npm inside Docker)
 print_info "Building frontend container..."
 cd "$INSTALL_DIR"
 docker compose build

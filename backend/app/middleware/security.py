@@ -8,6 +8,11 @@ def register_security_headers(app: Flask):
 
     @app.after_request
     def add_security_headers(response):
+        # Skip for OPTIONS requests (CORS preflight)
+        from flask import request
+        if request.method == 'OPTIONS':
+            return response
+
         # Prevent clickjacking
         response.headers['X-Frame-Options'] = 'DENY'
 
@@ -29,7 +34,7 @@ def register_security_headers(app: Flask):
                 "style-src 'self' 'unsafe-inline'",
                 "img-src 'self' data: https:",
                 "font-src 'self'",
-                "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*",
+                "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:* https://*.ngrok-free.app https://*.ngrok.io",
                 "frame-ancestors 'none'",
             ]
         else:

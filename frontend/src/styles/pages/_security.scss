@@ -893,8 +893,7 @@
     padding: $space-8;
     text-align: center;
 
-    > svg,
-    &__icon svg {
+    svg {
         color: $text-tertiary;
         margin-bottom: $space-4;
     }

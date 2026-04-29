@@ -9,28 +9,23 @@ const Marketplace = () => {
     const { user } = useAuth();
     const [extensions, setExtensions] = useState([]);
     const [myExtensions, setMyExtensions] = useState([]);
-    const [plugins, setPlugins] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('');
     const [tab, setTab] = useState('browse');
     const [showSubmit, setShowSubmit] = useState(false);
-    const [pluginUrl, setPluginUrl] = useState('');
-    const [installing, setInstalling] = useState(false);
     const [form, setForm] = useState({ name: '', display_name: '', description: '', category: 'utility', version: '1.0.0', author: '' });
 
     const categories = ['monitoring', 'security', 'deployment', 'integration', 'ui', 'utility'];
 
     const loadExtensions = useCallback(async () => {
         try {
-            const [eData, mData, pData] = await Promise.all([
+            const [eData, mData] = await Promise.all([
                 api.getMarketplaceExtensions(category, search),
                 api.getMyExtensions(),
-                api.getInstalledPlugins().catch(() => ({ plugins: [] })),
             ]);
             setExtensions(eData.extensions || []);
             setMyExtensions(mData.extensions || []);
-            setPlugins(pData.plugins || []);
         } catch (err) {
             toast.error('Failed to load extensions');
         } finally {
@@ -52,42 +47,6 @@ const Marketplace = () => {
         try {
             await api.uninstallMarketplaceExtension(installId);
             toast.success('Extension uninstalled');
-            loadExtensions();
-        } catch (err) { toast.error(err.message); }
-    };
-
-    const handlePluginInstall = async () => {
-        if (!pluginUrl.trim()) return;
-        setInstalling(true);
-        try {
-            const result = await api.installPlugin(pluginUrl.trim());
-            toast.success(`Plugin "${result.display_name}" installed. Restart backend to activate routes.`);
-            setPluginUrl('');
-            loadExtensions();
-        } catch (err) {
-            toast.error(err.message || 'Plugin installation failed');
-        } finally {
-            setInstalling(false);
-        }
-    };
-
-    const handlePluginUninstall = async (pluginId) => {
-        try {
-            await api.uninstallPlugin(pluginId);
-            toast.success('Plugin uninstalled');
-            loadExtensions();
-        } catch (err) { toast.error(err.message); }
-    };
-
-    const handlePluginToggle = async (plugin) => {
-        try {
-            if (plugin.status === 'active') {
-                await api.disablePlugin(plugin.id);
-                toast.success('Plugin disabled');
-            } else {
-                await api.enablePlugin(plugin.id);
-                toast.success('Plugin enabled');
-            }
             loadExtensions();
         } catch (err) { toast.error(err.message); }
     };
@@ -125,7 +84,6 @@ const Marketplace = () => {
             <div className="tabs">
                 <button className={`tab ${tab === 'browse' ? 'active' : ''}`} onClick={() => setTab('browse')}>Browse</button>
                 <button className={`tab ${tab === 'installed' ? 'active' : ''}`} onClick={() => setTab('installed')}>Installed ({myExtensions.length})</button>
-                <button className={`tab ${tab === 'plugins' ? 'active' : ''}`} onClick={() => setTab('plugins')}>Plugins ({plugins.length})</button>
             </div>
 
             {tab === 'browse' && (
@@ -181,64 +139,6 @@ const Marketplace = () => {
                         </div>
                     ))}
                     {myExtensions.length === 0 && <div className="empty-state"><p>No extensions installed.</p></div>}
-                </div>
-            )}
-
-            {tab === 'plugins' && (
-                <div className="plugins-section">
-                    <div className="plugin-install-form card">
-                        <h3>Install Plugin from URL</h3>
-                        <p className="text-muted">Paste a GitHub repo URL, release URL, or direct zip link.</p>
-                        <div className="plugin-install-row">
-                            <input
-                                className="form-input"
-                                placeholder="https://github.com/user/serverkit-plugin"
-                                value={pluginUrl}
-                                onChange={e => setPluginUrl(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handlePluginInstall()}
-                                disabled={installing}
-                            />
-                            <button
-                                className="btn btn-primary"
-                                onClick={handlePluginInstall}
-                                disabled={installing || !pluginUrl.trim()}
-                            >
-                                {installing ? 'Installing...' : 'Install'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="installed-list">
-                        {plugins.map(plugin => (
-                            <div key={plugin.id} className={`installed-item card ${plugin.status === 'error' ? 'installed-item--error' : ''}`}>
-                                <div className="installed-item__info">
-                                    <strong>{plugin.display_name}</strong>
-                                    <span className="text-muted">v{plugin.version}</span>
-                                    <span className={`badge badge--${plugin.status === 'active' ? 'success' : plugin.status === 'error' ? 'danger' : 'outline'}`}>
-                                        {plugin.status}
-                                    </span>
-                                    {plugin.has_backend && <span className="badge badge--subtle">Backend</span>}
-                                    {plugin.has_frontend && <span className="badge badge--subtle">Frontend</span>}
-                                </div>
-                                {plugin.description && <p className="text-muted" style={{ margin: '4px 0 8px', fontSize: '13px' }}>{plugin.description}</p>}
-                                {plugin.error_message && <p className="text-danger" style={{ margin: '4px 0 8px', fontSize: '12px' }}>{plugin.error_message}</p>}
-                                <div className="installed-item__actions">
-                                    <button
-                                        className={`btn btn-sm ${plugin.status === 'active' ? 'btn-outline' : 'btn-primary'}`}
-                                        onClick={() => handlePluginToggle(plugin)}
-                                    >
-                                        {plugin.status === 'active' ? 'Disable' : 'Enable'}
-                                    </button>
-                                    <button className="btn btn-sm btn-danger" onClick={() => handlePluginUninstall(plugin.id)}>Uninstall</button>
-                                </div>
-                            </div>
-                        ))}
-                        {plugins.length === 0 && (
-                            <div className="empty-state">
-                                <p>No plugins installed. Use the form above to install one from a URL.</p>
-                            </div>
-                        )}
-                    </div>
                 </div>
             )}
 

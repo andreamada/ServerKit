@@ -5,29 +5,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models import Application, User
 from app.services.docker_service import DockerService
-from app.services.remote_docker_service import RemoteDockerService
 from app.services.log_service import LogService
 from app import paths
 
 apps_bp = Blueprint('apps', __name__)
-
-
-def _compose_target(app):
-    if app.server_id and app.root_path:
-        return os.path.join(app.root_path, 'docker-compose.yml')
-    return app.root_path
-
-
-def _agent_result_failed(result):
-    data = result.get('data') if isinstance(result, dict) else None
-    return isinstance(data, dict) and data.get('success') is False
-
-
-def _agent_result_error(result, fallback):
-    data = result.get('data') if isinstance(result, dict) else None
-    if isinstance(data, dict):
-        return data.get('error') or result.get('error') or fallback
-    return result.get('error') or fallback
 
 
 # ==================== ENVIRONMENT LINKING ====================
@@ -444,17 +425,9 @@ def start_app(app_id):
 
     # Handle Docker apps
     if app.app_type == 'docker' and app.root_path:
-        if app.server_id:
-            result = RemoteDockerService.compose_up(
-                app.server_id,
-                _compose_target(app),
-                detach=True,
-                user_id=current_user_id
-            )
-        else:
-            result = DockerService.compose_up(app.root_path, detach=True)
-        if not result.get('success') or _agent_result_failed(result):
-            return jsonify({'error': _agent_result_error(result, 'Failed to start containers')}), 400
+        result = DockerService.compose_up(app.root_path, detach=True)
+        if not result.get('success'):
+            return jsonify({'error': result.get('error', 'Failed to start containers')}), 400
 
     app.status = 'running'
     db.session.commit()
@@ -480,16 +453,9 @@ def stop_app(app_id):
 
     # Handle Docker apps
     if app.app_type == 'docker' and app.root_path:
-        if app.server_id:
-            result = RemoteDockerService.compose_down(
-                app.server_id,
-                _compose_target(app),
-                user_id=current_user_id
-            )
-        else:
-            result = DockerService.compose_down(app.root_path)
-        if not result.get('success') or _agent_result_failed(result):
-            return jsonify({'error': _agent_result_error(result, 'Failed to stop containers')}), 400
+        result = DockerService.compose_down(app.root_path)
+        if not result.get('success'):
+            return jsonify({'error': result.get('error', 'Failed to stop containers')}), 400
 
     app.status = 'stopped'
     db.session.commit()
@@ -515,16 +481,9 @@ def restart_app(app_id):
 
     # Handle Docker apps
     if app.app_type == 'docker' and app.root_path:
-        if app.server_id:
-            result = RemoteDockerService.compose_restart(
-                app.server_id,
-                _compose_target(app),
-                user_id=current_user_id
-            )
-        else:
-            result = DockerService.compose_restart(app.root_path)
-        if not result.get('success') or _agent_result_failed(result):
-            return jsonify({'error': _agent_result_error(result, 'Failed to restart containers')}), 400
+        result = DockerService.compose_restart(app.root_path)
+        if not result.get('success'):
+            return jsonify({'error': result.get('error', 'Failed to restart containers')}), 400
 
     app.status = 'running'
     db.session.commit()
@@ -554,15 +513,6 @@ def get_app_logs(app_id):
 
     # For Docker apps, get docker compose logs
     if app.app_type == 'docker' and app.root_path:
-        if app.server_id:
-            result = RemoteDockerService.compose_logs(
-                app.server_id,
-                _compose_target(app),
-                tail=lines,
-                user_id=current_user_id
-            )
-            return jsonify(result.get('data') if result.get('success') else result), 200 if result.get('success') else 400
-
         result = LogService.get_docker_app_logs(app.name, app.root_path, lines)
         return jsonify(result), 200 if result.get('success') else 400
 
@@ -734,17 +684,7 @@ def get_app_status(app_id):
 
     if app.app_type == 'docker' and app.root_path:
         # Get container status from Docker
-        if app.server_id:
-            result = RemoteDockerService.compose_ps(
-                app.server_id,
-                _compose_target(app),
-                user_id=current_user_id
-            )
-            if not result.get('success'):
-                return jsonify(result), 503 if result.get('code') == 'AGENT_OFFLINE' else 400
-            containers = result.get('data', [])
-        else:
-            containers = DockerService.compose_ps(app.root_path)
+        containers = DockerService.compose_ps(app.root_path)
 
         # Determine overall status
         running_count = sum(1 for c in containers if c.get('Status', c.get('status', '')).startswith('Up'))
@@ -766,7 +706,7 @@ def get_app_status(app_id):
 
         # Check port accessibility
         port_status = None
-        if app.port and not app.server_id:
+        if app.port:
             port_status = DockerService.check_port_accessible(app.port)
 
         return jsonify({

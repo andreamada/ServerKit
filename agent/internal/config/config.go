@@ -122,7 +122,7 @@ func Default() *Config {
 			Docker:     true,
 			Metrics:    true,
 			Logs:       true,
-			FileAccess: true,
+			FileAccess: false,
 			Exec:       false,
 		},
 		Metrics: MetricsConfig{
@@ -136,7 +136,7 @@ func Default() *Config {
 			Timeout: 30 * time.Second,
 		},
 		Security: SecurityConfig{
-			AllowedPaths:    defaultAllowedPaths(),
+			AllowedPaths:    []string{},
 			BlockedCommands: []string{},
 			MaxExecTimeout:  5 * time.Minute,
 		},
@@ -328,13 +328,6 @@ func defaultLogPath() string {
 	return "/var/log/serverkit-agent/agent.log"
 }
 
-func defaultAllowedPaths() []string {
-	if runtime.GOOS == "windows" {
-		return []string{filepath.Join(os.Getenv("ProgramData"), "ServerKit")}
-	}
-	return []string{"/var/lib/serverkit", "/var/serverkit"}
-}
-
 // getMachineKey generates a machine-specific encryption key
 func getMachineKey() []byte {
 	// Use machine-specific data to derive key
@@ -413,33 +406,4 @@ func splitFirst(s string, sep byte) []string {
 		}
 	}
 	return []string{s}
-}
-
-// EncryptBytes encrypts bytes using the machine-derived AES-GCM key.
-// Exported for use by other internal packages (e.g. pairing keypair storage).
-func EncryptBytes(plaintext []byte) ([]byte, error) {
-	return encryptCredentials(plaintext)
-}
-
-// DecryptBytes decrypts bytes previously encrypted with EncryptBytes.
-func DecryptBytes(data []byte) ([]byte, error) {
-	return decryptCredentials(data)
-}
-
-// MachineID returns a stable per-host identifier suitable for re-pair detection.
-func MachineID() string {
-	hostname, _ := os.Hostname()
-	var id string
-	if runtime.GOOS == "linux" {
-		if data, err := os.ReadFile("/etc/machine-id"); err == nil {
-			id = string(data)
-		}
-	} else if runtime.GOOS == "windows" {
-		id = os.Getenv("COMPUTERNAME")
-	}
-	if id == "" {
-		id = hostname
-	}
-	hash := sha256.Sum256([]byte("serverkit-machine-id:" + hostname + ":" + id))
-	return base64.RawURLEncoding.EncodeToString(hash[:16])
 }

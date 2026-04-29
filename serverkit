@@ -60,7 +60,7 @@ run_cli() {
 
 # Version management
 VERSION_FILE="$INSTALL_DIR/VERSION"
-REMOTE_VERSION_URL="https://raw.githubusercontent.com/jhd3197/serverkit/main/VERSION"
+REMOTE_VERSION_URL="https://raw.githubusercontent.com/jhd3197/ServerKit/main/VERSION"
 
 get_local_version() {
     if [ -f "$VERSION_FILE" ]; then
@@ -179,9 +179,6 @@ cmd_help() {
     echo ""
     echo "App Management:"
     echo "  create-app        Show how to create apps (via web UI)"
-    echo "  deploy-template   Deploy a template to local or remote server"
-    echo "  list-servers      List deployment target servers"
-    echo "  deployment-status Show deployment job status and logs"
     echo "  list-apps [--all] List deployed apps (--all shows Docker containers)"
     echo "  start-app         Start an app"
     echo "  stop-app          Stop an app"
@@ -444,6 +441,7 @@ cmd_update() {
     # Restore executable permissions
     chmod +x "$INSTALL_DIR/serverkit"
     chmod +x "$INSTALL_DIR/scripts/"*.sh 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/uninstall.sh" 2>/dev/null || true
 
     # Get new version from VERSION file
     NEW_VERSION=$(get_local_version)
@@ -484,8 +482,19 @@ cmd_update() {
     docker network prune -f 2>/dev/null || true
     docker system prune -f 2>/dev/null || true
 
-    # Rebuild frontend (no cache to ensure fresh build)
-    print_info "Rebuilding frontend..."
+    # Build frontend on host first (Docker image copies the pre-built dist/)
+    print_info "Building frontend assets..."
+    cd "$INSTALL_DIR/frontend"
+    if [ "$SAFE_MODE" = true ] 2>/dev/null || [ "$(free -m | awk '/Mem:/ {print $2}')" -le 700 ]; then
+        NODE_OPTIONS="--max-old-space-size=512" npm ci --prefer-offline || npm ci
+    else
+        NODE_OPTIONS="--max-old-space-size=1024" npm ci --prefer-offline || npm ci
+    fi
+    NODE_OPTIONS="--max-old-space-size=1024" npm run build
+
+    # Rebuild nginx container from pre-built assets (no cache)
+    print_info "Rebuilding frontend container..."
+    cd "$INSTALL_DIR"
     docker compose build --no-cache
 
     # Reload systemd in case service file changed
@@ -767,23 +776,6 @@ cmd_create_app() {
     echo "  ✓ Configuration UI"
     echo "  ✓ Update management"
     echo ""
-}
-
-cmd_deploy_template() {
-    check_installed
-    shift
-    run_cli deploy-template "$@"
-}
-
-cmd_list_servers() {
-    check_installed
-    run_cli list-servers
-}
-
-cmd_deployment_status() {
-    check_installed
-    shift
-    run_cli deployment-status "$@"
 }
 
 cmd_list_apps() {
@@ -1368,15 +1360,6 @@ case "${1:-help}" in
         ;;
     create-app)
         cmd_create_app "$2" "$3" "$4"
-        ;;
-    deploy-template)
-        cmd_deploy_template "$@"
-        ;;
-    list-servers)
-        cmd_list_servers
-        ;;
-    deployment-status)
-        cmd_deployment_status "$@"
         ;;
     list-apps)
         cmd_list_apps "$2"

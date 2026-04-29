@@ -188,15 +188,10 @@ export async function getTemplate(templateId) {
     return this.request(`/templates/${templateId}`);
 }
 
-export async function installTemplate(templateId, appName, variables = {}, options = {}) {
+export async function installTemplate(templateId, appName, variables = {}) {
     return this.request(`/templates/${templateId}/install`, {
         method: 'POST',
-        body: {
-            app_name: appName,
-            variables,
-            server_id: options.serverId || 'local',
-            wait: options.wait || false,
-        }
+        body: { app_name: appName, variables }
     });
 }
 

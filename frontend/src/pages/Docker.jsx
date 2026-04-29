@@ -11,20 +11,6 @@ const useServer = () => useContext(ServerContext);
 
 const VALID_TABS = ['containers', 'compose', 'images', 'volumes', 'networks'];
 
-const unwrapRemoteData = (response) => {
-    if (response?.success && response.data !== undefined) {
-        return response.data;
-    }
-    return response;
-};
-
-const normalizeListResponse = (response, key) => {
-    const data = unwrapRemoteData(response);
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.[key])) return data[key];
-    return [];
-};
-
 const Docker = () => {
     const [activeTab, setActiveTab] = useTabParam('/docker', VALID_TABS);
     const [dockerStatus, setDockerStatus] = useState(null);
@@ -71,7 +57,7 @@ const Docker = () => {
             } else {
                 // For remote servers, check if the agent is online
                 const serverData = await api.getServer(selectedServer.id);
-                if (serverData.status === 'online' || serverData.server?.status === 'online') {
+                if (serverData.server?.status === 'online') {
                     setDockerStatus({ installed: true, running: true });
                     loadStats();
                 } else {
@@ -104,20 +90,17 @@ const Docker = () => {
                     api.getRemoteNetworks(selectedServer.id)
                 ]);
 
+                // Transform remote response format
+                if (containersData.success) containersData = { containers: containersData.data };
+                if (imagesData.success) imagesData = { images: imagesData.data };
+                if (volumesData.success) volumesData = { volumes: volumesData.data };
+                if (networksData.success) networksData = { networks: networksData.data };
             }
 
-            const containers = selectedServer.id === 'local'
-                ? containersData.containers || []
-                : normalizeListResponse(containersData, 'containers');
-            const images = selectedServer.id === 'local'
-                ? imagesData.images || []
-                : normalizeListResponse(imagesData, 'images');
-            const volumes = selectedServer.id === 'local'
-                ? volumesData.volumes || []
-                : normalizeListResponse(volumesData, 'volumes');
-            const networks = selectedServer.id === 'local'
-                ? networksData.networks || []
-                : normalizeListResponse(networksData, 'networks');
+            const containers = containersData.containers || [];
+            const images = imagesData.images || [];
+            const volumes = volumesData.volumes || [];
+            const networks = networksData.networks || [];
 
             const running = containers.filter(c => c.state === 'running').length;
 
@@ -507,7 +490,7 @@ const ContainersTab = ({ onStatsChange }) => {
             let data;
             if (isRemote) {
                 const result = await api.getRemoteContainers(serverId, showAll);
-                data = { containers: normalizeListResponse(result, 'containers') };
+                data = result.success ? { containers: result.data || [] } : { containers: [] };
             } else {
                 data = await api.getContainers(showAll);
             }
@@ -521,7 +504,7 @@ const ContainersTab = ({ onStatsChange }) => {
                     let statsData;
                     if (isRemote) {
                         const result = await api.getRemoteContainerStats(serverId, c.id);
-                        statsData = { stats: unwrapRemoteData(result) };
+                        statsData = result.success ? { stats: result.data } : { stats: null };
                     } else {
                         statsData = await api.getContainerStats(c.id);
                     }
@@ -779,7 +762,7 @@ const ImagesTab = ({ onStatsChange }) => {
             let data;
             if (isRemote) {
                 const result = await api.getRemoteImages(serverId);
-                data = { images: normalizeListResponse(result, 'images') };
+                data = result.success ? { images: result.data || [] } : { images: [] };
             } else {
                 data = await api.getImages();
             }
@@ -908,7 +891,7 @@ const NetworksTab = ({ onStatsChange }) => {
             let data;
             if (isRemote) {
                 const result = await api.getRemoteNetworks(serverId);
-                data = { networks: normalizeListResponse(result, 'networks') };
+                data = result.success ? { networks: result.data || [] } : { networks: [] };
             } else {
                 data = await api.getNetworks();
             }
@@ -925,11 +908,7 @@ const NetworksTab = ({ onStatsChange }) => {
         if (!confirmed) return;
 
         try {
-            if (isRemote) {
-                await api.removeRemoteNetwork(serverId, networkId);
-            } else {
-                await api.removeNetwork(networkId);
-            }
+            await api.removeNetwork(networkId);
             toast.success('Network removed successfully');
             loadNetworks();
             onStatsChange?.();
@@ -1018,7 +997,7 @@ const VolumesTab = ({ onStatsChange }) => {
             let data;
             if (isRemote) {
                 const result = await api.getRemoteVolumes(serverId);
-                data = { volumes: normalizeListResponse(result, 'volumes') };
+                data = result.success ? { volumes: result.data || [] } : { volumes: [] };
             } else {
                 data = await api.getVolumes();
             }
@@ -1035,11 +1014,7 @@ const VolumesTab = ({ onStatsChange }) => {
         if (!confirmed) return;
 
         try {
-            if (isRemote) {
-                await api.removeRemoteVolume(serverId, volumeName, true);
-            } else {
-                await api.removeVolume(volumeName, true);
-            }
+            await api.removeVolume(volumeName, true);
             toast.success('Volume removed successfully');
             loadVolumes();
             onStatsChange?.();
@@ -1130,7 +1105,7 @@ const ComposeTab = ({ onStatsChange }) => {
             } else {
                 data = await api.request('/docker/compose/list');
             }
-            setProjects(normalizeListResponse(data, 'projects'));
+            setProjects(Array.isArray(data) ? data : data.projects || []);
         } catch (err) {
             console.error('Failed to load compose projects:', err);
             setProjects([]);
@@ -1367,10 +1342,7 @@ const ComposeLogsModal = ({ project, onClose }) => {
         try {
             let containers;
             if (isRemote) {
-                containers = normalizeListResponse(
-                    await api.getRemoteComposePs(serverId, projectPath),
-                    'containers'
-                );
+                containers = await api.getRemoteComposePs(serverId, projectPath);
             } else {
                 const result = await api.composePs(projectPath);
                 containers = result.containers || result || [];
@@ -1393,7 +1365,7 @@ const ComposeLogsModal = ({ project, onClose }) => {
         try {
             let data;
             if (isRemote) {
-                data = unwrapRemoteData(await api.remoteComposeLogs(serverId, projectPath, selectedService || null, tail));
+                data = await api.remoteComposeLogs(serverId, projectPath, selectedService || null, tail);
             } else {
                 data = await api.composeLogs(projectPath, selectedService || null, tail);
             }
@@ -1589,7 +1561,7 @@ const ContainerLogsModal = ({ container, onClose }) => {
             let data;
             if (isRemote) {
                 const result = await api.getRemoteContainerLogs(serverId, container.id, tail);
-                data = unwrapRemoteData(result);
+                data = result.success ? { logs: result.data?.logs || '' } : { logs: '' };
             } else {
                 data = await api.getContainerLogs(container.id, tail);
             }

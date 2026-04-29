@@ -431,9 +431,15 @@ const AppLogsModal = ({ app, onClose }) => {
         try {
             // For Docker apps, try to get container logs
             if (app.app_type === 'docker') {
-                const data = await api.getDockerAppLogs(app.id, 200);
-                setLogs(data.logs || data.content || 'No logs available');
-                return;
+                const containersData = await api.getContainers(true).catch(() => ({ containers: [] }));
+                const appContainer = containersData.containers?.find(c =>
+                    c.name?.includes(app.name) || c.name?.includes(app.id)
+                );
+                if (appContainer) {
+                    const data = await api.getContainerLogs(appContainer.id, 200);
+                    setLogs(data.logs || 'No logs available');
+                    return;
+                }
             }
             // For other apps, use app logs endpoint
             const data = await api.getAppLogs(app.name, logType, 200);

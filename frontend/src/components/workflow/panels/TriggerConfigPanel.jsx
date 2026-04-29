@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ConfigPanel from '../ConfigPanel';
 import { Play, Clock, Webhook, Zap, Copy, Check } from 'lucide-react';
+import { copyToClipboard } from '../../../utils/clipboard';
 
 const TriggerConfigPanel = ({ node, onChange, onClose, onDelete }) => {
     const { data } = node;
@@ -38,7 +39,7 @@ const TriggerConfigPanel = ({ node, onChange, onClose, onDelete }) => {
 
     const copyWebhookUrl = () => {
         if (webhookUrl) {
-            navigator.clipboard.writeText(webhookUrl);
+            copyToClipboard(webhookUrl);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }

@@ -49,8 +49,6 @@ import DNSZones from './pages/DNSZones';
 import StatusPages from './pages/StatusPages';
 import CloudProvision from './pages/CloudProvision';
 import Marketplace from './pages/Marketplace';
-import StyleGuide from './pages/StyleGuide';
-import Deployments from './pages/Deployments';
 
 // Page title mapping
 const PAGE_TITLES = {
@@ -63,7 +61,6 @@ const PAGE_TITLES = {
     '/wordpress': 'WordPress Sites',
     '/wordpress/projects': 'WordPress Projects',
     '/templates': 'Templates',
-    '/deployments': 'Deployments',
     '/workflow': 'Workflow Builder',
     '/domains': 'Domains',
     '/databases': 'Databases',
@@ -91,7 +88,6 @@ const PAGE_TITLES = {
     '/status-pages': 'Status Pages',
     '/cloud': 'Cloud Provisioning',
     '/marketplace': 'Marketplace',
-    '/style-guide': 'Style Guide',
 };
 
 function PageTitleUpdater() {
@@ -216,8 +212,6 @@ function AppRoutes() {
                 <Route path="wordpress/:id" element={<WordPressDetail />} />
                 <Route path="wordpress/:id/:tab" element={<WordPressDetail />} />
                 <Route path="templates" element={<Templates />} />
-                <Route path="deployments" element={<Deployments />} />
-                <Route path="deployments/:jobId" element={<Deployments />} />
                 <Route path="workflow" element={<WorkflowBuilder />} />
                 <Route path="domains" element={<Domains />} />
                 <Route path="databases" element={<Databases />} />
@@ -237,7 +231,6 @@ function AppRoutes() {
                 <Route path="status-pages" element={<StatusPages />} />
                 <Route path="cloud" element={<CloudProvision />} />
                 <Route path="marketplace" element={<Marketplace />} />
-                <Route path="style-guide" element={<StyleGuide />} />
                 <Route path="downloads" element={<Downloads />} />
                 <Route path="firewall" element={<Navigate to="/security/firewall" replace />} />
                 <Route path="git" element={<Git />} />

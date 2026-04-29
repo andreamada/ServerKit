@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from './Modal';
+import { copyToClipboard as clipboardWrite } from '../utils/clipboard';
 
 const EnvironmentVariables = ({ appId }) => {
     const toast = useToast();
@@ -212,7 +213,7 @@ const EnvironmentVariables = ({ appId }) => {
     }
 
     function copyToClipboard(value) {
-        navigator.clipboard.writeText(value);
+        clipboardWrite(value);
         toast.success('Copied to clipboard');
     }
 

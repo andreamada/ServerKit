@@ -42,6 +42,13 @@ class WorkspaceService:
         if not name:
             raise ValueError('Workspace name required')
 
+        # Ensure unique name (SQLite doesn't handle this as gracefully as slug)
+        base_name = name
+        counter = 1
+        while Workspace.query.filter_by(name=name).first():
+            name = f'{base_name} ({counter})'
+            counter += 1
+
         slug = WorkspaceService._slugify(name)
         # Ensure unique slug
         base_slug = slug

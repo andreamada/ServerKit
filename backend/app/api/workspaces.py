@@ -66,6 +66,16 @@ def create_workspace():
         return jsonify(ws.to_dict()), 201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        import traceback
+        from flask import current_app
+        current_app.logger.error(f"Error creating workspace: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 
 @workspaces_bp.route('/<int:workspace_id>', methods=['PUT'])

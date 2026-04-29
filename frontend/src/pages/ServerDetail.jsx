@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { copyToClipboard as clipboardWrite } from '../utils/clipboard';
 import { useToast } from '../contexts/ToastContext';
 import MetricsGraph from '../components/MetricsGraph';
 import { useConfirm } from '../hooks/useConfirm';
@@ -37,9 +38,7 @@ const ServerDetail = () => {
         if (!server || server.status !== 'online') return;
         try {
             const data = await api.getRemoteSystemMetrics(id);
-            if (data.success) {
-                setMetrics(data.data);
-            }
+            setMetrics(data);
         } catch (err) {
             console.error('Failed to load metrics:', err);
         }
@@ -49,9 +48,7 @@ const ServerDetail = () => {
         if (!server || server.status !== 'online') return;
         try {
             const data = await api.getRemoteSystemInfo(id);
-            if (data.success) {
-                setSystemInfo(data.data);
-            }
+            setSystemInfo(data);
         } catch (err) {
             console.error('Failed to load system info:', err);
         }
@@ -152,6 +149,13 @@ const ServerDetail = () => {
         );
     }
 
+    const statusColors = {
+        online: '#10B981',
+        offline: '#EF4444',
+        connecting: '#F59E0B',
+        pending: '#6B7280'
+    };
+
     const tabs = [
         { id: 'overview', label: 'Overview' },
         { id: 'docker', label: 'Docker' },
@@ -161,55 +165,35 @@ const ServerDetail = () => {
 
     return (
         <div className="server-detail-page">
-            <div className="page-breadcrumb">
-                <Link to="/servers">Servers</Link>
-                <span className="breadcrumb-separator">/</span>
-                <span>{server.name}</span>
-            </div>
-
-            <header className="server-detail-header">
-                <div className="server-detail-header__main">
-                    <div className={`server-detail-header__avatar server-detail-header__avatar--${server.status || 'pending'}`}>
-                        {(server.name || '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="server-detail-header__identity">
-                        <div className="server-detail-header__title-row">
-                            <h1>{server.name}</h1>
-                            <span className={`status-pill status-pill--${server.status || 'pending'}`}>
-                                <span className="status-pill__dot" />
-                                {server.status || 'pending'}
-                            </span>
-                        </div>
-                        <div className="server-detail-header__meta">
-                            <span className="mono">{server.hostname || server.ip_address || 'No endpoint configured'}</span>
-                            {server.group_name && (
-                                <span className="server-detail-header__chip"><FolderTinyIcon /> {server.group_name}</span>
-                            )}
-                            {server.os_type && <span className="server-detail-header__chip">{server.os_type}</span>}
-                            {server.agent_version && <span className="server-detail-header__chip">agent {server.agent_version}</span>}
-                            {server.last_seen && (
-                                <span className="server-detail-header__chip">
-                                    last seen {new Date(server.last_seen).toLocaleString()}
-                                </span>
-                            )}
-                        </div>
-                        {server.description && (
-                            <p className="server-detail-header__description">{server.description}</p>
-                        )}
-                    </div>
+            <div className="page-header">
+                <div className="page-breadcrumb">
+                    <Link to="/servers">Servers</Link>
+                    <span className="breadcrumb-separator">/</span>
+                    <span>{server.name}</span>
                 </div>
-                <div className="server-detail-header__actions">
+                <div className="page-header-content">
+                    <div className="server-title">
+                        <div
+                            className="status-dot large"
+                            style={{ backgroundColor: statusColors[server.status] }}
+                            title={server.status}
+                        />
+                        <h1>{server.name}</h1>
+                    </div>
+                    <p className="page-description">
+                        {server.hostname || server.ip_address}
+                        {server.description && ` - ${server.description}`}
+                    </p>
+                </div>
+                <div className="page-header-actions">
                     <button className="btn btn-secondary" onClick={handlePingServer}>
                         <RefreshIcon /> Ping
                     </button>
-                    <Link className="btn btn-secondary" to={`/servers/${id}/docker`}>
-                        Docker
-                    </Link>
                     <button className="btn btn-primary" onClick={handleGenerateToken}>
                         <KeyIcon /> Generate Token
                     </button>
                 </div>
-            </header>
+            </div>
 
             <div className="server-detail-tabs">
                 {tabs.map(t => (
@@ -322,7 +306,7 @@ const OverviewTab = ({ server, metrics, systemInfo }) => {
                             <span className="info-label">Operating System</span>
                             <span className="info-value">
                                 {systemInfo?.os || server.os_type || 'Unknown'}
-                                {systemInfo?.os_version && ` ${systemInfo.os_version}`}
+                                {(systemInfo?.os_version || server.os_version) && ` ${systemInfo?.os_version || server.os_version}`}
                             </span>
                         </div>
                         <div className="info-item">
@@ -332,17 +316,17 @@ const OverviewTab = ({ server, metrics, systemInfo }) => {
                         <div className="info-item">
                             <span className="info-label">CPU</span>
                             <span className="info-value">
-                                {systemInfo?.cpu_model || 'N/A'}
-                                {systemInfo?.cpu_cores && ` (${systemInfo.cpu_cores} cores)`}
+                                {systemInfo?.cpu?.model || systemInfo?.cpu_model || server.cpu_model || 'N/A'}
+                                {(systemInfo?.cpu?.cores || systemInfo?.cpu_cores || server.cpu_cores) && ` (${systemInfo?.cpu?.cores || systemInfo?.cpu_cores || server.cpu_cores} cores)`}
                             </span>
                         </div>
                         <div className="info-item">
                             <span className="info-label">Total Memory</span>
-                            <span className="info-value">{formatBytes(systemInfo?.total_memory)}</span>
+                            <span className="info-value">{formatBytes(systemInfo?.total_memory || server.total_memory)}</span>
                         </div>
                         <div className="info-item">
                             <span className="info-label">Total Disk</span>
-                            <span className="info-value">{formatBytes(systemInfo?.total_disk)}</span>
+                            <span className="info-value">{formatBytes(systemInfo?.total_disk || server.total_disk)}</span>
                         </div>
                     </div>
                 </div>
@@ -364,7 +348,7 @@ const OverviewTab = ({ server, metrics, systemInfo }) => {
                         </div>
                         <div className="info-item">
                             <span className="info-label">Uptime</span>
-                            <span className="info-value">{formatUptime(metrics?.uptime)}</span>
+                            <span className="info-value">{formatUptime(metrics?.system?.uptime_seconds)}</span>
                         </div>
                     </div>
                 </div>
@@ -373,9 +357,9 @@ const OverviewTab = ({ server, metrics, systemInfo }) => {
                     <div className="info-card metrics-card">
                         <h3>Current Resources</h3>
                         <div className="resource-meters">
-                            <ResourceMeter label="CPU" value={metrics.cpu_percent} color="#6366F1" />
-                            <ResourceMeter label="Memory" value={metrics.memory_percent} color="#10B981" />
-                            <ResourceMeter label="Disk" value={metrics.disk_percent} color="#F59E0B" />
+                            <ResourceMeter label="CPU" value={metrics?.cpu?.percent} color="#6366F1" />
+                            <ResourceMeter label="Memory" value={metrics?.memory?.ram?.percent} color="#10B981" />
+                            <ResourceMeter label="Disk" value={metrics?.disk?.partitions?.[0]?.percent} color="#F59E0B" />
                         </div>
                     </div>
                 )}
@@ -647,27 +631,27 @@ const MetricsTab = ({ serverId, metrics }) => {
                         <div className="live-stats-grid">
                             <div className="live-stat">
                                 <span className="live-stat-label">CPU</span>
-                                <span className="live-stat-value">{(metrics.cpu_percent || 0).toFixed(1)}%</span>
+                                <span className="live-stat-value">{(metrics?.cpu?.percent || 0).toFixed(1)}%</span>
                             </div>
                             <div className="live-stat">
                                 <span className="live-stat-label">Memory</span>
-                                <span className="live-stat-value">{(metrics.memory_percent || 0).toFixed(1)}%</span>
+                                <span className="live-stat-value">{(metrics?.memory?.ram?.percent || 0).toFixed(1)}%</span>
                             </div>
                             <div className="live-stat">
                                 <span className="live-stat-label">Disk</span>
-                                <span className="live-stat-value">{(metrics.disk_percent || 0).toFixed(1)}%</span>
+                                <span className="live-stat-value">{(metrics?.disk?.partitions?.[0]?.percent || 0).toFixed(1)}%</span>
                             </div>
                             <div className="live-stat">
                                 <span className="live-stat-label">Net TX</span>
-                                <span className="live-stat-value">{formatBytes(metrics.network_sent)}/s</span>
+                                <span className="live-stat-value">{formatBytes(metrics?.network?.io?.bytes_sent_rate)}/s</span>
                             </div>
                             <div className="live-stat">
                                 <span className="live-stat-label">Net RX</span>
-                                <span className="live-stat-value">{formatBytes(metrics.network_recv)}/s</span>
+                                <span className="live-stat-value">{formatBytes(metrics?.network?.io?.bytes_recv_rate)}/s</span>
                             </div>
                             <div className="live-stat">
-                                <span className="live-stat-label">Containers</span>
-                                <span className="live-stat-value">{metrics.container_running || 0} / {metrics.container_count || 0}</span>
+                                <span className="live-stat-label">Uptime</span>
+                                <span className="live-stat-value">{(() => { const s = metrics?.system?.uptime_seconds; if (!s) return 'N/A'; const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60); return d > 0 ? `${d}d ${h}h` : `${h}h ${m}m`; })()}</span>
                             </div>
                         </div>
                     </div>
@@ -694,7 +678,7 @@ const AgentRegistrationSection = ({ server, onRegenerateToken }) => {
 Install-ServerKitAgent -Server "${window.location.origin}" -Token "${token}"` : '';
 
     function copyToClipboard(text) {
-        navigator.clipboard.writeText(text);
+        clipboardWrite(text);
         setCopied(true);
         toast.success('Copied to clipboard');
         setTimeout(() => setCopied(false), 2000);
@@ -714,7 +698,7 @@ Install-ServerKitAgent -Server "${window.location.origin}" -Token "${token}"` : 
                     <div className="install-script-block">
                         <div className="install-script-header">
                             <TerminalIcon />
-                            <span>Linux</span>
+                            <span>Linux / macOS</span>
                             <button className="btn btn-sm btn-secondary" onClick={() => copyToClipboard(linuxScript)}>
                                 <CopyIcon /> Copy
                             </button>
@@ -1125,7 +1109,7 @@ const TokenModal = ({ server, onClose }) => {
 Install-ServerKitAgent -Server "${window.location.origin}" -Token "${token}"` : '';
 
     function copyToClipboard(text) {
-        navigator.clipboard.writeText(text);
+        clipboardWrite(text);
         toast.success('Copied to clipboard');
     }
 
@@ -1147,8 +1131,8 @@ Install-ServerKitAgent -Server "${window.location.origin}" -Token "${token}"` : 
                             <div className="install-tab-header">
                                 <TerminalIcon />
                                 <div className="install-tab-title">
-                                    <span>Linux</span>
-                                    <span className="install-tab-description">Linux server with curl, tar, sudo, and systemd</span>
+                                    <span>Linux / macOS</span>
+                                    <span className="install-tab-description">Ubuntu, Debian, CentOS, Fedora, Arch, macOS — requires curl and sudo</span>
                                 </div>
                                 <button className="btn btn-sm btn-secondary" onClick={() => copyToClipboard(linuxScript)}>
                                     <CopyIcon /> Copy
@@ -1177,7 +1161,7 @@ Install-ServerKitAgent -Server "${window.location.origin}" -Token "${token}"` : 
                         <ol>
                             <li>Copy and run the install script on your server</li>
                             <li>The agent downloads, installs, and registers automatically</li>
-                            <li>Your server will appear as <strong>Pending</strong> until the agent connects, then switch to <strong>Online</strong></li>
+                            <li>Your server will appear as <strong>"Pending"</strong> until the agent connects, then switch to <strong>"Online"</strong></li>
                         </ol>
                         <p className="text-muted">
                             The registration token expires in 24 hours. You can regenerate it from the server settings page.
@@ -1194,12 +1178,6 @@ Install-ServerKitAgent -Server "${window.location.origin}" -Token "${token}"` : 
 };
 
 // Icons
-const FolderTinyIcon = () => (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
-);
-
 const RefreshIcon = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <polyline points="23 4 23 10 17 10"/>

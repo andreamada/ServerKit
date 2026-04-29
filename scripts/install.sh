@@ -25,8 +25,7 @@ NC='\033[0m' # No Color
 # Configuration
 INSTALL_DIR="/usr/local/bin"
 CONFIG_DIR="/etc/serverkit-agent"
-LOG_DIR="/var/log/serverkit-agent"
-SERVICE_USER="serverkit-agent"
+SERVICE_USER="serverkit"
 GITHUB_REPO="jhd3197/ServerKit"
 AGENT_BINARY="serverkit-agent"
 
@@ -169,8 +168,19 @@ get_latest_version() {
         VERSION=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases" | \
             grep -oP '"tag_name": "agent-v\K[^"]+' | head -1)
 
+        if [[ -z "$VERSION" ]] && [[ "$GITHUB_REPO" != "jhd3197/ServerKit" ]]; then
+            log_warn "No releases found in ${GITHUB_REPO}. Falling back to official repository for binary download."
+            FALLBACK_REPO="jhd3197/ServerKit"
+            VERSION=$(curl -fsSL "https://api.github.com/repos/${FALLBACK_REPO}/releases" | \
+                grep -oP '"tag_name": "agent-v\K[^"]+' | head -1)
+            
+            if [[ -n "$VERSION" ]]; then
+                GITHUB_REPO="$FALLBACK_REPO"
+            fi
+        fi
+
         if [[ -z "$VERSION" ]]; then
-            log_error "Failed to fetch latest version"
+            log_error "Failed to fetch latest version from ${GITHUB_REPO}"
         fi
         log_info "Latest version: v${VERSION}"
     fi
@@ -202,6 +212,47 @@ download_agent() {
     log_success "Agent installed to ${INSTALL_DIR}/${AGENT_BINARY}"
 }
 
+install_docker() {
+    if command -v docker &> /dev/null; then
+        log_info "Docker is already installed"
+        return
+    fi
+
+    log_info "Docker not found. Installing Docker..."
+
+    # Check for apt-get (Debian/Ubuntu)
+    if command -v apt-get &> /dev/null; then
+        log_info "Installing Docker via apt..."
+        apt-get update
+        apt-get install -y ca-certificates curl gnupg lsb-release
+        
+        # Use Docker's official convenience script
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sh get-docker.sh
+        rm get-docker.sh
+        
+    # Check for yum (CentOS/RHEL)
+    elif command -v yum &> /dev/null; then
+        log_info "Installing Docker via yum..."
+        yum install -y yum-utils
+        
+        # Use Docker's official convenience script
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sh get-docker.sh
+        rm get-docker.sh
+    else
+        log_warn "Could not detect package manager (apt/yum). Please install Docker manually."
+        return
+    fi
+
+    # Start and enable Docker
+    if command -v systemctl &> /dev/null; then
+        systemctl enable --now docker
+    fi
+
+    log_success "Docker installed successfully"
+}
+
 create_user() {
     if id "$SERVICE_USER" &>/dev/null; then
         log_info "User $SERVICE_USER already exists"
@@ -218,35 +269,27 @@ create_user() {
 }
 
 create_config_dir() {
-    log_info "Creating configuration and log directories..."
-    mkdir -p "$CONFIG_DIR" "$LOG_DIR"
-    chown "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR" "$LOG_DIR"
-    chmod 750 "$CONFIG_DIR" "$LOG_DIR"
+    log_info "Creating configuration directory..."
+    mkdir -p "$CONFIG_DIR"
+    chown "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
+    chmod 750 "$CONFIG_DIR"
 }
 
 register_agent() {
     log_info "Registering agent with ServerKit..."
 
-    REGISTER_CMD=(
-        "${INSTALL_DIR}/${AGENT_BINARY}"
-        --config "${CONFIG_DIR}/config.yaml"
-        register
-        --token "${TOKEN}"
-        --server "${SERVER_URL}"
-    )
+    REGISTER_CMD="${INSTALL_DIR}/${AGENT_BINARY} register --token \"${TOKEN}\" --server \"${SERVER_URL}\""
 
     if [[ -n "$SERVER_NAME" ]]; then
-        REGISTER_CMD+=(--name "${SERVER_NAME}")
+        REGISTER_CMD="${REGISTER_CMD} --name \"${SERVER_NAME}\""
     fi
 
-    if ! "${REGISTER_CMD[@]}"; then
+    if ! eval "$REGISTER_CMD"; then
         log_error "Agent registration failed"
     fi
 
     # Fix permissions on config files
-    chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR" "$LOG_DIR"
-    [[ -f "${CONFIG_DIR}/config.yaml" ]] && chmod 600 "${CONFIG_DIR}/config.yaml"
-    [[ -f "${CONFIG_DIR}/agent.key" ]] && chmod 600 "${CONFIG_DIR}/agent.key"
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
 
     log_success "Agent registered successfully"
 }
@@ -270,7 +313,7 @@ Wants=network-online.target
 Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_USER}
-ExecStart=${INSTALL_DIR}/${AGENT_BINARY} --config ${CONFIG_DIR}/config.yaml start
+ExecStart=${INSTALL_DIR}/${AGENT_BINARY} start
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -281,7 +324,7 @@ SyslogIdentifier=serverkit-agent
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=${CONFIG_DIR} ${LOG_DIR}
+ReadWritePaths=${CONFIG_DIR}
 PrivateTmp=true
 
 # Environment
@@ -302,12 +345,17 @@ start_service() {
         log_warn "Cannot auto-start without systemd"
         echo ""
         echo "To start the agent manually:"
-        echo "  ${INSTALL_DIR}/${AGENT_BINARY} --config ${CONFIG_DIR}/config.yaml start"
+        echo "  ${INSTALL_DIR}/${AGENT_BINARY} start"
         return
     fi
 
-    log_info "Starting ServerKit Agent..."
-    systemctl start serverkit-agent
+    if systemctl is-active --quiet serverkit-agent; then
+        log_info "Restarting ServerKit Agent..."
+        systemctl restart serverkit-agent
+    else
+        log_info "Starting ServerKit Agent..."
+        systemctl start serverkit-agent
+    fi
 
     sleep 2
 
@@ -346,6 +394,7 @@ main() {
     check_dependencies
     get_latest_version
     download_agent
+    install_docker
     create_user
     create_config_dir
     register_agent

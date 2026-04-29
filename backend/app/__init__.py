@@ -1,4 +1,5 @@
 import os
+import sqlite3 as _sqlite3
 from flask import Flask, send_from_directory, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
@@ -6,12 +7,30 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from config import config
 
 db = SQLAlchemy()
 jwt = JWTManager()
 migrate = Migrate()
+
+
+@event.listens_for(Engine, "connect")
+def _sqlite_configure(dbapi_conn, _):
+    """Set SQLite pragmas on every new connection.
+
+    DELETE journal mode avoids the /dev/shm shared-memory requirement of WAL mode
+    that causes 'attempt to write a readonly database' on some VPS/container providers.
+    """
+    if not isinstance(dbapi_conn, _sqlite3.Connection):
+        return
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA journal_mode=DELETE")
+    cur.execute("PRAGMA synchronous=NORMAL")
+    cur.execute("PRAGMA foreign_keys=ON")
+    cur.close()
 
 # PyJWT 2.10+ enforces that 'sub' must be a string.
 # Stringify the identity so integer user IDs work transparently.
@@ -45,12 +64,64 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     jwt.init_app(app)
     limiter.init_app(app)
+    # CORS - Allow both dev server and Flask server
+    cors_origins = app.config.get('CORS_ORIGINS', [])
+    if isinstance(cors_origins, str):
+        cors_origins = [o.strip() for o in cors_origins.split(',') if o.strip()]
+    
+    # In development, ensure localhost origins are present
+    if app.debug:
+        dev_origins = [
+            'http://localhost:5173', 'http://localhost:5274', 'http://localhost:5000', 'http://localhost:5001',
+            'http://127.0.0.1:5173', 'http://127.0.0.1:5274', 'http://127.0.0.1:5000', 'http://127.0.0.1:5001'
+        ]
+        for origin in dev_origins:
+            if origin not in cors_origins:
+                cors_origins.append(origin)
+        
+        # Also allow ngrok origins if they appear in requests, 
+        # and ensure localhost origins are allowed even when proxying through ngrok
+        @app.after_request
+        def add_dev_cors(response):
+            origin = request.headers.get('Origin')
+            if origin:
+                if ('.ngrok-free.app' in origin or '.ngrok.io' in origin or 
+                    'localhost:' in origin or '127.0.0.1:' in origin):
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-API-Key, Accept, Origin, ngrok-skip-browser-warning'
+                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+            return response
+            
+        # Log unexpected errors in development
+        @app.errorhandler(500)
+        def handle_500(e):
+            import traceback
+            app.logger.error(f"Internal Server Error: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            
+            # Create response
+            response = jsonify({
+                'error': 'Internal Server Error',
+                'message': str(e),
+                'traceback': traceback.format_exc() if app.debug else None
+            })
+            
+            # Explicitly add CORS headers to error response in dev
+            origin = request.headers.get('Origin')
+            if origin:
+                response.headers['Access-Control-Allow-Origin'] = origin
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+                
+            return response, 500
+    
     CORS(
         app,
-        origins=app.config['CORS_ORIGINS'],
+        origins=cors_origins,
         supports_credentials=True,
-        allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
-        methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+        allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'Accept', 'Origin', 'ngrok-skip-browser-warning'],
+        methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+        expose_headers=['Content-Type', 'Authorization']
     )
 
     # Register security headers middleware
@@ -144,9 +215,7 @@ def create_app(config_name=None):
 
     # Register blueprints - Builds & Deployments
     from app.api.builds import builds_bp
-    from app.api.deployment_jobs import deployment_jobs_bp
     app.register_blueprint(builds_bp, url_prefix='/api/v1/builds')
-    app.register_blueprint(deployment_jobs_bp, url_prefix='/api/v1/deployment-jobs')
 
     # Register blueprints - Templates
     from app.api.templates import templates_bp
@@ -278,22 +347,6 @@ def create_app(config_name=None):
     from app.api.marketplace import marketplace_bp
     app.register_blueprint(marketplace_bp, url_prefix='/api/v1/marketplace')
 
-    # Register blueprints - Plugins
-    from app.api.plugins import plugins_bp
-    app.register_blueprint(plugins_bp, url_prefix='/api/v1/plugins')
-
-    # Register blueprints - Agent Pairing (RustDesk-style short-code flow)
-    from app.api.pairing import pairing_bp
-    app.register_blueprint(pairing_bp, url_prefix='/api/v1/pairing')
-
-    # Load installed plugins (dynamic blueprints)
-    try:
-        from app.services.plugin_service import load_all_plugins
-        load_all_plugins(app)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f'Plugin loader: {e}')
-
     # Handle database migrations (Alembic)
     with app.app_context():
         from app.services.migration_service import MigrationService
@@ -322,9 +375,6 @@ def create_app(config_name=None):
         # Start hourly analytics aggregation and event retry threads
         _start_api_background_threads(app)
 
-        # Start hourly pruner for expired pending agent pairings
-        _start_pairing_pruner(app)
-
     # Request body size limit
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
 
@@ -332,6 +382,9 @@ def create_app(config_name=None):
     @app.before_request
     def check_2fa_pending():
         """Reject 2FA pending tokens on non-2FA endpoints."""
+        if request.method == 'OPTIONS':
+            return
+            
         from flask_jwt_extended import verify_jwt_in_request, get_jwt
         if request.endpoint and request.path.startswith('/api/'):
             # Allow 2FA verification endpoints
@@ -451,41 +504,6 @@ def _check_auto_sync_schedules(logger):
 
 
 _api_bg_thread = None
-
-
-def _start_pairing_pruner(app):
-    """Start a background thread that prunes expired PendingAgent rows hourly."""
-    global _pairing_prune_thread
-    if _pairing_prune_thread is not None:
-        return
-
-    import threading
-    import time
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    def prune_loop():
-        # Wait a bit before first run so app is fully initialized.
-        time.sleep(60)
-        while True:
-            try:
-                with app.app_context():
-                    from app.services import pairing_service
-                    pairing_service.prune_expired()
-            except Exception as e:
-                logger.error(f'Pairing pruner error: {e}')
-            time.sleep(3600)
-
-    _pairing_prune_thread = threading.Thread(
-        target=prune_loop,
-        daemon=True,
-        name='pairing-pruner'
-    )
-    _pairing_prune_thread.start()
-
-
-_pairing_prune_thread = None
 
 
 def _start_api_background_threads(app):

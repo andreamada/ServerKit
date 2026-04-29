@@ -3,25 +3,19 @@
 .SYNOPSIS
     ServerKit development launcher and validation tool.
 .DESCRIPTION
-    Start backend, frontend, both, or expose backend via an ngrok tunnel.
-    Run validation checks.
+    Start backend, frontend, or both. Run validation checks.
 .PARAMETER Mode
-    Operation mode: start (default), backend, frontend, tunnel, validate
+    Operation mode: start (default), backend, frontend, validate
 .EXAMPLE
     .\dev.ps1              # Start backend + frontend
     .\dev.ps1 backend      # Backend only
     .\dev.ps1 frontend     # Frontend only
-    .\dev.ps1 tunnel       # Backend + frontend + ngrok tunnel for the backend
     .\dev.ps1 validate     # Run all linters/checks
-.NOTES
-    Optional environment variables for tunnel mode:
-      NGROK_DOMAIN     - reserved ngrok domain (e.g. my-app.ngrok-free.app)
-      NGROK_AUTHTOKEN  - ngrok authtoken (alternatively run `ngrok config add-authtoken`)
 #>
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('start', 'backend', 'frontend', 'tunnel', 'validate')]
+    [ValidateSet('start', 'backend', 'frontend', 'validate')]
     [string]$Mode = 'start'
 )
 
@@ -122,120 +116,6 @@ function Start-Both {
         Stop-Job $frontendJob -ErrorAction SilentlyContinue
         Remove-Job $backendJob -Force -ErrorAction SilentlyContinue
         Remove-Job $frontendJob -Force -ErrorAction SilentlyContinue
-        Write-Host "`nStopped." -ForegroundColor Yellow
-    }
-}
-
-function Start-Tunnel {
-    if (-not (Get-Command ngrok -ErrorAction SilentlyContinue)) {
-        Write-Host "Error: ngrok is not installed or not in PATH." -ForegroundColor Red
-        Write-Host ""
-        Write-Host "Install ngrok:"
-        Write-Host "  - https://ngrok.com/download"
-        Write-Host "  - Windows: choco install ngrok   (or scoop install ngrok)"
-        Write-Host "  - WSL:     snap install ngrok    (or download the .tgz)"
-        Write-Host ""
-        Write-Host "Then authenticate once:  ngrok config add-authtoken <YOUR_TOKEN>"
-        exit 1
-    }
-
-    Write-Host ""
-    Write-Host "ServerKit Dev Server (with ngrok tunnel)" -ForegroundColor Cyan
-    Write-Host "  Backend:  http://localhost:5000"
-    Write-Host "  Frontend: http://localhost:5173"
-    Write-Host "  Tunnel:   exposing backend (port 5000) via ngrok"
-    Write-Host ""
-    Write-Host "NOTE: " -ForegroundColor Yellow -NoNewline
-    Write-Host "Agents and remote callers should use the public ngrok URL"
-    Write-Host "       printed below as their --server / control plane URL."
-    Write-Host ""
-
-    if (-not $env:CORS_ORIGINS) {
-        $env:CORS_ORIGINS = 'http://localhost:5173,http://localhost:5000,https://*.ngrok-free.app,https://*.ngrok.app,https://*.ngrok.io'
-    }
-
-    $envSnapshot = @{
-        CORS_ORIGINS = $env:CORS_ORIGINS
-    }
-
-    $backendJob = Start-Job -ScriptBlock {
-        param($dir, $envVars)
-        foreach ($k in $envVars.Keys) { Set-Item -Path "Env:$k" -Value $envVars[$k] }
-        Set-Location $dir
-        if (Test-Path 'venv\Scripts\Activate.ps1') {
-            & 'venv\Scripts\Activate.ps1'
-        }
-        python run.py
-    } -ArgumentList $BackendDir, $envSnapshot
-
-    Start-Sleep -Seconds 2
-
-    $frontendJob = Start-Job -ScriptBlock {
-        param($dir)
-        Set-Location $dir
-        npm run dev
-    } -ArgumentList $FrontendDir
-
-    Start-Sleep -Seconds 1
-
-    $ngrokArgs = @('http', '5000', '--log=stdout')
-    if ($env:NGROK_DOMAIN) { $ngrokArgs += "--domain=$($env:NGROK_DOMAIN)" }
-    if ($env:NGROK_AUTHTOKEN) { $ngrokArgs += "--authtoken=$($env:NGROK_AUTHTOKEN)" }
-
-    $ngrokProc = Start-Process -FilePath 'ngrok' -ArgumentList $ngrokArgs -PassThru -WindowStyle Hidden
-
-    $urlPrinted = $false
-    try {
-        Write-Host "Press Ctrl+C to stop..." -ForegroundColor DarkGray
-        $polls = 0
-        while ($true) {
-            Receive-Job $backendJob -ErrorAction SilentlyContinue
-            Receive-Job $frontendJob -ErrorAction SilentlyContinue
-
-            if (-not $urlPrinted -and $polls -lt 30) {
-                try {
-                    $resp = Invoke-RestMethod -Uri 'http://127.0.0.1:4040/api/tunnels' -TimeoutSec 1 -ErrorAction Stop
-                    $publicUrl = ($resp.tunnels | Where-Object { $_.public_url -like 'https://*' } | Select-Object -First 1).public_url
-                    if ($publicUrl) {
-                        Write-Host ""
-                        Write-Host "=========================================================" -ForegroundColor Green
-                        Write-Host "  Public tunnel URL: " -ForegroundColor Green -NoNewline
-                        Write-Host $publicUrl -ForegroundColor Cyan
-                        Write-Host "  Use this as your agent --server / control plane URL." -ForegroundColor Green
-                        Write-Host "=========================================================" -ForegroundColor Green
-                        Write-Host ""
-                        $urlPrinted = $true
-                    }
-                }
-                catch { }
-                $polls++
-            }
-
-            if ($backendJob.State -eq 'Failed') {
-                Write-Host "Backend crashed!" -ForegroundColor Red
-                Receive-Job $backendJob
-                break
-            }
-            if ($frontendJob.State -eq 'Failed') {
-                Write-Host "Frontend crashed!" -ForegroundColor Red
-                Receive-Job $frontendJob
-                break
-            }
-            if ($ngrokProc.HasExited) {
-                Write-Host "ngrok exited." -ForegroundColor Red
-                break
-            }
-            Start-Sleep -Seconds 1
-        }
-    }
-    finally {
-        Stop-Job $backendJob -ErrorAction SilentlyContinue
-        Stop-Job $frontendJob -ErrorAction SilentlyContinue
-        Remove-Job $backendJob -Force -ErrorAction SilentlyContinue
-        Remove-Job $frontendJob -Force -ErrorAction SilentlyContinue
-        if ($ngrokProc -and -not $ngrokProc.HasExited) {
-            Stop-Process -Id $ngrokProc.Id -ErrorAction SilentlyContinue
-        }
         Write-Host "`nStopped." -ForegroundColor Yellow
     }
 }
@@ -354,7 +234,6 @@ function Run-ValidateWatch {
 switch ($Mode) {
     'backend' { Start-Backend }
     'frontend' { Start-Frontend }
-    'tunnel' { Start-Tunnel }
     'validate' { Run-ValidateWatch }
     default { Start-Both }
 }

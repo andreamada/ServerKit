@@ -4,7 +4,7 @@ Thanks to everyone who has contributed to ServerKit!
 
 ## Core
 
-- **Juan Denis** ([@jhd3197](https://github.com/jhd3197)) — Creator and maintainer
+- **Juan Denis** ([@andreamada](https://github.com/andreamada)) — Creator and maintainer
 
 ## Contributors
 

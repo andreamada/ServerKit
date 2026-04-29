@@ -44,8 +44,7 @@ param(
 
 # Configuration
 $InstallDir = "$env:ProgramFiles\ServerKit"
-$ConfigDir = "$env:ProgramData\ServerKit\Agent"
-$LogDir = "$env:ProgramData\ServerKit\Agent\logs"
+$ConfigDir = "$env:ProgramData\ServerKit"
 $ServiceName = "ServerKitAgent"
 $GitHubRepo = "jhd3197/ServerKit"
 $AgentBinary = "serverkit-agent.exe"
@@ -142,14 +141,10 @@ function Install-Agent {
 }
 
 function New-ConfigDirectory {
-    Write-ColorOutput "Creating configuration and log directories..." "Info"
+    Write-ColorOutput "Creating configuration directory..." "Info"
 
     if (-not (Test-Path $ConfigDir)) {
         New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
-    }
-
-    if (-not (Test-Path $LogDir)) {
-        New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
     }
 }
 
@@ -163,8 +158,7 @@ function Register-Agent {
     Write-ColorOutput "Registering agent with ServerKit..." "Info"
 
     $agentPath = Join-Path $InstallDir $AgentBinary
-    $configPath = Join-Path $ConfigDir "config.yaml"
-    $arguments = @("--config", $configPath, "register", "--token", $Token, "--server", $Server)
+    $arguments = @("register", "--token", $Token, "--server", $Server)
 
     if ($Name) {
         $arguments += @("--name", $Name)
@@ -187,7 +181,6 @@ function Install-WindowsService {
     Write-ColorOutput "Installing Windows service..." "Info"
 
     $agentPath = Join-Path $InstallDir $AgentBinary
-    $configPath = Join-Path $ConfigDir "config.yaml"
 
     # Check if service already exists
     $existingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
@@ -203,7 +196,7 @@ function Install-WindowsService {
     }
 
     # Create the service using sc.exe
-    $binPath = "`"$agentPath`" --config `"$configPath`" start"
+    $binPath = "`"$agentPath`" start"
     $result = sc.exe create $ServiceName binPath= $binPath start= auto DisplayName= "ServerKit Agent"
 
     if ($LASTEXITCODE -ne 0) {
