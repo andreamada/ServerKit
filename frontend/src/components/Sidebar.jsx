@@ -207,7 +207,7 @@ const Sidebar = () => {
                     </div>
                     <span className="brand-text">ServerKit</span>
                     <a
-                        href="https://github.com/andreamada/ServerKit"
+                        href="https://github.com/jhd3197/ServerKit"
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`brand-star ${starAnimating ? 'animating' : ''}`}

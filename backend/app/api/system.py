@@ -84,7 +84,7 @@ def check_update():
     try:
         # Fetch latest release from GitHub API
         req = urllib.request.Request(
-            'https://api.github.com/repos/andreamada/ServerKit/releases/latest',
+            'https://api.github.com/repos/jhd3197/ServerKit/releases/latest',
             headers={'User-Agent': 'ServerKit-UpdateChecker'}
         )
         with urllib.request.urlopen(req, timeout=10) as response:

@@ -114,7 +114,7 @@ const AboutTab = () => {
                         <h4>Enjoying ServerKit?</h4>
                         <p>If you find ServerKit useful, consider starring the repository on GitHub. It helps others discover the project!</p>
                         <a
-                            href="https://github.com/andreamada/ServerKit"
+                            href="https://github.com/jhd3197/ServerKit"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-accent"
@@ -163,23 +163,23 @@ const AboutTab = () => {
             <div className="settings-card">
                 <h3>Links</h3>
                 <div className="link-list">
-                    <a href="https://github.com/andreamada/ServerKit" target="_blank" rel="noopener noreferrer" className="link-item">
+                    <a href="https://github.com/jhd3197/ServerKit" target="_blank" rel="noopener noreferrer" className="link-item">
                         <Github size={18} />
                         GitHub Repository
                     </a>
-                    <a href="https://github.com/andreamada/ServerKit#readme" target="_blank" rel="noopener noreferrer" className="link-item">
+                    <a href="https://github.com/jhd3197/ServerKit#readme" target="_blank" rel="noopener noreferrer" className="link-item">
                         <FileText size={18} />
                         Documentation
                     </a>
-                    <a href="https://github.com/andreamada/ServerKit/issues" target="_blank" rel="noopener noreferrer" className="link-item">
+                    <a href="https://github.com/jhd3197/ServerKit/issues" target="_blank" rel="noopener noreferrer" className="link-item">
                         <HelpCircle size={18} />
                         Support & Issues
                     </a>
-                    <a href="https://github.com/andreamada/ServerKit/discussions" target="_blank" rel="noopener noreferrer" className="link-item">
+                    <a href="https://github.com/jhd3197/ServerKit/discussions" target="_blank" rel="noopener noreferrer" className="link-item">
                         <MessageSquare size={18} />
                         Discussions
                     </a>
-                    <a href="https://github.com/andreamada/ServerKit/issues/new" target="_blank" rel="noopener noreferrer" className="link-item">
+                    <a href="https://github.com/jhd3197/ServerKit/issues/new" target="_blank" rel="noopener noreferrer" className="link-item">
                         <Bug size={18} />
                         Report a Bug
                     </a>

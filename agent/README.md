@@ -69,7 +69,7 @@ docker compose logs -f
 
 **Debian/Ubuntu (.deb):**
 ```bash
-curl -LO https://github.com/andreamada/ServerKit/releases/latest/download/serverkit-agent_VERSION_amd64.deb
+curl -LO https://github.com/jhd3197/ServerKit/releases/latest/download/serverkit-agent_VERSION_amd64.deb
 sudo dpkg -i serverkit-agent_VERSION_amd64.deb
 sudo serverkit-agent register --token "YOUR_TOKEN" --server "https://your-serverkit.com"
 sudo systemctl start serverkit-agent
@@ -77,7 +77,7 @@ sudo systemctl start serverkit-agent
 
 **RHEL/CentOS/Fedora (.rpm):**
 ```bash
-sudo rpm -i https://github.com/andreamada/ServerKit/releases/latest/download/serverkit-agent-VERSION-1.x86_64.rpm
+sudo rpm -i https://github.com/jhd3197/ServerKit/releases/latest/download/serverkit-agent-VERSION-1.x86_64.rpm
 sudo serverkit-agent register --token "YOUR_TOKEN" --server "https://your-serverkit.com"
 sudo systemctl start serverkit-agent
 ```

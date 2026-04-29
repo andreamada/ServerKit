@@ -108,7 +108,7 @@ curl -fsSL https://serverkit.ai/install.sh | bash
 ### 方式二：Docker
 
 ```bash
-git clone https://github.com/andreamada/ServerKit.git
+git clone https://github.com/jhd3197/ServerKit.git
 cd ServerKit
 cp .env.example .env       # 编辑 .env 文件，填入你的密钥
 docker compose up -d       # 访问 http://localhost
@@ -279,7 +279,7 @@ Fork → 创建功能分支 → 提交代码 → 推送 → 发起 Pull Request
 
 **ServerKit** — 简洁。现代。自托管。
 
-[报告 Bug](https://github.com/andreamada/ServerKit/issues) · [功能建议](https://github.com/andreamada/ServerKit/issues)
+[报告 Bug](https://github.com/jhd3197/ServerKit/issues) · [功能建议](https://github.com/jhd3197/ServerKit/issues)
 
 由 [Juan Denis](https://juandenis.com) 用 ❤️ 打造
 

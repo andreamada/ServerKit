@@ -108,7 +108,7 @@ curl -fsSL https://serverkit.ai/install.sh | bash
 ### Opción 2: Docker
 
 ```bash
-git clone https://github.com/andreamada/ServerKit.git
+git clone https://github.com/jhd3197/ServerKit.git
 cd ServerKit
 cp .env.example .env       # luego edita .env con tus claves
 docker compose up -d       # accede en http://localhost
@@ -279,7 +279,7 @@ fork → rama de funcionalidad → commit → push → pull request
 
 **ServerKit** — Simple. Moderno. Autoalojado.
 
-[Reportar un Error](https://github.com/andreamada/ServerKit/issues) · [Solicitar una Funcionalidad](https://github.com/andreamada/ServerKit/issues)
+[Reportar un Error](https://github.com/jhd3197/ServerKit/issues) · [Solicitar una Funcionalidad](https://github.com/jhd3197/ServerKit/issues)
 
 Hecho con ❤️ por [Juan Denis](https://juandenis.com)
 

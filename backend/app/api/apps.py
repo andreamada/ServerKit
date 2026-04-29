@@ -428,9 +428,6 @@ def start_app(app_id):
         result = DockerService.compose_up(app.root_path, detach=True)
         if not result.get('success'):
             return jsonify({'error': result.get('error', 'Failed to start containers')}), 400
-        if app.port:
-            from app.services.firewall_service import FirewallService
-            FirewallService.allow_port(int(app.port))
 
     app.status = 'running'
     db.session.commit()

@@ -62,7 +62,7 @@ sudo usermod -aG docker $USER
 ```bash
 # Clone the repo (or navigate to your mounted Windows folder)
 cd ~
-git clone https://github.com/andreamada/ServerKit.git
+git clone https://github.com/jhd3197/ServerKit.git
 cd ServerKit
 
 # Create virtual environment

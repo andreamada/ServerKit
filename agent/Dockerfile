@@ -72,7 +72,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 LABEL org.opencontainers.image.title="ServerKit Agent" \
       org.opencontainers.image.description="Remote server management agent for ServerKit" \
       org.opencontainers.image.vendor="ServerKit" \
-      org.opencontainers.image.source="https://github.com/andreamada/ServerKit"
+      org.opencontainers.image.source="https://github.com/jhd3197/ServerKit"
 
 # Default user (can be overridden for Docker socket access)
 USER serverkit

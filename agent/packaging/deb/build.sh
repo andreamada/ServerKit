@@ -59,7 +59,7 @@ Description: $DESCRIPTION
   - Auto-reconnect with exponential backoff
 Depends: ca-certificates
 Suggests: docker-ce | docker.io
-Homepage: https://github.com/andreamada/ServerKit
+Homepage: https://github.com/jhd3197/ServerKit
 EOF
 
 # Create conffiles (list of config files that shouldn't be overwritten)
@@ -71,7 +71,7 @@ EOF
 cat > "$PKG_DIR/lib/systemd/system/serverkit-agent.service" << EOF
 [Unit]
 Description=ServerKit Agent
-Documentation=https://github.com/andreamada/ServerKit
+Documentation=https://github.com/jhd3197/ServerKit
 After=network-online.target docker.service
 Wants=network-online.target
 Requires=docker.service

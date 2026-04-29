@@ -157,7 +157,7 @@ const WhiteLabelTab = () => {
                                     If ServerKit is useful to you, please consider starring the project — it helps the community grow!
                                 </p>
                                 <a
-                                    href="https://github.com/andreamada/ServerKit"
+                                    href="https://github.com/jhd3197/ServerKit"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="btn btn-primary btn-sm"

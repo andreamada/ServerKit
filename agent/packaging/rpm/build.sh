@@ -44,7 +44,7 @@ cp "$BINARY_PATH" "$SOURCE_DIR/serverkit-agent"
 cat > "$SOURCE_DIR/serverkit-agent.service" << EOF
 [Unit]
 Description=ServerKit Agent
-Documentation=https://github.com/andreamada/ServerKit
+Documentation=https://github.com/jhd3197/ServerKit
 After=network-online.target docker.service
 Wants=network-online.target
 Requires=docker.service
@@ -121,7 +121,7 @@ Release:        1%{?dist}
 Summary:        ServerKit Agent - Remote server management agent
 
 License:        MIT
-URL:            https://github.com/andreamada/ServerKit
+URL:            https://github.com/jhd3197/ServerKit
 Source0:        serverkit-agent-%{version}.tar.gz
 
 Requires:       ca-certificates

@@ -60,7 +60,7 @@ run_cli() {
 
 # Version management
 VERSION_FILE="$INSTALL_DIR/VERSION"
-REMOTE_VERSION_URL="https://raw.githubusercontent.com/andreamada/serverkit/main/VERSION"
+REMOTE_VERSION_URL="https://raw.githubusercontent.com/jhd3197/ServerKit/main/VERSION"
 
 get_local_version() {
     if [ -f "$VERSION_FILE" ]; then

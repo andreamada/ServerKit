@@ -71,7 +71,7 @@ docker compose -f docker-compose.dev.yml up --build  # Linux/Mac
 ```bash
 git clone https://github.com/YOUR_USERNAME/ServerKit.git
 cd ServerKit
-git remote add upstream https://github.com/andreamada/ServerKit.git
+git remote add upstream https://github.com/jhd3197/ServerKit.git
 git checkout dev
 ```
 
@@ -361,8 +361,8 @@ We especially welcome contributions in these areas:
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/andreamada/ServerKit/discussions)
-- Check existing [Issues](https://github.com/andreamada/ServerKit/issues)
+- Open a [GitHub Discussion](https://github.com/jhd3197/ServerKit/discussions)
+- Check existing [Issues](https://github.com/jhd3197/ServerKit/issues)
 - Review the [Documentation](docs/README.md)
 
 ---

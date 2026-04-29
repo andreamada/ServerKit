@@ -9,7 +9,7 @@ Complete guide for deploying ServerKit on Ubuntu servers.
 curl -fsSL https://serverkit.ai/install.sh | bash
 
 # Or clone and install manually
-git clone https://github.com/andreamada/serverkit.git
+git clone https://github.com/jhd3197/ServerKit.git
 cd serverkit
 chmod +x serverkit
 ./serverkit install
@@ -157,7 +157,7 @@ docker --version
 ### 2. Clone Repository
 
 ```bash
-git clone https://github.com/andreamada/serverkit.git /opt/serverkit
+git clone https://github.com/jhd3197/ServerKit.git /opt/serverkit
 cd /opt/serverkit
 ```
 
@@ -362,5 +362,5 @@ serverkit unlock-user
 
 ## Support
 
-- GitHub Issues: https://github.com/andreamada/serverkit/issues
-- Documentation: https://github.com/andreamada/serverkit/wiki
+- GitHub Issues: https://github.com/jhd3197/ServerKit/issues
+- Documentation: https://github.com/jhd3197/ServerKit/wiki

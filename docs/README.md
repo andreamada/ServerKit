@@ -253,14 +253,14 @@ See [Installation Guide - Troubleshooting](INSTALLATION.md#troubleshooting) for 
 - [Main README](../README.md) - Project overview and quick start
 - [Roadmap](../ROADMAP.md) - Development plans and upcoming features
 - [Contributing Guide](../CONTRIBUTING.md) - How to contribute
-- [GitHub Issues](https://github.com/andreamada/ServerKit/issues) - Report bugs or request features
+- [GitHub Issues](https://github.com/jhd3197/ServerKit/issues) - Report bugs or request features
 
 ---
 
 ## Support
 
-- **Bug Reports:** [GitHub Issues](https://github.com/andreamada/ServerKit/issues)
-- **Feature Requests:** [GitHub Issues](https://github.com/andreamada/ServerKit/issues) with `enhancement` label
+- **Bug Reports:** [GitHub Issues](https://github.com/jhd3197/ServerKit/issues)
+- **Feature Requests:** [GitHub Issues](https://github.com/jhd3197/ServerKit/issues) with `enhancement` label
 - **Security Issues:** Please report privately via GitHub Security Advisories
 
 ---

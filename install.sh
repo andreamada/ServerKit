@@ -281,7 +281,7 @@ if [ -d "$INSTALL_DIR" ]; then
     git fetch origin
     git reset --hard origin/main
 else
-    git clone https://github.com/andreamada/serverkit.git "$INSTALL_DIR"
+    git clone https://github.com/jhd3197/ServerKit.git "$INSTALL_DIR"
     cd "$INSTALL_DIR"
 fi
 
