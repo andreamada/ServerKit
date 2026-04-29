@@ -1,6 +1,6 @@
 module github.com/serverkit/agent
 
-go 1.25.0
+go 1.23.0
 
 require (
 	fyne.io/systray v1.11.0
@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/shirou/gopsutil/v3 v3.24.1
 	github.com/spf13/cobra v1.8.0
-	golang.org/x/term v0.42.0
+	golang.org/x/term v0.27.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -38,7 +38,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
