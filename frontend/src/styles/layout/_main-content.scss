@@ -8,17 +8,9 @@
 }
 
 .main-content {
-    margin-left: $sidebar-width;
-    flex: 1;
-    padding: $space-10;
-    overflow-y: auto;
-    background-image:
-        linear-gradient(var(--grid-color) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-    background-size: 40px 40px;
+    background-color: hsl(var(--background));
 
     @media (max-width: $breakpoint-md) {
-        margin-left: 0;
         padding: $space-5;
     }
 

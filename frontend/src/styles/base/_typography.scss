@@ -23,11 +23,11 @@ h4 { font-size: $font-size-base; }
 .text-danger { color: $danger; }
 .text-accent { color: $accent-primary; }
 
-// Weight utilities
-.font-normal { font-weight: $font-weight-normal; }
-.font-medium { font-weight: $font-weight-medium; }
-.font-semibold { font-weight: $font-weight-semibold; }
-.font-bold { font-weight: $font-weight-bold; }
+// Weight utilities (prefixed to avoid conflict with Tailwind)
+.sk-font-normal { font-weight: $font-weight-normal; }
+.sk-font-medium { font-weight: $font-weight-medium; }
+.sk-font-semibold { font-weight: $font-weight-semibold; }
+.sk-font-bold { font-weight: $font-weight-bold; }
 
 // Mono text
 .mono {
@@ -35,8 +35,8 @@ h4 { font-size: $font-size-base; }
     font-size: $font-size-sm;
 }
 
-// Truncate
-.truncate {
+// Truncate (sk- prefix avoids conflict with Tailwind .truncate)
+.sk-truncate {
     @include truncate();
 }
 

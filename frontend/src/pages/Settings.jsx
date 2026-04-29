@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import useTabParam from '../hooks/useTabParam';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { cn } from '../lib/utils';
+import { Separator } from '../components/ui/separator';
 import ProfileTab from '../components/settings/ProfileTab';
 import SecuritySettingsTab from '../components/settings/SecuritySettingsTab';
 import AppearanceTab from '../components/settings/AppearanceTab';
@@ -12,14 +14,45 @@ import SystemTab from '../components/settings/SystemTab';
 import UsersTab from '../components/settings/UsersTab';
 import ActivityTab from '../components/settings/ActivityTab';
 import SiteSettingsTab from '../components/settings/SiteSettingsTab';
+import PricingPlansTab from '../components/settings/PricingPlansTab';
 import SSOConfigTab from '../components/settings/SSOConfigTab';
 import ApiSettingsTab from '../components/settings/ApiSettingsTab';
 import MigrationHistoryTab from '../components/settings/MigrationHistoryTab';
 import IconReferenceTab from '../components/settings/IconReferenceTab';
 import AboutTab from '../components/settings/AboutTab';
-import { Activity, Code, Database, Layers } from 'lucide-react';
+import {
+    User, Lock, Bell, Sun, LayoutTemplate, Layers,
+    Users, Activity, Settings2, CreditCard, LogIn,
+    Code, Database, Monitor, Info,
+} from 'lucide-react';
 
-const VALID_TABS = ['profile', 'security', 'appearance', 'sidebar', 'whitelabel', 'notifications', 'system', 'users', 'activity', 'site', 'sso', 'api', 'migrations', 'developer', 'about'];
+const VALID_TABS = ['profile', 'security', 'appearance', 'sidebar', 'whitelabel', 'notifications', 'system', 'users', 'activity', 'site', 'sso', 'api', 'migrations', 'developer', 'about', 'pricing'];
+
+function NavItem({ tab, label, icon: Icon, activeTab, setActiveTab }) {
+    const active = activeTab === tab;
+    return (
+        <button
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+                'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                active
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            )}
+        >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+        </button>
+    );
+}
+
+function NavSection({ title }) {
+    return (
+        <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground opacity-60">
+            {title}
+        </p>
+    );
+}
 
 const Settings = () => {
     const [activeTab, setActiveTab] = useTabParam('/settings', VALID_TABS);
@@ -35,193 +68,72 @@ const Settings = () => {
     }, [isAdmin]);
 
     return (
-        <div className="page settings-page">
-            <div className="page-header">
-                <div>
-                    <h1>Settings</h1>
-                    <p className="page-subtitle">Manage your account and system preferences</p>
-                </div>
+        <div className="flex flex-col gap-6">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
+                <p className="text-sm text-muted-foreground">Manage your account and system preferences.</p>
             </div>
 
-            <div className="settings-layout">
-                <nav className="settings-nav">
-                    <div className="settings-nav-divider">Account</div>
-                    <button
-                        className={`settings-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('profile')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                        Profile
-                    </button>
-                    <button
-                        className={`settings-nav-item ${activeTab === 'security' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('security')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                        Security
-                    </button>
-                    <button
-                        className={`settings-nav-item ${activeTab === 'notifications' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('notifications')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                        </svg>
-                        Notifications
-                    </button>
-                    <div className="settings-nav-divider">Preferences</div>
-                    <button
-                        className={`settings-nav-item ${activeTab === 'appearance' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('appearance')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18">
-                            <circle cx="12" cy="12" r="5"/>
-                            <line x1="12" y1="1" x2="12" y2="3"/>
-                            <line x1="12" y1="21" x2="12" y2="23"/>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                            <line x1="1" y1="12" x2="3" y2="12"/>
-                            <line x1="21" y1="12" x2="23" y2="12"/>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                        </svg>
-                        Appearance
-                    </button>
-                    <button
-                        className={`settings-nav-item ${activeTab === 'sidebar' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('sidebar')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <line x1="9" y1="3" x2="9" y2="21"/>
-                        </svg>
-                        Sidebar
-                    </button>
-                    <button
-                        className={`settings-nav-item ${activeTab === 'whitelabel' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('whitelabel')}
-                    >
-                        <Layers size={18} />
-                        White Label
-                    </button>
+            <Separator />
+
+            <div className="flex gap-8">
+                {/* Sidebar nav */}
+                <nav className="flex w-44 shrink-0 flex-col gap-0.5">
+                    <NavSection title="Account" />
+                    <NavItem tab="profile"       label="Profile"        icon={User}           activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <NavItem tab="security"      label="Security"       icon={Lock}           activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <NavItem tab="notifications" label="Notifications"  icon={Bell}           activeTab={activeTab} setActiveTab={setActiveTab} />
+
+                    <NavSection title="Preferences" />
+                    <NavItem tab="appearance"    label="Appearance"     icon={Sun}            activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <NavItem tab="sidebar"       label="Sidebar"        icon={LayoutTemplate} activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <NavItem tab="whitelabel"    label="White Label"    icon={Layers}         activeTab={activeTab} setActiveTab={setActiveTab} />
+
                     {isAdmin && (
                         <>
-                            <div className="settings-nav-divider">Admin</div>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'users' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('users')}
-                            >
-                                <svg viewBox="0 0 24 24" width="18" height="18">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                    <circle cx="9" cy="7" r="4"/>
-                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                                </svg>
-                                Users
-                            </button>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'activity' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('activity')}
-                            >
-                                <Activity size={18} />
-                                Activity
-                            </button>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'site' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('site')}
-                            >
-                                <svg viewBox="0 0 24 24" width="18" height="18">
-                                    <circle cx="12" cy="12" r="3"/>
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                                </svg>
-                                Site Settings
-                            </button>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'sso' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('sso')}
-                            >
-                                <svg viewBox="0 0 24 24" width="18" height="18">
-                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                                    <polyline points="10 17 15 12 10 7"/>
-                                    <line x1="15" y1="12" x2="3" y2="12"/>
-                                </svg>
-                                SSO
-                            </button>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'api' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('api')}
-                            >
-                                <Code size={18} />
-                                API
-                            </button>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'migrations' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('migrations')}
-                            >
-                                <Database size={18} />
-                                Migrations
-                            </button>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'system' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('system')}
-                            >
-                                <svg viewBox="0 0 24 24" width="18" height="18">
-                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                                    <line x1="8" y1="21" x2="16" y2="21"/>
-                                    <line x1="12" y1="17" x2="12" y2="21"/>
-                                </svg>
-                                System Info
-                            </button>
+                            <NavSection title="Admin" />
+                            <NavItem tab="users"    label="Users"         icon={Users}     activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavItem tab="activity" label="Activity"      icon={Activity}  activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavItem tab="site"     label="Site Settings" icon={Settings2} activeTab={activeTab} setActiveTab={setActiveTab} />
+
+                            <NavSection title="Workspace" />
+                            <NavItem tab="pricing"    label="Pricing Plans" icon={CreditCard} activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavItem tab="sso"        label="SSO"           icon={LogIn}      activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavItem tab="api"        label="API"           icon={Code}       activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavItem tab="migrations" label="Migrations"    icon={Database}   activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavItem tab="system"     label="System Info"   icon={Monitor}    activeTab={activeTab} setActiveTab={setActiveTab} />
                         </>
                     )}
+
                     {devMode && isAdmin && (
                         <>
-                            <div className="settings-nav-divider">Developer</div>
-                            <button
-                                className={`settings-nav-item ${activeTab === 'developer' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('developer')}
-                            >
-                                <Code size={18} />
-                                Icon Reference
-                            </button>
+                            <NavSection title="Developer" />
+                            <NavItem tab="developer" label="Icon Reference" icon={Code} activeTab={activeTab} setActiveTab={setActiveTab} />
                         </>
                     )}
-                    <button
-                        className={`settings-nav-item ${activeTab === 'about' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('about')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="16" x2="12" y2="12"/>
-                            <line x1="12" y1="8" x2="12.01" y2="8"/>
-                        </svg>
-                        About
-                    </button>
+
+                    <NavSection title="General" />
+                    <NavItem tab="about" label="About" icon={Info} activeTab={activeTab} setActiveTab={setActiveTab} />
                 </nav>
 
-                <div className="settings-content">
-                    {activeTab === 'profile' && <ProfileTab />}
-                    {activeTab === 'security' && <SecuritySettingsTab />}
-                    {activeTab === 'appearance' && <AppearanceTab />}
-                    {activeTab === 'sidebar' && <SidebarSettings />}
-                    {activeTab === 'whitelabel' && <WhiteLabelTab />}
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    {activeTab === 'profile'       && <ProfileTab />}
+                    {activeTab === 'security'      && <SecuritySettingsTab />}
+                    {activeTab === 'appearance'    && <AppearanceTab />}
+                    {activeTab === 'sidebar'       && <SidebarSettings />}
+                    {activeTab === 'whitelabel'    && <WhiteLabelTab />}
                     {activeTab === 'notifications' && <NotificationsTab />}
-                    {activeTab === 'users' && isAdmin && <UsersTab />}
-                    {activeTab === 'activity' && isAdmin && <ActivityTab />}
-                    {activeTab === 'site' && isAdmin && <SiteSettingsTab onDevModeChange={setDevMode} />}
-                    {activeTab === 'sso' && isAdmin && <SSOConfigTab />}
-                    {activeTab === 'api' && isAdmin && <ApiSettingsTab />}
-                    {activeTab === 'migrations' && isAdmin && <MigrationHistoryTab />}
-                    {activeTab === 'system' && isAdmin && <SystemTab />}
-                    {activeTab === 'developer' && devMode && isAdmin && <IconReferenceTab />}
-                    {activeTab === 'about' && <AboutTab />}
+                    {activeTab === 'users'         && isAdmin && <UsersTab />}
+                    {activeTab === 'activity'      && isAdmin && <ActivityTab />}
+                    {activeTab === 'site'          && isAdmin && <SiteSettingsTab onDevModeChange={setDevMode} />}
+                    {activeTab === 'pricing'       && isAdmin && <PricingPlansTab />}
+                    {activeTab === 'sso'           && isAdmin && <SSOConfigTab />}
+                    {activeTab === 'api'           && isAdmin && <ApiSettingsTab />}
+                    {activeTab === 'migrations'    && isAdmin && <MigrationHistoryTab />}
+                    {activeTab === 'system'        && isAdmin && <SystemTab />}
+                    {activeTab === 'developer'     && devMode && isAdmin && <IconReferenceTab />}
+                    {activeTab === 'about'         && <AboutTab />}
                 </div>
             </div>
         </div>

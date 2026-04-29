@@ -76,10 +76,12 @@ export function ThemeProvider({ children }) {
         }
     });
 
-    // Update the DOM attribute and resolved theme
+    // Update the DOM attribute, .dark class, and resolved theme
     const applyTheme = useCallback((newTheme) => {
+        const resolved = getResolvedTheme(newTheme);
         document.documentElement.setAttribute('data-theme', newTheme);
-        setResolvedTheme(getResolvedTheme(newTheme));
+        document.documentElement.classList.toggle('dark', resolved === 'dark');
+        setResolvedTheme(resolved);
     }, []);
 
     // Public setter that updates state, localStorage, and DOM

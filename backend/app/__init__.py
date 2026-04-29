@@ -313,7 +313,9 @@ def create_app(config_name=None):
 
     # Register blueprints - Workspaces
     from app.api.workspaces import workspaces_bp
+    from app.api.pricing_plans import pricing_plans_bp
     app.register_blueprint(workspaces_bp, url_prefix='/api/v1/workspaces')
+    app.register_blueprint(pricing_plans_bp, url_prefix='/api/v1/pricing-plans')
 
     # Register blueprints - Advanced SSL
     from app.api.advanced_ssl import advanced_ssl_bp

@@ -697,10 +697,9 @@
     border: 1px solid $border-default;
     border-radius: $radius-lg;
     box-shadow: $shadow-sm;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: box-shadow 0.2s ease;
 
     &:hover {
-        transform: translateY(-2px);
         box-shadow: $shadow-md;
     }
 

@@ -25,6 +25,7 @@ from app.models.metric_alert import ServerAlertThreshold, MetricAlert
 from app.models.agent_plugin import AgentPlugin, AgentPluginInstall
 from app.models.server_template import ServerTemplate, ServerTemplateAssignment
 from app.models.workspace import Workspace, WorkspaceMember, WorkspaceApiKey
+from app.models.pricing_plan import PricingPlan
 from app.models.dns_zone import DNSZone, DNSRecord
 from app.models.status_page import StatusPage, StatusComponent, HealthCheck, StatusIncident, StatusIncidentUpdate
 from app.models.cloud_server import CloudProvider, CloudServer, CloudSnapshot
@@ -44,6 +45,7 @@ __all__ = [
     'AgentPlugin', 'AgentPluginInstall',
     'ServerTemplate', 'ServerTemplateAssignment',
     'Workspace', 'WorkspaceMember', 'WorkspaceApiKey',
+    'PricingPlan',
     'DNSZone', 'DNSRecord',
     'StatusPage', 'StatusComponent', 'HealthCheck', 'StatusIncident', 'StatusIncidentUpdate',
     'CloudProvider', 'CloudServer', 'CloudSnapshot',

@@ -11,46 +11,57 @@
     }
 }
 
-// Primary button (accent color)
+// Primary button
 .btn-primary {
-    background-color: $accent-primary;
-    color: white;
-    box-shadow: $shadow-accent;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
 
     &:hover:not(:disabled) {
-        background-color: $accent-hover;
+        background-color: hsl(var(--primary) / 0.9);
     }
 }
 
 // Secondary button (outlined)
 .btn-secondary {
-    background-color: transparent;
-    border-color: $border-active;
-    color: $text-primary;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border-color: hsl(var(--border));
 
     &:hover:not(:disabled) {
-        background-color: $bg-hover;
+        background-color: hsl(var(--secondary) / 0.8);
     }
 }
 
 // Danger button
 .btn-danger {
-    background: $danger;
-    color: white;
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
 
     &:hover:not(:disabled) {
-        background: $danger-hover;
+        background: hsl(var(--destructive) / 0.9);
     }
 }
 
 // Ghost button (no border)
 .btn-ghost {
     background: transparent;
-    color: $text-secondary;
+    color: hsl(var(--foreground));
 
     &:hover:not(:disabled) {
-        background-color: $bg-hover;
-        color: $text-primary;
+        background-color: hsl(var(--accent));
+        color: hsl(var(--accent-foreground));
+    }
+}
+
+// Outline button
+.btn-outline {
+    background: transparent;
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
+
+    &:hover:not(:disabled) {
+        background-color: hsl(var(--accent));
+        color: hsl(var(--accent-foreground));
     }
 }
 

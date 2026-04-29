@@ -9,6 +9,9 @@ import api from '../services/api';
 import { useMetrics } from '../hooks/useMetrics';
 import MetricsGraph from '../components/MetricsGraph';
 import useDashboardLayout from '../hooks/useDashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 
 // Refresh interval options in seconds
 const REFRESH_OPTIONS = [
@@ -290,105 +293,115 @@ const Dashboard = () => {
                 {widgets.filter(w => w.visible).map(w => {
                     const WIDGET_RENDERERS = {
                         cpu: () => (
-                            <div key="cpu" className="metric-tile">
-                                <div className="tile-head">
-                                    <span className="tile-title">CPU</span>
-                                    <Zap size={16} className="tile-icon cpu" />
-                                </div>
-                                <div className="tile-val">{(metrics?.cpu?.percent || 0).toFixed(1)}%</div>
-                                <div className="tile-sub">
-                                    <span>Cores: {metrics?.cpu?.count_logical || 0}</span>
-                                </div>
-                            </div>
+                            <Card key="cpu" className="metric-tile">
+                                <CardContent className="p-5">
+                                    <div className="tile-head">
+                                        <span className="tile-title">CPU</span>
+                                        <Zap size={16} className="tile-icon cpu" />
+                                    </div>
+                                    <div className="tile-val">{(metrics?.cpu?.percent || 0).toFixed(1)}%</div>
+                                    <div className="tile-sub">
+                                        <span>Cores: {metrics?.cpu?.count_logical || 0}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ),
                         ram: () => (
-                            <div key="ram" className="metric-tile">
-                                <div className="tile-head">
-                                    <span className="tile-title">RAM</span>
-                                    <Database size={16} className="tile-icon memory" />
-                                </div>
-                                <div className="tile-val">{metrics?.memory?.ram?.used_human || '0 GB'}</div>
-                                <div className="tile-sub">
-                                    <span>Total: {metrics?.memory?.ram?.total_human || '0 GB'}</span>
-                                    <span>Cached: {metrics?.memory?.ram?.cached_human || '0 GB'}</span>
-                                </div>
-                            </div>
+                            <Card key="ram" className="metric-tile">
+                                <CardContent className="p-5">
+                                    <div className="tile-head">
+                                        <span className="tile-title">RAM</span>
+                                        <Database size={16} className="tile-icon memory" />
+                                    </div>
+                                    <div className="tile-val">{metrics?.memory?.ram?.used_human || '0 GB'}</div>
+                                    <div className="tile-sub">
+                                        <span>Total: {metrics?.memory?.ram?.total_human || '0 GB'}</span>
+                                        <span>Cached: {metrics?.memory?.ram?.cached_human || '0 GB'}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ),
                         network: () => (
-                            <div key="network" className="metric-tile">
-                                <div className="tile-head">
-                                    <span className="tile-title">Network</span>
-                                    <Activity size={16} className="tile-icon network" />
-                                </div>
-                                <div className="tile-val">
-                                    {metrics?.network?.io?.bytes_sent_human || '0 B'}
-                                    <span className="tile-val-unit">sent</span>
-                                </div>
-                                <div className="tile-sub">
-                                    <span>In: {metrics?.network?.io?.bytes_recv_human || '0 B'}</span>
-                                    <span>Out: {metrics?.network?.io?.bytes_sent_human || '0 B'}</span>
-                                </div>
-                            </div>
+                            <Card key="network" className="metric-tile">
+                                <CardContent className="p-5">
+                                    <div className="tile-head">
+                                        <span className="tile-title">Network</span>
+                                        <Activity size={16} className="tile-icon network" />
+                                    </div>
+                                    <div className="tile-val">
+                                        {metrics?.network?.io?.bytes_sent_human || '0 B'}
+                                        <span className="tile-val-unit">sent</span>
+                                    </div>
+                                    <div className="tile-sub">
+                                        <span>In: {metrics?.network?.io?.bytes_recv_human || '0 B'}</span>
+                                        <span>Out: {metrics?.network?.io?.bytes_sent_human || '0 B'}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ),
                         disk: () => (
-                            <div key="disk" className="metric-tile">
-                                <div className="tile-head">
-                                    <span className="tile-title">Disk</span>
-                                    <HardDrive size={16} className="tile-icon disk" />
-                                </div>
-                                <div className="tile-val">
-                                    {(metrics?.disk?.partitions?.[0]?.percent || 0).toFixed(1)}%
-                                    <span className="tile-val-unit">used</span>
-                                </div>
-                                <div className="tile-sub">
-                                    <span>Used: {metrics?.disk?.partitions?.[0]?.used_human || '0 GB'}</span>
-                                    <span>Free: {metrics?.disk?.partitions?.[0]?.free_human || '0 GB'}</span>
-                                </div>
-                            </div>
+                            <Card key="disk" className="metric-tile">
+                                <CardContent className="p-5">
+                                    <div className="tile-head">
+                                        <span className="tile-title">Disk</span>
+                                        <HardDrive size={16} className="tile-icon disk" />
+                                    </div>
+                                    <div className="tile-val">
+                                        {(metrics?.disk?.partitions?.[0]?.percent || 0).toFixed(1)}%
+                                        <span className="tile-val-unit">used</span>
+                                    </div>
+                                    <div className="tile-sub">
+                                        <span>Used: {metrics?.disk?.partitions?.[0]?.used_human || '0 GB'}</span>
+                                        <span>Free: {metrics?.disk?.partitions?.[0]?.free_human || '0 GB'}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ),
                         chart: () => (
-                            <div key="chart" className="chart-panel">
+                            <Card key="chart" className="chart-panel">
                                 <MetricsGraph timezone={serverTime?.timezone_id} />
-                            </div>
+                            </Card>
                         ),
                         specs: () => (
-                            <div key="specs" className="spec-panel">
-                                <h3 className="spec-panel-title">Quick Actions</h3>
-                                <button className="btn-action" onClick={() => navigate('/servers')}>
-                                    <span>Manage Servers</span>
-                                    <span><Server size={14} /></span>
-                                </button>
-                                <button className="btn-action" onClick={() => navigate('/docker')}>
-                                    <span>Docker Containers</span>
-                                    <span><Container size={14} /></span>
-                                </button>
-                                <button className="btn-action" onClick={() => navigate('/terminal')}>
-                                    <span>Open Terminal</span>
-                                    <span><Terminal size={14} /></span>
-                                </button>
+                            <Card key="specs" className="spec-panel">
+                                <CardContent className="p-5 flex flex-col gap-4">
+                                    <h3 className="spec-panel-title">Quick Actions</h3>
+                                    <button className="btn-action" onClick={() => navigate('/servers')}>
+                                        <span>Manage Servers</span>
+                                        <span><Server size={14} /></span>
+                                    </button>
+                                    <button className="btn-action" onClick={() => navigate('/docker')}>
+                                        <span>Docker Containers</span>
+                                        <span><Container size={14} /></span>
+                                    </button>
+                                    <button className="btn-action" onClick={() => navigate('/terminal')}>
+                                        <span>Open Terminal</span>
+                                        <span><Terminal size={14} /></span>
+                                    </button>
 
-                                <h3 className="spec-panel-title mt-6">Hardware Specs</h3>
-                                <div className="spec-row">
-                                    <span className="spec-label">Processor</span>
-                                    <span className="spec-data">{activeSysInfo?.cpu?.model || 'N/A'}</span>
-                                </div>
-                                <div className="spec-row">
-                                    <span className="spec-label">Architecture</span>
-                                    <span className="spec-data">{activeSysInfo?.cpu?.architecture || 'N/A'}</span>
-                                </div>
-                                <div className="spec-row">
-                                    <span className="spec-label">Swap Memory</span>
-                                    <span className="spec-data">{metrics?.memory?.swap?.total_human || 'N/A'}</span>
-                                </div>
-                            </div>
+                                    <h3 className="spec-panel-title mt-6">Hardware Specs</h3>
+                                    <div className="spec-row">
+                                        <span className="spec-label">Processor</span>
+                                        <span className="spec-data">{activeSysInfo?.cpu?.model || 'N/A'}</span>
+                                    </div>
+                                    <div className="spec-row">
+                                        <span className="spec-label">Architecture</span>
+                                        <span className="spec-data">{activeSysInfo?.cpu?.architecture || 'N/A'}</span>
+                                    </div>
+                                    <div className="spec-row">
+                                        <span className="spec-label">Swap Memory</span>
+                                        <span className="spec-data">{metrics?.memory?.swap?.total_human || 'N/A'}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ),
                         processes: () => (
-                            <div key="processes" className="table-panel">
+                            <Card key="processes" className="table-panel">
                                 <div className="table-header">
                                     <span>Applications</span>
-                                    <button className="btn btn-sm btn-secondary" onClick={loadData}>
+                                    <Button variant="outline" size="sm" onClick={loadData}>
                                         <RefreshCw size={14} />
-                                    </button>
+                                    </Button>
                                 </div>
                                 <table className="data-table">
                                     <thead>
@@ -419,9 +432,9 @@ const Dashboard = () => {
                                                     </td>
                                                     <td>{app.app_type}</td>
                                                     <td>
-                                                        <span className={`badge badge-${app.status === 'running' ? 'running' : 'warning'}`}>
+                                                        <Badge variant={app.status === 'running' ? 'success' : 'warning'}>
                                                             {app.status?.toUpperCase()}
-                                                        </span>
+                                                        </Badge>
                                                     </td>
                                                     <td>{app.domains?.[0]?.name || '-'}</td>
                                                 </tr>
@@ -429,7 +442,7 @@ const Dashboard = () => {
                                         )}
                                     </tbody>
                                 </table>
-                            </div>
+                            </Card>
                         ),
                     };
                     return WIDGET_RENDERERS[w.id]?.();

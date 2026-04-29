@@ -84,10 +84,6 @@
 @mixin card-interactive() {
     @include card-base();
     cursor: pointer;
-
-    &:hover {
-        transform: translateY(-2px);
-    }
 }
 
 // --------------------------------------------
@@ -119,19 +115,24 @@
 @mixin button-base() {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: $space-2;
-    padding: $space-2 $space-5;
-    border-radius: $radius-lg;
+    padding: 0 $space-4;
+    height: 36px;
+    border-radius: var(--radius, 6px);
     border: 1px solid transparent;
-    font-size: $font-size-sm + 1;
+    font-size: 14px;
     font-weight: $font-weight-medium;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     cursor: pointer;
-    @include transition();
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
     background: none;
+    white-space: nowrap;
 
     &:disabled {
-        opacity: 0.6;
+        opacity: 0.5;
         cursor: not-allowed;
+        pointer-events: none;
     }
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
     Users,
     Shield,
@@ -209,8 +210,8 @@ const AgentFleet = () => {
                 </div>
             </div>
 
-            <div className="tabs-container">
-                <div className="tabs">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+                <TabsList>
                     {[
                         { key: 'dashboard', icon: Activity, label: 'Dashboard' },
                         { key: 'versions', icon: Package, label: 'Versions' },
@@ -219,25 +220,21 @@ const AgentFleet = () => {
                         { key: 'discovery', icon: Search, label: 'Discovery' },
                         { key: 'approvals', icon: Shield, label: 'Approvals' },
                     ].map(tab => (
-                        <button
-                            key={tab.key}
-                            className={`tab ${activeTab === tab.key ? 'active' : ''}`}
-                            onClick={() => setActiveTab(tab.key)}
-                        >
-                            <tab.icon size={18} />
+                        <TabsTrigger key={tab.key} value={tab.key}>
+                            <tab.icon size={16} />
                             {tab.label}
                             {tab.key === 'approvals' && pendingServers.length > 0 && (
-                                <span className="badge badge-error ml-2">{pendingServers.length}</span>
+                                <span className="badge badge-error ml-1">{pendingServers.length}</span>
                             )}
                             {tab.key === 'queue' && queuedCommands.length > 0 && (
-                                <span className="badge badge-warning ml-2">{queuedCommands.length}</span>
+                                <span className="badge badge-warning ml-1">{queuedCommands.length}</span>
                             )}
-                        </button>
+                        </TabsTrigger>
                     ))}
-                </div>
-            </div>
+                </TabsList>
+            </Tabs>
 
-            <div className="tab-content mt-6">
+            <div className="tab-content">
                 {/* ==================== Dashboard ==================== */}
                 {activeTab === 'dashboard' && health && (
                     <div className="space-y-6">

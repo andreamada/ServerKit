@@ -6,10 +6,9 @@
     @include card-base();
     padding: $space-6;
     position: relative;
-    overflow: hidden;
 
     &:hover {
-        transform: translateY(-2px);
+        /* no transform — matches shadcn-admin flat card style */
     }
 }
 

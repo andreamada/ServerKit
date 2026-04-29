@@ -64,6 +64,17 @@ class SettingsService:
         'rate_limit_elevated': {'value': '500 per minute', 'type': 'string', 'description': 'Rate limit for elevated API keys'},
         'rate_limit_unlimited': {'value': '5000 per minute', 'type': 'string', 'description': 'Rate limit for unlimited API keys'},
         'rate_limit_unauthenticated': {'value': '30 per minute', 'type': 'string', 'description': 'Rate limit for unauthenticated requests'},
+        # Company Settings (WaaS)
+        'company_currency': {'value': 'USD', 'type': 'string', 'description': 'Default currency for the platform'},
+        'company_name': {'value': '', 'type': 'string', 'description': 'Legal name of the company'},
+        'company_address': {'value': '', 'type': 'string', 'description': 'Business address'},
+        'company_city': {'value': '', 'type': 'string', 'description': 'Business city'},
+        'company_phone': {'value': '', 'type': 'string', 'description': 'Business contact phone'},
+        'company_email': {'value': '', 'type': 'string', 'description': 'Business contact email'},
+        'company_vat_id': {'value': '', 'type': 'string', 'description': 'Company VAT/Tax ID'},
+        'tax_enabled': {'value': False, 'type': 'boolean', 'description': 'Enable tax management'},
+        'tax_name': {'value': 'VAT', 'type': 'string', 'description': 'Name of the tax (e.g., VAT, GST)'},
+        'tax_amount': {'value': '0', 'type': 'string', 'description': 'Tax amount in percentage'},
     }
 
     @staticmethod

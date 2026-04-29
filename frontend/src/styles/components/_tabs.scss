@@ -3,17 +3,17 @@
 // ============================================
 
 .tabs-container {
-    overflow: hidden;
+    overflow: visible;
 }
 
 .tabs {
-    display: flex;
-    gap: $space-2;
-    border-bottom: 1px solid $border-subtle;
+    display: inline-flex;
+    gap: $space-1;
+    border-bottom: 1px solid hsl(var(--border));
     margin-bottom: $space-6;
     overflow-x: auto;
     scrollbar-width: none;
-    @include custom-scrollbar();
+    width: 100%;
 
     &::-webkit-scrollbar {
         display: none;
@@ -25,28 +25,44 @@
 }
 
 .tab {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: $space-2;
     background: none;
-    border: none;
-    padding: $space-3 $space-5;
-    color: $text-secondary;
-    font-size: $font-size-base;
+    border: 1px solid transparent;
+    border-radius: $radius-md $radius-md 0 0;
+    padding: 8px $space-3;
+    color: hsl(var(--foreground) / 0.6);
+    font-size: 14px;
     font-weight: $font-weight-medium;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
     margin-bottom: -1px;
-    @include transition();
+    transition: color 0.15s ease;
     white-space: nowrap;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        bottom: -1px;
+        height: 2px;
+        background: hsl(var(--foreground));
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
 
     &:hover {
-        color: $text-primary;
+        color: hsl(var(--foreground));
     }
 
     &.active {
-        color: $accent-primary;
-        border-bottom-color: $accent-primary;
+        color: hsl(var(--foreground));
+
+        &::after {
+            opacity: 1;
+        }
     }
 }
 
@@ -57,8 +73,8 @@
 // tabs-nav variant (used by Servers, Domains, etc.)
 .tabs-nav {
     display: flex;
-    gap: $space-1;
-    border-bottom: 1px solid $border-subtle;
+    gap: 0;
+    border-bottom: 1px solid hsl(var(--border));
     margin-bottom: $space-6;
 
     &.tabs-nav-scrollable {
@@ -72,28 +88,44 @@
 }
 
 .tab-btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: $space-2;
     background: none;
-    border: none;
-    padding: $space-3 $space-5;
-    color: $text-secondary;
-    font-size: $font-size-base;
+    border: 1px solid transparent;
+    border-radius: $radius-md $radius-md 0 0;
+    padding: 8px $space-3;
+    color: hsl(var(--foreground) / 0.6);
+    font-size: 14px;
     font-weight: $font-weight-medium;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
     margin-bottom: -1px;
-    @include transition();
+    transition: color 0.15s ease;
     white-space: nowrap;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        bottom: -1px;
+        height: 2px;
+        background: hsl(var(--foreground));
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
 
     &:hover {
-        color: $text-primary;
+        color: hsl(var(--foreground));
     }
 
     &.active {
-        color: $accent-primary;
-        border-bottom-color: $accent-primary;
+        color: hsl(var(--foreground));
+
+        &::after {
+            opacity: 1;
+        }
     }
 }
 
