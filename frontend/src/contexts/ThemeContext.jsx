@@ -76,6 +76,24 @@ export function ThemeProvider({ children }) {
         }
     });
 
+    useEffect(() => {
+        const loadWhiteLabel = async () => {
+            try {
+                const res = await api.getWhiteLabel();
+                if (res.enabled !== undefined) {
+                    setWhiteLabel(res);
+                    localStorage.setItem('white_label', JSON.stringify(res));
+                    if (res.enabled && res.brandName) {
+                        document.title = res.brandName;
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to load white-label config');
+            }
+        };
+        loadWhiteLabel();
+    }, []);
+
     // Update the DOM attribute, .dark class, and resolved theme
     const applyTheme = useCallback((newTheme) => {
         const resolved = getResolvedTheme(newTheme);

@@ -5,6 +5,8 @@ import { useToast } from '../contexts/ToastContext';
 import { copyToClipboard } from '../utils/clipboard';
 import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const VALID_TABS = ['overview', 'repositories', 'access', 'webhooks', 'deployments', 'settings'];
 
@@ -901,14 +903,14 @@ function Git() {
                                                 )}
                                             </div>
                                             <div className="branch-selector">
-                                                <select
-                                                    value={selectedBranch || ''}
-                                                    onChange={(e) => changeBranch(e.target.value)}
-                                                >
-                                                    {branches.map((b) => (
-                                                        <option key={b.name} value={b.name}>{b.name}</option>
-                                                    ))}
-                                                </select>
+                                                <Select value={selectedBranch || ''} onValueChange={changeBranch}>
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {branches.map((b) => (
+                                                            <SelectItem key={b.name} value={b.name}>{b.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
 
@@ -1501,14 +1503,14 @@ function Git() {
 
                             <div className="form-group">
                                 <label>Source</label>
-                                <select
-                                    value={webhookForm.source}
-                                    onChange={(e) => setWebhookForm({ ...webhookForm, source: e.target.value })}
-                                >
-                                    <option value="github">GitHub</option>
-                                    <option value="gitlab">GitLab</option>
-                                    <option value="bitbucket">Bitbucket</option>
-                                </select>
+                                <Select value={webhookForm.source} onValueChange={v => setWebhookForm({ ...webhookForm, source: v })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="github">GitHub</SelectItem>
+                                        <SelectItem value="gitlab">GitLab</SelectItem>
+                                        <SelectItem value="bitbucket">Bitbucket</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="form-group">
@@ -1534,14 +1536,14 @@ function Git() {
 
                                 <div className="form-group">
                                     <label>Sync Direction</label>
-                                    <select
-                                        value={webhookForm.syncDirection}
-                                        onChange={(e) => setWebhookForm({ ...webhookForm, syncDirection: e.target.value })}
-                                    >
-                                        <option value="pull">Pull (External → Local)</option>
-                                        <option value="push">Push (Local → External)</option>
-                                        <option value="bidirectional">Bidirectional</option>
-                                    </select>
+                                    <Select value={webhookForm.syncDirection} onValueChange={v => setWebhookForm({ ...webhookForm, syncDirection: v })}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="pull">Pull (External → Local)</SelectItem>
+                                            <SelectItem value="push">Push (Local → External)</SelectItem>
+                                            <SelectItem value="bidirectional">Bidirectional</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
 

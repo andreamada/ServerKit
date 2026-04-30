@@ -5,6 +5,8 @@ import { useToast } from '../contexts/ToastContext';
 import { useResourceTier } from '../contexts/ResourceTierContext';
 import ResourceGate from '../components/ResourceGate';
 import Spinner from '../components/Spinner';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 function WordPress() {
     const [sites, setSites] = useState([]);
@@ -233,10 +235,10 @@ function WordPress() {
                             </div>
 
                             <div className="form-group">
-                                <label>
+                                <Label>
                                     Site Name <span className="required">*</span>
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     type="text"
                                     value={createForm.name}
                                     onChange={e => setCreateForm({ ...createForm, name: e.target.value })}
@@ -247,8 +249,8 @@ function WordPress() {
                             </div>
 
                             <div className="form-group">
-                                <label>Admin Email</label>
-                                <input
+                                <Label>Admin Email</Label>
+                                <Input
                                     type="email"
                                     value={createForm.adminEmail}
                                     onChange={e => setCreateForm({ ...createForm, adminEmail: e.target.value })}

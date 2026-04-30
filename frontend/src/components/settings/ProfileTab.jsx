@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 const ProfileTab = () => {
     const { user, updateUser } = useAuth();
@@ -49,8 +51,8 @@ const ProfileTab = () => {
 
             <form onSubmit={handleSubmit} className="settings-form">
                 <div className="form-group">
-                    <label>Username</label>
-                    <input
+                    <Label>Username</Label>
+                    <Input
                         type="text"
                         value={formData.username}
                         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -59,8 +61,8 @@ const ProfileTab = () => {
                 </div>
 
                 <div className="form-group">
-                    <label>Email Address</label>
-                    <input
+                    <Label>Email Address</Label>
+                    <Input
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -69,18 +71,17 @@ const ProfileTab = () => {
                 </div>
 
                 <div className="form-group">
-                    <label>Role</label>
-                    <input type="text" value={user?.role || 'user'} disabled className="input-disabled" />
+                    <Label>Role</Label>
+                    <Input type="text" value={user?.role || 'user'} disabled />
                     <span className="form-help">Contact an administrator to change your role</span>
                 </div>
 
                 <div className="form-group">
-                    <label>Member Since</label>
-                    <input
+                    <Label>Member Since</Label>
+                    <Input
                         type="text"
                         value={user?.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
                         disabled
-                        className="input-disabled"
                     />
                 </div>
 

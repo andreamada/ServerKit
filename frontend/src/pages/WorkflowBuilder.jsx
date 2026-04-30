@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { Input } from '../components/ui/input';
 import {
     ReactFlow,
     ReactFlowProvider,
@@ -863,7 +864,7 @@ const WorkflowCanvas = () => {
         <div className="workflow-canvas" ref={reactFlowWrapper}>
             <div className="workflow-toolbar">
                 <div className="toolbar-left">
-                    <input
+                    <Input
                         type="text"
                         className="workflow-name-input"
                         value={workflowName}

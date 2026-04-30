@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import useTabParam from '../hooks/useTabParam';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useConfirm } from '../hooks/useConfirm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
@@ -244,7 +246,7 @@ const LogFilesTab = () => {
                                     <circle cx="11" cy="11" r="8"/>
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                                 </svg>
-                                <input
+                                <Input
                                     type="text"
                                     value={searchPattern}
                                     onChange={(e) => setSearchPattern(e.target.value)}
@@ -252,17 +254,16 @@ const LogFilesTab = () => {
                                     placeholder="Search pattern..."
                                 />
                             </div>
-                            <select
-                                value={lineCount}
-                                onChange={(e) => setLineCount(parseInt(e.target.value))}
-                                className="lines-select"
-                            >
-                                <option value={50}>50 lines</option>
-                                <option value={100}>100 lines</option>
-                                <option value={200}>200 lines</option>
-                                <option value={500}>500 lines</option>
-                                <option value={1000}>1000 lines</option>
-                            </select>
+                            <Select value={String(lineCount)} onValueChange={(v) => setLineCount(parseInt(v))}>
+                                <SelectTrigger className="lines-select"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="50">50 lines</SelectItem>
+                                    <SelectItem value="100">100 lines</SelectItem>
+                                    <SelectItem value="200">200 lines</SelectItem>
+                                    <SelectItem value="500">500 lines</SelectItem>
+                                    <SelectItem value="1000">1000 lines</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="toolbar-right">
                             <label className="auto-refresh-toggle">
@@ -398,7 +399,7 @@ const JournalTab = () => {
                 <div className="control-group">
                     <label>{isJournalctl ? 'Service/Unit' : 'Filter by service'}</label>
                     <div className="input-with-suggestions">
-                        <input
+                        <Input
                             type="text"
                             value={unit}
                             onChange={(e) => setUnit(e.target.value)}
@@ -422,28 +423,33 @@ const JournalTab = () => {
 
                 <div className="control-group">
                     <label>Lines</label>
-                    <select value={lineCount} onChange={(e) => setLineCount(parseInt(e.target.value))}>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                        <option value={200}>200</option>
-                        <option value={500}>500</option>
-                    </select>
+                    <Select value={String(lineCount)} onValueChange={(v) => setLineCount(parseInt(v))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                            <SelectItem value="200">200</SelectItem>
+                            <SelectItem value="500">500</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {isJournalctl && (
                     <div className="control-group">
                         <label>Priority</label>
-                        <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                            <option value="">All</option>
-                            <option value="0">Emergency</option>
-                            <option value="1">Alert</option>
-                            <option value="2">Critical</option>
-                            <option value="3">Error</option>
-                            <option value="4">Warning</option>
-                            <option value="5">Notice</option>
-                            <option value="6">Info</option>
-                            <option value="7">Debug</option>
-                        </select>
+                        <Select value={priority} onValueChange={setPriority}>
+                            <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="0">Emergency</SelectItem>
+                                <SelectItem value="1">Alert</SelectItem>
+                                <SelectItem value="2">Critical</SelectItem>
+                                <SelectItem value="3">Error</SelectItem>
+                                <SelectItem value="4">Warning</SelectItem>
+                                <SelectItem value="5">Notice</SelectItem>
+                                <SelectItem value="6">Info</SelectItem>
+                                <SelectItem value="7">Debug</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 )}
 
@@ -533,7 +539,7 @@ const ProcessesTab = () => {
                             <circle cx="11" cy="11" r="8"/>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </svg>
-                        <input
+                        <Input
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -542,17 +548,23 @@ const ProcessesTab = () => {
                     </div>
                 </div>
                 <div className="toolbar-right">
-                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                        <option value="cpu">Sort by CPU</option>
-                        <option value="memory">Sort by Memory</option>
-                        <option value="pid">Sort by PID</option>
-                        <option value="name">Sort by Name</option>
-                    </select>
-                    <select value={limit} onChange={(e) => setLimit(parseInt(e.target.value))}>
-                        <option value={25}>25 processes</option>
-                        <option value={50}>50 processes</option>
-                        <option value={100}>100 processes</option>
-                    </select>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="cpu">Sort by CPU</SelectItem>
+                            <SelectItem value="memory">Sort by Memory</SelectItem>
+                            <SelectItem value="pid">Sort by PID</SelectItem>
+                            <SelectItem value="name">Sort by Name</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={String(limit)} onValueChange={(v) => setLimit(parseInt(v))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="25">25 processes</SelectItem>
+                            <SelectItem value="50">50 processes</SelectItem>
+                            <SelectItem value="100">100 processes</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <button className="btn btn-secondary btn-sm" onClick={loadProcesses}>
                         Refresh
                     </button>

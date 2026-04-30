@@ -3,6 +3,7 @@ import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../hooks/useConfirm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const CronJobs = () => {
     const toast = useToast();
@@ -436,16 +437,16 @@ const CronJobs = () => {
                                 {jobForm.usePreset ? (
                                     <div className="form-group">
                                         <label>Schedule Preset</label>
-                                        <select
-                                            value={jobForm.preset}
-                                            onChange={(e) => setJobForm({...jobForm, preset: e.target.value})}
-                                        >
-                                            {Object.entries(presets).map(([key, value]) => (
-                                                <option key={key} value={key}>
-                                                    {key.replace(/_/g, ' ')} ({value})
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <Select value={jobForm.preset} onValueChange={(v) => setJobForm({...jobForm, preset: v})}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {Object.entries(presets).map(([key, value]) => (
+                                                    <SelectItem key={key} value={key}>
+                                                        {key.replace(/_/g, ' ')} ({value})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 ) : (
                                     <div className="form-group">

@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const CHART_COLORS = [
     '#6366f1', '#ec4899', '#14b8a6', '#f59e0b',
@@ -372,11 +373,14 @@ const FleetMonitor = () => {
                                     </div>
                                     <div>
                                         <label className="text-sm font-medium mb-1 block">Metric</label>
-                                        <select className="form-select w-full" value={compMetric} onChange={e => setCompMetric(e.target.value)}>
-                                            {Object.entries(METRIC_LABELS).map(([k, v]) => (
-                                                <option key={k} value={k}>{v}</option>
-                                            ))}
-                                        </select>
+                                        <Select value={compMetric} onValueChange={setCompMetric}>
+                                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {Object.entries(METRIC_LABELS).map(([k, v]) => (
+                                                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div>
                                         <label className="text-sm font-medium mb-1 block">Period</label>
@@ -573,40 +577,41 @@ const FleetMonitor = () => {
                                 <div className="card-body space-y-4">
                                     <div className="form-group">
                                         <label>Server (leave empty for global)</label>
-                                        <select
-                                            className="form-select w-full"
-                                            value={newThreshold.server_id || ''}
-                                            onChange={e => setNewThreshold(p => ({ ...p, server_id: e.target.value || undefined }))}
-                                        >
-                                            <option value="">Global Default</option>
-                                            {servers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
+                                        <Select value={newThreshold.server_id || ''} onValueChange={v => setNewThreshold(p => ({ ...p, server_id: v || undefined }))}>
+                                            <SelectTrigger className="w-full"><SelectValue placeholder="All Servers" /></SelectTrigger>
+                                            <SelectContent>
+                                                {servers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
                                             <label>Metric</label>
-                                            <select className="form-select w-full" value={newThreshold.metric}
-                                                onChange={e => setNewThreshold(p => ({ ...p, metric: e.target.value }))}>
-                                                <option value="cpu">CPU</option>
-                                                <option value="memory">Memory</option>
-                                                <option value="disk">Disk</option>
-                                            </select>
+                                            <Select value={newThreshold.metric} onValueChange={v => setNewThreshold(p => ({ ...p, metric: v }))}>
+                                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="cpu">CPU</SelectItem>
+                                                    <SelectItem value="memory">Memory</SelectItem>
+                                                    <SelectItem value="disk">Disk</SelectItem>
+                                                    <SelectItem value="network">Network</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                         <div className="form-group">
                                             <label>Duration (seconds)</label>
-                                            <input type="number" className="form-input w-full" value={newThreshold.duration_seconds}
+                                            <Input type="number" className="w-full" value={newThreshold.duration_seconds}
                                                 onChange={e => setNewThreshold(p => ({ ...p, duration_seconds: parseInt(e.target.value) || 300 }))} />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
                                             <label>Warning (%)</label>
-                                            <input type="number" className="form-input w-full" value={newThreshold.warning_threshold}
+                                            <Input type="number" className="w-full" value={newThreshold.warning_threshold}
                                                 onChange={e => setNewThreshold(p => ({ ...p, warning_threshold: parseFloat(e.target.value) || 80 }))} />
                                         </div>
                                         <div className="form-group">
                                             <label>Critical (%)</label>
-                                            <input type="number" className="form-input w-full" value={newThreshold.critical_threshold}
+                                            <Input type="number" className="w-full" value={newThreshold.critical_threshold}
                                                 onChange={e => setNewThreshold(p => ({ ...p, critical_threshold: parseFloat(e.target.value) || 95 }))} />
                                         </div>
                                     </div>
@@ -671,20 +676,23 @@ const FleetMonitor = () => {
                                 <div className="flex gap-4 mb-6">
                                     <div className="form-group flex-1">
                                         <label>Server</label>
-                                        <select className="form-select w-full" value={forecastServer}
-                                            onChange={e => setForecastServer(e.target.value)}>
-                                            <option value="">Select a server...</option>
-                                            {servers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
+                                        <Select value={forecastServer} onValueChange={setForecastServer}>
+                                            <SelectTrigger className="w-full"><SelectValue placeholder="Select a server..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {servers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="form-group">
                                         <label>Metric</label>
-                                        <select className="form-select w-full" value={forecastMetric}
-                                            onChange={e => setForecastMetric(e.target.value)}>
-                                            <option value="disk">Disk</option>
-                                            <option value="memory">Memory</option>
-                                            <option value="cpu">CPU</option>
-                                        </select>
+                                        <Select value={forecastMetric} onValueChange={setForecastMetric}>
+                                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="disk">Disk</SelectItem>
+                                                <SelectItem value="memory">Memory</SelectItem>
+                                                <SelectItem value="cpu">CPU</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="form-group flex items-end">
                                         <button className="btn btn-primary" onClick={() => loadForecast()} disabled={!forecastServer}>
@@ -775,21 +783,24 @@ const FleetMonitor = () => {
                         <div className="card-body">
                             <div className="flex gap-3 mb-6">
                                 <div className="flex-1">
-                                    <input
+                                    <Input
                                         type="text"
-                                        className="form-input w-full"
+                                        className="w-full"
                                         placeholder="Search for servers, containers, tags..."
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleSearch()}
                                     />
                                 </div>
-                                <select className="form-select" value={searchType} onChange={e => setSearchType(e.target.value)}>
-                                    <option value="any">All Types</option>
-                                    <option value="server">Servers</option>
-                                    <option value="container">Containers</option>
-                                    <option value="tag">Tags</option>
-                                </select>
+                                <Select value={searchType} onValueChange={setSearchType}>
+                                    <SelectTrigger className="form-select"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="any">All Types</SelectItem>
+                                        <SelectItem value="server">Servers</SelectItem>
+                                        <SelectItem value="container">Containers</SelectItem>
+                                        <SelectItem value="tag">Tags</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <button className="btn btn-primary" onClick={handleSearch} disabled={searchQuery.length < 2}>
                                     <Search size={16} /> Search
                                 </button>

@@ -91,21 +91,29 @@
 // --------------------------------------------
 @mixin input-base() {
     width: 100%;
-    padding: $space-3 $space-4;
-    background: $bg-body;
-    border: 1px solid $border-subtle;
-    border-radius: $radius-lg;
-    color: $text-primary;
-    font-size: $font-size-base;
+    height: 36px;
+    padding: 0 $space-3;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--input));
+    border-radius: $radius-md;
+    color: hsl(var(--foreground));
+    font-size: $font-size-sm;
+    line-height: 1;
     @include transition(border-color);
 
     &:focus {
         border-color: $accent-primary;
         outline: none;
+        box-shadow: none;
     }
 
     &::placeholder {
-        color: $text-tertiary;
+        color: hsl(var(--muted-foreground));
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
 }
 

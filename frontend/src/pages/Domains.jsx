@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const Domains = () => {
     const toast = useToast();
@@ -356,7 +358,7 @@ const Domains = () => {
                         <form onSubmit={handleAddDomain}>
                             <div className="form-group">
                                 <label>Domain Name</label>
-                                <input
+                                <Input
                                     type="text"
                                     placeholder="example.com"
                                     value={domainName}
@@ -366,16 +368,14 @@ const Domains = () => {
                             </div>
                             <div className="form-group">
                                 <label>Application</label>
-                                <select
-                                    value={selectedAppId}
-                                    onChange={e => setSelectedAppId(e.target.value)}
-                                    required
-                                >
-                                    <option value="">Select an application</option>
-                                    {apps.map(app => (
-                                        <option key={app.id} value={app.id}>{app.name}</option>
-                                    ))}
-                                </select>
+                                <Select value={selectedAppId} onValueChange={setSelectedAppId}>
+                                    <SelectTrigger><SelectValue placeholder="Select an application" /></SelectTrigger>
+                                    <SelectContent>
+                                        {apps.map(app => (
+                                            <SelectItem key={app.id} value={String(app.id)}>{app.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="form-group">
                                 <label className="checkbox-label">

@@ -6,6 +6,10 @@ import wordpressApi from '../services/wordpress';
 import { useToast } from '../contexts/ToastContext';
 import { EnvironmentCard, SnapshotTable, GitConnectForm, CommitList } from '../components/wordpress';
 import { ErrorBoundary, ErrorState } from '../components/ErrorBoundary';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 // Detail Page Skeleton for initial loading
 const DetailPageSkeleton = () => (
@@ -363,9 +367,8 @@ const OverviewTab = ({ site, onUpdate }) => {
                             Enter a custom domain to replace the auto-generated one. Make sure DNS points to this server first.
                         </p>
                         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                            <input
+                            <Input
                                 type="text"
-                                className="form-control"
                                 placeholder="e.g. mysite.example.com"
                                 value={domainInput}
                                 onChange={e => setDomainInput(e.target.value)}
@@ -764,16 +767,19 @@ const CreateEnvironmentModal = ({ onClose, onCreate, productionDomain, hasStagin
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Environment Type</label>
-                        <select name="type" value={formData.type} onChange={handleChange}>
-                            {!hasDev && <option value="development">Development</option>}
-                            {!hasStaging && <option value="staging">Staging</option>}
-                        </select>
+                        <Label>Environment Type</Label>
+                        <Select value={formData.type} onValueChange={v => setFormData(prev => ({ ...prev, type: v }))}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {!hasDev && <SelectItem value="development">Development</SelectItem>}
+                                {!hasStaging && <SelectItem value="staging">Staging</SelectItem>}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="form-group">
-                        <label>Environment Name *</label>
-                        <input
+                        <Label>Environment Name *</Label>
+                        <Input
                             type="text"
                             name="name"
                             value={formData.name}
@@ -784,8 +790,8 @@ const CreateEnvironmentModal = ({ onClose, onCreate, productionDomain, hasStagin
                     </div>
 
                     <div className="form-group">
-                        <label>Domain</label>
-                        <input
+                        <Label>Domain</Label>
+                        <Input
                             type="text"
                             name="domain"
                             value={formData.domain}
@@ -822,12 +828,14 @@ const CreateEnvironmentModal = ({ onClose, onCreate, productionDomain, hasStagin
                     </div>
 
                     <div className="form-group">
-                        <label>Sync Schedule (optional)</label>
-                        <select name="syncSchedule" value={formData.syncSchedule} onChange={handleChange}>
-                            <option value="">No automatic sync</option>
-                            <option value="0 3 * * 0">Weekly (Sunday 3am)</option>
-                            <option value="0 3 * * *">Daily (3am)</option>
-                        </select>
+                        <Label>Sync Schedule (optional)</Label>
+                        <Select value={formData.syncSchedule} onValueChange={v => setFormData(prev => ({ ...prev, syncSchedule: v }))}>
+                            <SelectTrigger><SelectValue placeholder="No automatic sync" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="0 3 * * 0">Weekly (Sunday 3am)</SelectItem>
+                                <SelectItem value="0 3 * * *">Daily (3am)</SelectItem>
+                            </SelectContent>
+                        </Select>
                         <span className="form-hint">Automatically sync database from production</span>
                     </div>
 
@@ -1010,8 +1018,8 @@ const CreateSnapshotModal = ({ onClose, onCreate }) => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Snapshot Name *</label>
-                        <input
+                        <Label>Snapshot Name *</Label>
+                        <Input
                             type="text"
                             name="name"
                             value={formData.name}
@@ -1021,8 +1029,8 @@ const CreateSnapshotModal = ({ onClose, onCreate }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Description</label>
-                        <textarea
+                        <Label>Description</Label>
+                        <Textarea
                             name="description"
                             value={formData.description}
                             onChange={handleChange}
@@ -1032,13 +1040,13 @@ const CreateSnapshotModal = ({ onClose, onCreate }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Tag</label>
-                        <input
+                        <Label>Tag</Label>
+                        <Input
                             type="text"
                             name="tag"
                             value={formData.tag}
                             onChange={handleChange}
-                            placeholder="e.g., v1.0.0, before-update"
+                            placeholder="e.g. v1.0"
                         />
                     </div>
 
@@ -1133,7 +1141,7 @@ const PluginsTab = ({ siteId }) => {
             </div>
 
             <form className="install-form" onSubmit={handleInstall}>
-                <input
+                <Input
                     type="text"
                     value={newPlugin}
                     onChange={(e) => setNewPlugin(e.target.value)}
@@ -1242,7 +1250,7 @@ const ThemesTab = ({ siteId }) => {
             </div>
 
             <form className="install-form" onSubmit={handleInstall}>
-                <input
+                <Input
                     type="text"
                     value={newTheme}
                     onChange={(e) => setNewTheme(e.target.value)}

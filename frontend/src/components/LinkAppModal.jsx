@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, Link2, GitBranch, AlertCircle, Check } from 'lucide-react';
 import api from '../services/api';
 import Modal from './Modal';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const LinkAppModal = ({ app, onClose, onLinked }) => {
     const [apps, setApps] = useState([]);
@@ -101,23 +104,21 @@ const LinkAppModal = ({ app, onClose, onLinked }) => {
                         </div>
 
                         <div className="form-group">
-                            <label>Link to Application</label>
-                            <select
-                                value={selectedAppId}
-                                onChange={(e) => setSelectedAppId(e.target.value)}
-                                required
-                            >
-                                <option value="">Select an application...</option>
-                                {apps.map(a => (
-                                    <option key={a.id} value={a.id}>
-                                        {a.name} (Port: {a.port || 'N/A'})
-                                    </option>
-                                ))}
-                            </select>
+                            <Label>Link to Application</Label>
+                            <Select value={selectedAppId} onValueChange={setSelectedAppId}>
+                                <SelectTrigger><SelectValue placeholder="Select an application..." /></SelectTrigger>
+                                <SelectContent>
+                                    {apps.map(a => (
+                                        <SelectItem key={a.id} value={a.id}>
+                                            {a.name} (Port: {a.port || 'N/A'})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="form-group">
-                            <label>This app will be</label>
+                            <Label>This app will be</Label>
                             <div className="env-radio-group">
                                 {['development', 'production', 'staging'].map(env => (
                                     <label key={env} className={`env-radio-option ${asEnvironment === env ? 'selected' : ''}`}>
@@ -179,8 +180,8 @@ const LinkAppModal = ({ app, onClose, onLinked }) => {
 
                                 {propagateCredentials && (
                                     <div className="form-group">
-                                        <label>Table Prefix (optional)</label>
-                                        <input
+                                        <Label>Table Prefix (optional)</Label>
+                                        <Input
                                             type="text"
                                             value={tablePrefix}
                                             onChange={(e) => setTablePrefix(e.target.value)}

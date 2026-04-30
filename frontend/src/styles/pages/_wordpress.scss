@@ -1266,23 +1266,7 @@
     }
 
     input {
-        width: 100%;
-        padding: $space-3;
-        border: 1px solid $border-subtle;
-        border-radius: $radius-md;
-        font-size: $font-size-base;
-        background: $bg-input;
-        color: $text-primary;
-
-        &:focus {
-            outline: none;
-            border-color: $color-primary;
-            box-shadow: 0 0 0 3px fade($accent-primary-raw, 15%);
-        }
-
-        &::placeholder {
-            color: $text-tertiary;
-        }
+        @include input-base();
     }
 }
 

@@ -9,6 +9,9 @@ import {
     DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
 } from '../components/ui/dropdown-menu';
 import { ChevronDown, Check } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 
 function StatusDot({ status }) {
     const color = status === 'online' ? 'bg-green-500'
@@ -1491,8 +1494,8 @@ const RunContainerModal = ({ onClose, onCreated }) => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Image *</label>
-                        <input
+                        <Label>Image *</Label>
+                        <Input
                             type="text"
                             name="image"
                             value={formData.image}
@@ -1503,8 +1506,8 @@ const RunContainerModal = ({ onClose, onCreated }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Container Name</label>
-                        <input
+                        <Label>Container Name</Label>
+                        <Input
                             type="text"
                             name="name"
                             value={formData.name}
@@ -1514,8 +1517,8 @@ const RunContainerModal = ({ onClose, onCreated }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Ports (comma-separated)</label>
-                        <input
+                        <Label>Ports (comma-separated)</Label>
+                        <Input
                             type="text"
                             name="ports"
                             value={formData.ports}
@@ -1525,8 +1528,8 @@ const RunContainerModal = ({ onClose, onCreated }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Volumes (comma-separated)</label>
-                        <input
+                        <Label>Volumes (comma-separated)</Label>
+                        <Input
                             type="text"
                             name="volumes"
                             value={formData.volumes}
@@ -1536,8 +1539,8 @@ const RunContainerModal = ({ onClose, onCreated }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Environment Variables (one per line, KEY=value)</label>
-                        <textarea
+                        <Label>Environment Variables (one per line, KEY=value)</Label>
+                        <Textarea
                             name="env"
                             value={formData.env}
                             onChange={handleChange}

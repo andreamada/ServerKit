@@ -33,6 +33,15 @@
                     d.style.setProperty('--accent-shadow', 'rgba('+r+','+g+','+b+',0.3)');
                 }
             }
+            var wl = localStorage.getItem('white_label');
+            if (wl) {
+                try {
+                    var w = JSON.parse(wl);
+                    if (w.enabled && w.brandName) {
+                        document.title = w.brandName;
+                    }
+                } catch(e) {}
+            }
         })();
     </script>
 </head>

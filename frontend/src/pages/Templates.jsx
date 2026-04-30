@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 // Featured templates (curated list)
 const FEATURED_TEMPLATES = [
@@ -310,7 +313,7 @@ const Templates = () => {
             <div className="templates-filters">
                 <div className="search-box">
                     <Search size={18} className="search-icon" />
-                    <input
+                    <Input
                         type="text"
                         placeholder="Search templates..."
                         value={searchQuery}
@@ -375,12 +378,14 @@ const Templates = () => {
                 </span>
                 <div className="sort-dropdown">
                     <label>Sort by:</label>
-                    <select value={sortBy} onChange={(e) => setSortByFilter(e.target.value)}>
-                        <option value="name-asc">Name (A-Z)</option>
-                        <option value="name-desc">Name (Z-A)</option>
-                        <option value="featured">Featured First</option>
-                    </select>
-                    <ChevronDown size={16} className="dropdown-icon" />
+                    <Select value={sortBy} onValueChange={setSortByFilter}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                            <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                            <SelectItem value="featured">Featured First</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -666,13 +671,12 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
                         )}
 
                         <div className="form-group">
-                            <label>Application Name *</label>
-                            <input
+                            <Label>Application Name *</Label>
+                            <Input
                                 type="text"
                                 value={appName}
                                 onChange={(e) => setAppName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                                 placeholder="my-app"
-                                minLength={2}
                                 required
                             />
                             <span className="form-help">Lowercase letters, numbers, and hyphens only (min 2 chars)</span>
@@ -683,23 +687,24 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
                                 <h4>Configuration</h4>
                                 {template.variables.filter(v => !v.hidden).map(variable => (
                                     <div key={variable.name} className="form-group">
-                                        <label>
+                                        <Label>
                                             {variable.name}
                                             {variable.required && ' *'}
-                                        </label>
+                                        </Label>
                                         {variable.options ? (
-                                            <select
+                                            <Select
                                                 value={variables[variable.name] || ''}
-                                                onChange={(e) => setVariables({...variables, [variable.name]: e.target.value})}
-                                                required={variable.required}
+                                                onValueChange={(v) => setVariables({...variables, [variable.name]: v})}
                                             >
-                                                <option value="">Select...</option>
-                                                {variable.options.map(opt => (
-                                                    <option key={opt} value={opt}>{opt}</option>
-                                                ))}
-                                            </select>
+                                                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                                <SelectContent>
+                                                    {variable.options.map(opt => (
+                                                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         ) : variable.type === 'password' ? (
-                                            <input
+                                            <Input
                                                 type="password"
                                                 value={variables[variable.name] || ''}
                                                 onChange={(e) => setVariables({...variables, [variable.name]: e.target.value})}
@@ -707,7 +712,7 @@ const InstallModal = ({ template, onClose, onSuccess }) => {
                                                 required={variable.required && !variable.default}
                                             />
                                         ) : (
-                                            <input
+                                            <Input
                                                 type={variable.type === 'port' ? 'number' : 'text'}
                                                 value={variables[variable.name] || ''}
                                                 onChange={(e) => setVariables({...variables, [variable.name]: e.target.value})}

@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { copyToClipboard as clipboardWrite } from '../utils/clipboard';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const Servers = () => {
     const [servers, setServers] = useState([]);
@@ -130,7 +134,7 @@ const Servers = () => {
             <div className="servers-toolbar">
                 <div className="search-box">
                     <SearchIcon />
-                    <input
+                    <Input
                         type="text"
                         placeholder="Search servers..."
                         value={searchTerm}
@@ -138,13 +142,16 @@ const Servers = () => {
                     />
                 </div>
                 <div className="group-filter">
-                    <select value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
-                        <option value="all">All Groups</option>
-                        {groups.map(group => (
-                            <option key={group.id} value={group.id}>{group.name}</option>
-                        ))}
-                        <option value="ungrouped">Ungrouped</option>
-                    </select>
+                    <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                        <SelectTrigger><SelectValue placeholder="All Groups" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Groups</SelectItem>
+                            {groups.map(group => (
+                                <SelectItem key={group.id} value={String(group.id)}>{group.name}</SelectItem>
+                            ))}
+                            <SelectItem value="ungrouped">Ungrouped</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -377,8 +384,8 @@ Install-ServerKitAgent -Server "${baseUrl}" -Token "${registrationData.registrat
                         {error && <div className="error-message">{error}</div>}
 
                         <div className="form-group">
-                            <label>Server Name *</label>
-                            <input
+                            <Label>Server Name *</Label>
+                            <Input
                                 type="text"
                                 name="name"
                                 value={formData.name}
@@ -389,8 +396,8 @@ Install-ServerKitAgent -Server "${baseUrl}" -Token "${registrationData.registrat
                         </div>
 
                         <div className="form-group">
-                            <label>Description</label>
-                            <textarea
+                            <Label>Description</Label>
+                            <Textarea
                                 name="description"
                                 value={formData.description}
                                 onChange={handleChange}
@@ -401,8 +408,8 @@ Install-ServerKitAgent -Server "${baseUrl}" -Token "${registrationData.registrat
 
                         <div className="form-row">
                             <div className="form-group">
-                                <label>Hostname</label>
-                                <input
+                                <Label>Hostname</Label>
+                                <Input
                                     type="text"
                                     name="hostname"
                                     value={formData.hostname}
@@ -411,8 +418,8 @@ Install-ServerKitAgent -Server "${baseUrl}" -Token "${registrationData.registrat
                                 />
                             </div>
                             <div className="form-group">
-                                <label>IP Address</label>
-                                <input
+                                <Label>IP Address</Label>
+                                <Input
                                     type="text"
                                     name="ip_address"
                                     value={formData.ip_address}
@@ -423,17 +430,19 @@ Install-ServerKitAgent -Server "${baseUrl}" -Token "${registrationData.registrat
                         </div>
 
                         <div className="form-group">
-                            <label>Group</label>
-                            <select name="group_id" value={formData.group_id} onChange={handleChange}>
-                                <option value="">No Group</option>
-                                {groups.map(group => (
-                                    <option key={group.id} value={group.id}>{group.name}</option>
-                                ))}
-                            </select>
+                            <Label>Group</Label>
+                            <Select value={formData.group_id} onValueChange={v => setFormData(prev => ({ ...prev, group_id: v }))}>
+                                <SelectTrigger><SelectValue placeholder="No Group" /></SelectTrigger>
+                                <SelectContent>
+                                    {groups.map(group => (
+                                        <SelectItem key={group.id} value={String(group.id)}>{group.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="form-group">
-                            <label>Permissions</label>
+                            <Label>Permissions</Label>
                             <div className="permissions-grid">
                                 {[
                                     { key: 'docker:read', label: 'Docker (Read)' },

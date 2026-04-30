@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { getServiceType, getStatusConfig, formatRelativeTime } from '../utils/serviceTypes';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const SERVICE_TYPE_OPTIONS = ['all', 'docker', 'flask', 'django', 'php', 'static', 'wordpress'];
 const STATUS_OPTIONS = ['all', 'running', 'stopped'];
@@ -224,44 +226,41 @@ const Services = () => {
                         <circle cx="11" cy="11" r="8"/>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     </svg>
-                    <input
+                    <Input
                         type="text"
                         placeholder="Search services..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                    className="services-page__filter-select"
-                >
-                    {SERVICE_TYPE_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>
-                            {opt === 'all' ? 'All Types' : getServiceType(opt).label}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="services-page__filter-select"
-                >
-                    {STATUS_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>
-                            {opt === 'all' ? 'All Status' : opt.charAt(0).toUpperCase() + opt.slice(1)}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="services-page__filter-select"
-                >
-                    {SORT_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                </select>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="services-page__filter-select"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {SERVICE_TYPE_OPTIONS.map(opt => (
+                            <SelectItem key={opt} value={opt}>
+                                {opt === 'all' ? 'All Types' : getServiceType(opt).label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="services-page__filter-select"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {STATUS_OPTIONS.map(opt => (
+                            <SelectItem key={opt} value={opt}>
+                                {opt === 'all' ? 'All Status' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="services-page__filter-select"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {SORT_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Bulk Actions Bar */}

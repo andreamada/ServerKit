@@ -5,6 +5,7 @@ import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../hooks/useConfirm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const VALID_TABS = ['backups', 'schedules', 'storage', 'settings'];
 
@@ -460,16 +461,15 @@ const Backups = () => {
                     <div className="card-header">
                         <h3>Backup List</h3>
                         <div className="card-actions">
-                            <select
-                                value={filterType}
-                                onChange={(e) => setFilterType(e.target.value)}
-                                className="filter-select"
-                            >
-                                <option value="all">All Types</option>
-                                <option value="application">Applications</option>
-                                <option value="database">Databases</option>
-                                <option value="files">Files</option>
-                            </select>
+                            <Select value={filterType} onValueChange={setFilterType}>
+                                <SelectTrigger className="filter-select"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Types</SelectItem>
+                                    <SelectItem value="application">Applications</SelectItem>
+                                    <SelectItem value="database">Databases</SelectItem>
+                                    <SelectItem value="files">Files</SelectItem>
+                                </SelectContent>
+                            </Select>
                             <button className="btn btn-secondary btn-sm" onClick={loadData}>
                                 <RefreshCw size={14} />
                                 Refresh
@@ -666,14 +666,14 @@ const Backups = () => {
                         <form onSubmit={handleSaveStorageConfig}>
                             <div className="form-group">
                                 <label>Storage Provider</label>
-                                <select
-                                    value={storageForm.provider}
-                                    onChange={(e) => setStorageForm({...storageForm, provider: e.target.value})}
-                                >
-                                    <option value="local">Local Only</option>
-                                    <option value="s3">S3-Compatible (AWS S3, MinIO, Wasabi)</option>
-                                    <option value="b2">Backblaze B2</option>
-                                </select>
+                                <Select value={storageForm.provider} onValueChange={(v) => setStorageForm({...storageForm, provider: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="local">Local Only</SelectItem>
+                                        <SelectItem value="s3">S3-Compatible (AWS S3, MinIO, Wasabi)</SelectItem>
+                                        <SelectItem value="b2">Backblaze B2</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {storageForm.provider === 's3' && (

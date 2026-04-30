@@ -130,38 +130,48 @@
     }
 
     .tabs {
-        display: flex;
+        display: inline-flex;
+        align-items: center;
         gap: $space-1;
+        height: 36px;
+        border-radius: $radius-lg;
+        background: hsl(var(--muted));
+        padding: 3px;
         margin-bottom: $space-6;
-        border-bottom: 1px solid $border-subtle;
+        overflow-x: auto;
+        scrollbar-width: none;
+        width: fit-content;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
 
         .tab {
-            padding: $space-3 $space-5;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: $space-1;
+            height: calc(100% - 1px);
             background: none;
-            border: none;
-            font-size: $font-size-base;
+            border: 1px solid transparent;
+            border-radius: $radius-md;
+            padding: 0 $space-3;
+            color: hsl(var(--muted-foreground));
+            font-size: 13px;
             font-weight: $font-weight-medium;
-            color: $text-secondary;
             cursor: pointer;
-            position: relative;
-            transition: color $transition-fast;
+            white-space: nowrap;
+            transition: color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 
             &:hover {
-                color: $text-primary;
+                color: hsl(var(--foreground));
             }
 
             &.active {
-                color: $accent-primary;
-
-                &::after {
-                    content: '';
-                    position: absolute;
-                    bottom: -1px;
-                    left: 0;
-                    right: 0;
-                    height: 2px;
-                    background: $accent-primary;
-                }
+                background: hsl(var(--background));
+                color: hsl(var(--foreground));
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
             }
         }
     }

@@ -4,6 +4,9 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 
 const Workspaces = () => {
     const toast = useToast();
@@ -165,21 +168,21 @@ const Workspaces = () => {
                         </div>
                         <div className="modal-body">
                             <div className="form-group">
-                                <label>Name</label>
-                                <input className="form-input" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="My Team" />
+                                <Label>Name</Label>
+                                <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="My Team" />
                             </div>
                             <div className="form-group">
-                                <label>Description</label>
-                                <textarea className="form-input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} />
+                                <Label>Description</Label>
+                                <Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} />
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Max Servers (0 = unlimited)</label>
-                                    <input className="form-input" type="number" value={form.max_servers} onChange={e => setForm({...form, max_servers: parseInt(e.target.value) || 0})} />
+                                    <Label>Max Servers (0 = unlimited)</Label>
+                                    <Input type="number" value={form.max_servers} onChange={e => setForm({...form, max_servers: parseInt(e.target.value) || 0})} />
                                 </div>
                                 <div className="form-group">
-                                    <label>Max Users (0 = unlimited)</label>
-                                    <input className="form-input" type="number" value={form.max_users} onChange={e => setForm({...form, max_users: parseInt(e.target.value) || 0})} />
+                                    <Label>Max Users (0 = unlimited)</Label>
+                                    <Input type="number" value={form.max_users} onChange={e => setForm({...form, max_users: parseInt(e.target.value) || 0})} />
                                 </div>
                             </div>
                         </div>

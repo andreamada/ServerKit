@@ -4,6 +4,10 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const ServerTemplates = () => {
     const toast = useToast();
@@ -238,22 +242,25 @@ const ServerTemplates = () => {
                         </div>
                         <div className="modal-body">
                             <div className="form-group">
-                                <label>Name</label>
-                                <input className="form-input" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+                                <Label>Name</Label>
+                                <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
                             </div>
                             <div className="form-group">
-                                <label>Description</label>
-                                <textarea className="form-input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} />
+                                <Label>Description</Label>
+                                <Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} />
                             </div>
                             <div className="form-group">
-                                <label>Category</label>
-                                <select className="form-select" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-                                    {Object.entries(categoryLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                                </select>
+                                <Label>Category</Label>
+                                <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(categoryLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="form-group">
-                                <label>Packages (one per line)</label>
-                                <textarea className="form-input form-input--mono" value={form.packages} onChange={e => setForm({...form, packages: e.target.value})} rows={4} placeholder="nginx&#10;php-fpm&#10;certbot" />
+                                <Label>Packages (one per line)</Label>
+                                <Textarea className="font-mono" value={form.packages} onChange={e => setForm({...form, packages: e.target.value})} rows={4} placeholder="nginx&#10;php-fpm&#10;certbot" />
                             </div>
                             <div className="form-group">
                                 <label className="checkbox-label">

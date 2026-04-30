@@ -93,9 +93,21 @@ const PAGE_TITLES = {
 function PageTitleUpdater() {
     const location = useLocation();
 
+    const getBrandName = () => {
+        try {
+            const wl = localStorage.getItem('white_label');
+            if (wl) {
+                const w = JSON.parse(wl);
+                if (w.enabled && w.brandName) return w.brandName;
+            }
+        } catch (e) {}
+        return 'ServerKit';
+    };
+
     useEffect(() => {
         const path = location.pathname;
         let title = PAGE_TITLES[path];
+        const brandName = getBrandName();
 
         // Handle dynamic routes and tab sub-routes
         if (!title) {
@@ -108,10 +120,10 @@ function PageTitleUpdater() {
             else if (path.startsWith('/servers/')) title = 'Server Details';
             else if (path.startsWith('/wordpress/projects/')) title = 'WordPress Pipeline';
             else if (path.startsWith('/wordpress/')) title = 'WordPress Site';
-            else title = 'ServerKit';
+            else title = brandName;
         }
 
-        document.title = title ? `${title} | ServerKit` : 'ServerKit';
+        document.title = title ? `${title} | ${brandName}` : brandName;
     }, [location]);
 
     return null;

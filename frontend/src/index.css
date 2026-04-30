@@ -78,7 +78,8 @@
 .settings-card textarea:focus,
 .settings-card select:focus {
     border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.25);
+    outline: none;
+    box-shadow: none;
 }
 input::placeholder,
 textarea::placeholder {
@@ -142,7 +143,7 @@ html[data-theme="system"]:not(.dark) {
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 224 30% 8%;
+    --ring: 239 84% 67%;
     --radius: 0.5rem;
     --sidebar: 0 0% 98%;
     --sidebar-foreground: 224 30% 8%;
@@ -175,7 +176,7 @@ html[data-theme="system"].dark {
     --destructive-foreground: 226 100% 97%;
     --border: 240 6% 20%;
     --input: 240 6% 24%;
-    --ring: 240 5% 48%;
+    --ring: 239 84% 67%;
     --sidebar: 240 10% 3.9%;
     --sidebar-foreground: 226 100% 97%;
     --sidebar-primary: 224.3 76.3% 48%;

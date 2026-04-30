@@ -22,6 +22,9 @@ import {
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import Spinner from '../components/Spinner';
 import { io } from 'socket.io-client';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:5000';
 
@@ -780,14 +783,17 @@ const CreatePipelineEnvModal = ({ onClose, onCreate, productionDomain, existingT
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Environment Type</label>
-                        <select name="type" value={formData.type} onChange={handleChange}>
-                            {availableTypes.map(t => (
-                                <option key={t.value} value={t.value} disabled={t.disabled}>
-                                    {t.label}{t.disabled ? ' (already exists)' : ''}
-                                </option>
-                            ))}
-                        </select>
+                        <Label>Environment Type</Label>
+                        <Select value={formData.type} onValueChange={v => setFormData(prev => ({ ...prev, type: v }))}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {availableTypes.map(t => (
+                                    <SelectItem key={t.value} value={t.value} disabled={t.disabled}>
+                                        {t.label}{t.disabled ? ' (already exists)' : ''}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {formData.type === 'multidev' && (
@@ -822,7 +828,7 @@ const CreatePipelineEnvModal = ({ onClose, onCreate, productionDomain, existingT
                                         <div className="branch-picker">
                                             <div className="branch-picker-search">
                                                 <Search size={14} />
-                                                <input
+                                                <Input
                                                     type="text"
                                                     value={branchSearch}
                                                     onChange={e => setBranchSearch(e.target.value)}
@@ -870,7 +876,7 @@ const CreatePipelineEnvModal = ({ onClose, onCreate, productionDomain, existingT
                                         </div>
                                     ) : (
                                         <div>
-                                            <input
+                                            <Input
                                                 type="text"
                                                 name="branch"
                                                 value={formData.branch}
@@ -886,7 +892,7 @@ const CreatePipelineEnvModal = ({ onClose, onCreate, productionDomain, existingT
 
                             {useCustomBranch && (
                                 <div>
-                                    <input
+                                    <Input
                                         type="text"
                                         name="branch"
                                         value={formData.branch}
@@ -910,8 +916,8 @@ const CreatePipelineEnvModal = ({ onClose, onCreate, productionDomain, existingT
                     )}
 
                     <div className="form-group">
-                        <label>Environment Name</label>
-                        <input
+                        <Label>Environment Name</Label>
+                        <Input
                             type="text"
                             name="name"
                             value={formData.name}

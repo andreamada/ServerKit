@@ -6,6 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import MetricsGraph from '../components/MetricsGraph';
 import { useConfirm } from '../hooks/useConfirm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const ServerDetail = () => {
     const { id, tab } = useParams();
@@ -917,12 +918,15 @@ const SettingsTab = ({ server, onUpdate, onRegenerateToken, onDelete }) => {
 
                         <div className="form-group">
                             <label>Group</label>
-                            <select name="group_id" value={formData.group_id} onChange={handleChange}>
-                                <option value="">No Group</option>
-                                {groups.map(group => (
-                                    <option key={group.id} value={group.id}>{group.name}</option>
-                                ))}
-                            </select>
+                            <Select value={formData.group_id || ''} onValueChange={(v) => setFormData({...formData, group_id: v})}>
+                                <SelectTrigger><SelectValue placeholder="No Group" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">No Group</SelectItem>
+                                    {groups.map(group => (
+                                        <SelectItem key={group.id} value={String(group.id)}>{group.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <button type="submit" className="btn btn-primary" disabled={loading}>

@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const VALID_TABS = ['overview', 'users', 'connections', 'logs'];
 
@@ -590,13 +591,13 @@ function FTPServer() {
                         <div className="modal-body">
                             <div className="form-group">
                                 <label>Select FTP Server</label>
-                                <select
-                                    value={selectedService}
-                                    onChange={(e) => setSelectedService(e.target.value)}
-                                >
-                                    <option value="vsftpd">vsftpd (Recommended)</option>
-                                    <option value="proftpd">ProFTPD</option>
-                                </select>
+                                <Select value={selectedService} onValueChange={setSelectedService}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="vsftpd">vsftpd (Recommended)</SelectItem>
+                                        <SelectItem value="proftpd">ProFTPD</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="install-info">
                                 {selectedService === 'vsftpd' ? (

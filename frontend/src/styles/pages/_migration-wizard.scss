@@ -2,9 +2,7 @@
 // MIGRATION WIZARD (Database Update)
 // ============================================
 
-.migration-wizard {
-    // Extends .setup-wizard — same full-screen centered layout
-}
+// .migration-wizard extends .setup-wizard — same full-screen centered layout
 
 // --------------------------------------------
 // Status panel (version info)
@@ -105,23 +103,7 @@
     max-width: 400px;
 
     input {
-        width: 100%;
-        padding: $space-3 $space-4;
-        background: $bg-elevated;
-        border: 1px solid $border-default;
-        border-radius: $radius-lg;
-        font-size: $font-size-base;
-        color: $text-primary;
-        @include transition(border-color);
-
-        &::placeholder {
-            color: $text-tertiary;
-        }
-
-        &:focus {
-            outline: none;
-            border-color: $accent-primary;
-        }
+        @include input-base();
     }
 
     .btn-wizard-next {

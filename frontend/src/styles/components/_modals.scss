@@ -13,13 +13,14 @@
 }
 
 .modal {
-    background: $bg-card;
-    border: 1px solid $border-subtle;
-    border-radius: $radius-2xl;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: $radius-xl;
     width: 100%;
     max-width: 560px;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     @include custom-scrollbar();
 }
 
@@ -29,27 +30,35 @@
 
 .modal-header {
     @include flex-between();
-    padding: $space-6;
-    border-bottom: 1px solid $border-subtle;
+    padding: $space-5 $space-6;
+    border-bottom: 1px solid hsl(var(--border));
 
-    h2 {
-        font-size: $font-size-lg;
+    h2, h3 {
+        font-size: $font-size-base;
         font-weight: $font-weight-semibold;
+        color: hsl(var(--foreground));
     }
 }
 
 .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
     background: none;
     border: none;
-    color: $text-tertiary;
-    font-size: $font-size-2xl;
+    color: hsl(var(--muted-foreground));
+    font-size: $font-size-xl;
     cursor: pointer;
     line-height: 1;
-    padding: $space-1;
-    @include transition(color);
+    border-radius: $radius-sm;
+    padding: 0;
+    @include transition(all);
 
     &:hover {
-        color: $text-primary;
+        color: hsl(var(--foreground));
+        background: hsl(var(--accent));
     }
 }
 
@@ -70,7 +79,7 @@
     justify-content: flex-end;
     margin-top: $space-6;
     padding-top: $space-6;
-    border-top: 1px solid $border-subtle;
+    border-top: 1px solid hsl(var(--border));
 }
 
 .modal-footer {
@@ -78,7 +87,7 @@
     gap: $space-3;
     justify-content: flex-end;
     padding: $space-4 $space-6;
-    border-top: 1px solid $border-subtle;
+    border-top: 1px solid hsl(var(--border));
 }
 
 // Type selection grid (used in create app modal)

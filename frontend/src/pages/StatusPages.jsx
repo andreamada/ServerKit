@@ -4,6 +4,10 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const StatusPages = () => {
     const toast = useToast();
@@ -216,9 +220,9 @@ const StatusPages = () => {
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header"><h2>Create Status Page</h2><button className="modal-close" onClick={() => setShowCreatePage(false)}>&times;</button></div>
                         <div className="modal-body">
-                            <div className="form-group"><label>Name</label><input className="form-input" value={pageForm.name} onChange={e => setPageForm({...pageForm, name: e.target.value})} /></div>
-                            <div className="form-group"><label>Slug (URL path)</label><input className="form-input" value={pageForm.slug} onChange={e => setPageForm({...pageForm, slug: e.target.value})} placeholder="my-services" /></div>
-                            <div className="form-group"><label>Description</label><textarea className="form-input" value={pageForm.description} onChange={e => setPageForm({...pageForm, description: e.target.value})} rows={2} /></div>
+                            <div className="form-group"><Label>Name</Label><Input value={pageForm.name} onChange={e => setPageForm({...pageForm, name: e.target.value})} /></div>
+                            <div className="form-group"><Label>Slug (URL path)</Label><Input value={pageForm.slug} onChange={e => setPageForm({...pageForm, slug: e.target.value})} placeholder="my-services" /></div>
+                            <div className="form-group"><Label>Description</Label><Textarea value={pageForm.description} onChange={e => setPageForm({...pageForm, description: e.target.value})} rows={2} /></div>
                         </div>
                         <div className="modal-footer"><button className="btn" onClick={() => setShowCreatePage(false)}>Cancel</button><button className="btn btn-primary" onClick={handleCreatePage} disabled={!pageForm.name || !pageForm.slug}>Create</button></div>
                     </div>
@@ -230,11 +234,21 @@ const StatusPages = () => {
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header"><h2>Add Component</h2><button className="modal-close" onClick={() => setShowCreateComponent(false)}>&times;</button></div>
                         <div className="modal-body">
-                            <div className="form-group"><label>Name</label><input className="form-input" value={compForm.name} onChange={e => setCompForm({...compForm, name: e.target.value})} /></div>
-                            <div className="form-group"><label>Group</label><input className="form-input" value={compForm.group} onChange={e => setCompForm({...compForm, group: e.target.value})} /></div>
-                            <div className="form-group"><label>Check Type</label><select className="form-select" value={compForm.check_type} onChange={e => setCompForm({...compForm, check_type: e.target.value})}><option value="http">HTTP</option><option value="tcp">TCP</option><option value="dns">DNS</option><option value="ping">Ping</option></select></div>
-                            <div className="form-group"><label>Check Target</label><input className="form-input" value={compForm.check_target} onChange={e => setCompForm({...compForm, check_target: e.target.value})} placeholder="https://example.com or host:port" /></div>
-                            <div className="form-group"><label>Check Interval (seconds)</label><input className="form-input" type="number" value={compForm.check_interval} onChange={e => setCompForm({...compForm, check_interval: parseInt(e.target.value) || 60})} /></div>
+                            <div className="form-group"><Label>Name</Label><Input value={compForm.name} onChange={e => setCompForm({...compForm, name: e.target.value})} /></div>
+                            <div className="form-group"><Label>Group</Label><Input value={compForm.group} onChange={e => setCompForm({...compForm, group: e.target.value})} /></div>
+                            <div className="form-group"><Label>Check Type</Label>
+                                <Select value={compForm.check_type} onValueChange={v => setCompForm({...compForm, check_type: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="http">HTTP</SelectItem>
+                                        <SelectItem value="tcp">TCP</SelectItem>
+                                        <SelectItem value="dns">DNS</SelectItem>
+                                        <SelectItem value="ping">Ping</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="form-group"><Label>Check Target</Label><Input value={compForm.check_target} onChange={e => setCompForm({...compForm, check_target: e.target.value})} placeholder="https://example.com or host:port" /></div>
+                            <div className="form-group"><Label>Check Interval (seconds)</Label><Input type="number" value={compForm.check_interval} onChange={e => setCompForm({...compForm, check_interval: parseInt(e.target.value) || 60})} /></div>
                         </div>
                         <div className="modal-footer"><button className="btn" onClick={() => setShowCreateComponent(false)}>Cancel</button><button className="btn btn-primary" onClick={handleCreateComponent} disabled={!compForm.name}>Add</button></div>
                     </div>
@@ -246,9 +260,19 @@ const StatusPages = () => {
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header"><h2>Create Incident</h2><button className="modal-close" onClick={() => setShowCreateIncident(false)}>&times;</button></div>
                         <div className="modal-body">
-                            <div className="form-group"><label>Title</label><input className="form-input" value={incidentForm.title} onChange={e => setIncidentForm({...incidentForm, title: e.target.value})} /></div>
-                            <div className="form-group"><label>Impact</label><select className="form-select" value={incidentForm.impact} onChange={e => setIncidentForm({...incidentForm, impact: e.target.value})}><option value="none">None</option><option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option></select></div>
-                            <div className="form-group"><label>Description</label><textarea className="form-input" value={incidentForm.body} onChange={e => setIncidentForm({...incidentForm, body: e.target.value})} rows={3} /></div>
+                            <div className="form-group"><Label>Title</Label><Input value={incidentForm.title} onChange={e => setIncidentForm({...incidentForm, title: e.target.value})} /></div>
+                            <div className="form-group"><Label>Impact</Label>
+                                <Select value={incidentForm.impact} onValueChange={v => setIncidentForm({...incidentForm, impact: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
+                                        <SelectItem value="minor">Minor</SelectItem>
+                                        <SelectItem value="major">Major</SelectItem>
+                                        <SelectItem value="critical">Critical</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="form-group"><Label>Description</Label><Textarea value={incidentForm.body} onChange={e => setIncidentForm({...incidentForm, body: e.target.value})} rows={3} /></div>
                         </div>
                         <div className="modal-footer"><button className="btn" onClick={() => setShowCreateIncident(false)}>Cancel</button><button className="btn btn-primary" onClick={handleCreateIncident} disabled={!incidentForm.title}>Create</button></div>
                     </div>

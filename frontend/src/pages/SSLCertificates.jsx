@@ -8,6 +8,8 @@ import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../hooks/useConfirm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 const SSLCertificates = () => {
     const toast = useToast();
@@ -399,8 +401,8 @@ const SSLCertificates = () => {
                                 </div>
                             </div>
                             <div className="form-group">
-                                <label>Domains</label>
-                                <input
+                                <Label>Domains</Label>
+                                <Input
                                     type="text"
                                     placeholder="example.com, www.example.com"
                                     value={domains}
@@ -410,8 +412,8 @@ const SSLCertificates = () => {
                                 <p className="hint">Comma-separated list of domains</p>
                             </div>
                             <div className="form-group">
-                                <label>Email Address</label>
-                                <input
+                                <Label>Email Address</Label>
+                                <Input
                                     type="email"
                                     placeholder="admin@example.com"
                                     value={email}
@@ -432,8 +434,8 @@ const SSLCertificates = () => {
                             </div>
                             {!useNginx && (
                                 <div className="form-group">
-                                    <label>Webroot Path</label>
-                                    <input
+                                    <Label>Webroot Path</Label>
+                                    <Input
                                         type="text"
                                         placeholder="/var/www/html"
                                         value={webrootPath}
