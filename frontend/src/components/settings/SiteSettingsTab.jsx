@@ -5,6 +5,11 @@ import { useToast } from '../../contexts/ToastContext';
 const SiteSettingsTab = ({ onDevModeChange }) => {
     const toast = useToast();
     const [settings, setSettings] = useState({
+        platform_mode: 'saas',
+        default_domain: '',
+        license_key: '',
+        default_language: 'en',
+        session_timeout_minutes: 120,
         registration_enabled: false,
         dev_mode: false,
         company_currency: 'USD',
@@ -29,6 +34,11 @@ const SiteSettingsTab = ({ onDevModeChange }) => {
         try {
             const data = await api.getSystemSettings();
             setSettings({
+                platform_mode: data.platform_mode || 'saas',
+                default_domain: data.default_domain || '',
+                license_key: data.license_key || '',
+                default_language: data.default_language || 'en',
+                session_timeout_minutes: data.session_timeout_minutes != null ? Number(data.session_timeout_minutes) : 120,
                 registration_enabled: data.registration_enabled || false,
                 dev_mode: data.dev_mode || false,
                 company_currency: data.company_currency || 'USD',
@@ -69,6 +79,14 @@ const SiteSettingsTab = ({ onDevModeChange }) => {
         setSettings(prev => ({ ...prev, [key]: value }));
     };
 
+    const languages = [
+        { code: 'en', name: 'English' },
+        { code: 'it', name: 'Italiano' },
+        { code: 'de', name: 'Deutsch' },
+        { code: 'fr', name: 'Français' },
+        { code: 'es', name: 'Español' },
+    ];
+
     const currencies = [
         { code: 'USD', name: 'US Dollar ($)' },
         { code: 'EUR', name: 'Euro (€)' },
@@ -93,6 +111,57 @@ const SiteSettingsTab = ({ onDevModeChange }) => {
             <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-foreground">Site Settings</h2>
                 <p className="text-sm text-muted-foreground">Configure global site settings.</p>
+            </div>
+
+            {/* Platform Mode */}
+            <div className="settings-card">
+                <h3 className="text-sm font-semibold text-foreground mb-1">Platform Mode</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                    Choose how the Templates page works. You can change this at any time.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                    {[
+                        {
+                            value: 'saas',
+                            label: 'SaaS',
+                            title: 'Software as a Service',
+                            desc: 'Offer hosted software applications (Docker apps, databases, etc.) to your customers.'
+                        },
+                        {
+                            value: 'waas',
+                            label: 'WaaS',
+                            title: 'Website as a Service',
+                            desc: 'Offer managed WordPress websites with design templates, preview, and one-click deploy.'
+                        }
+                    ].map(({ value, label, title, desc }) => (
+                        <button
+                            key={value}
+                            type="button"
+                            disabled={saving}
+                            onClick={() => handleFieldChange('platform_mode', value)}
+                            className={[
+                                'flex flex-col items-start gap-1 rounded-md border px-3 py-3 text-left transition-all',
+                                settings.platform_mode === value
+                                    ? 'border-primary bg-primary/10'
+                                    : 'border-border hover:border-muted-foreground'
+                            ].join(' ')}
+                        >
+                            <div className="flex items-center gap-2 w-full">
+                                <span className={[
+                                    'text-xs font-bold px-1.5 py-0.5 rounded',
+                                    settings.platform_mode === value
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted text-muted-foreground'
+                                ].join(' ')}>{label}</span>
+                                <span className="text-xs font-semibold text-foreground">{title}</span>
+                                {settings.platform_mode === value && (
+                                    <span className="ml-auto text-xs text-primary font-medium">Active</span>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* General toggles */}
@@ -122,6 +191,44 @@ const SiteSettingsTab = ({ onDevModeChange }) => {
                                 disabled={saving} />
                             <span className="toggle-slider"></span>
                         </label>
+                    </div>
+                </div>
+            </div>
+
+            {/* Site Configuration */}
+            <div className="settings-card">
+                <h3 className="text-sm font-semibold text-foreground mb-3">Site Configuration</h3>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="form-group mb-0">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Default Domain</label>
+                        <input type="text" className="form-control w-full"
+                            value={settings.default_domain} disabled={saving}
+                            onChange={(e) => handleFieldChange('default_domain', e.target.value)}
+                            placeholder="panel.example.com" />
+                    </div>
+                    <div className="form-group mb-0">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">License Key</label>
+                        <input type="text" className="form-control w-full"
+                            value={settings.license_key} disabled={saving}
+                            onChange={(e) => handleFieldChange('license_key', e.target.value)}
+                            placeholder="XXXX-XXXX-XXXX-XXXX" />
+                    </div>
+                    <div className="form-group mb-0">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Default Language</label>
+                        <select value={settings.default_language}
+                            onChange={(e) => handleFieldChange('default_language', e.target.value)}
+                            disabled={saving} className="form-control w-full">
+                            {languages.map(l => (
+                                <option key={l.code} value={l.code}>{l.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group mb-0">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Session Timeout (minutes)</label>
+                        <input type="number" min="1" max="10080" className="form-control w-full"
+                            value={settings.session_timeout_minutes} disabled={saving}
+                            onChange={(e) => handleFieldChange('session_timeout_minutes', parseInt(e.target.value, 10) || 120)}
+                            placeholder="120" />
                     </div>
                 </div>
             </div>

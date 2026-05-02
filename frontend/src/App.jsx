@@ -49,6 +49,12 @@ import DNSZones from './pages/DNSZones';
 import StatusPages from './pages/StatusPages';
 import CloudProvision from './pages/CloudProvision';
 import Marketplace from './pages/Marketplace';
+import Activity from './pages/Activity';
+import Users from './pages/Users';
+import Subscriptions from './pages/Subscriptions';
+import Transactions from './pages/Transactions';
+import PricingPlans from './pages/PricingPlans';
+import PaymentGateways from './pages/PaymentGateways';
 
 // Page title mapping
 const PAGE_TITLES = {
@@ -88,6 +94,12 @@ const PAGE_TITLES = {
     '/status-pages': 'Status Pages',
     '/cloud': 'Cloud Provisioning',
     '/marketplace': 'Marketplace',
+    '/activity': 'Activity',
+    '/users': 'Users',
+    '/subscriptions': 'Subscriptions',
+    '/transactions': 'Transactions',
+    '/pricing': 'Pricing Plans',
+    '/payment-gateways': 'Payment Gateways',
 };
 
 function PageTitleUpdater() {
@@ -263,6 +275,12 @@ function AppRoutes() {
                 <Route path="terminal/:tab" element={<Terminal />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/:tab" element={<Settings />} />
+                <Route path="activity" element={<Activity />} />
+                <Route path="users" element={<Users />} />
+                <Route path="subscriptions" element={<Subscriptions />} />
+                <Route path="transactions" element={<Transactions />} />
+                <Route path="pricing" element={<PricingPlans />} />
+                <Route path="payment-gateways" element={<PaymentGateways />} />
             </Route>
         </Routes>
     );

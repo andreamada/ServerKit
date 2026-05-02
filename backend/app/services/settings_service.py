@@ -75,6 +75,44 @@ class SettingsService:
         'tax_enabled': {'value': False, 'type': 'boolean', 'description': 'Enable tax management'},
         'tax_name': {'value': 'VAT', 'type': 'string', 'description': 'Name of the tax (e.g., VAT, GST)'},
         'tax_amount': {'value': '0', 'type': 'string', 'description': 'Tax amount in percentage'},
+        # Platform mode
+        'platform_mode': {
+            'value': 'saas',
+            'type': 'string',
+            'description': "Platform delivery model: 'saas' (Software as a Service — deploys apps) or 'waas' (Website as a Service — deploys WordPress sites)"
+        },
+        # Site configuration
+        'default_domain': {'value': '', 'type': 'string', 'description': 'Default domain for the panel (e.g. panel.example.com)'},
+        'license_key': {'value': '', 'type': 'string', 'description': 'ServerKit license key'},
+        'default_language': {'value': 'en', 'type': 'string', 'description': 'Default interface language code'},
+        'session_timeout_minutes': {'value': 120, 'type': 'integer', 'description': 'Inactivity timeout in minutes before users are logged out'},
+        # Privacy & GDPR
+        'gdpr_retention_logs': {'value': 2555, 'type': 'integer', 'description': 'Server log retention in days'},
+        'gdpr_retention_user_data': {'value': 730, 'type': 'integer', 'description': 'User account data retention in days'},
+        'gdpr_retention_audit_logs': {'value': 90, 'type': 'integer', 'description': 'Audit log retention in days'},
+        'gdpr_retention_backups': {'value': 365, 'type': 'integer', 'description': 'Backup data retention in days'},
+        'gdpr_retention_sessions': {'value': 7, 'type': 'integer', 'description': 'Session data retention in days'},
+        'gdpr_grace_period_days': {'value': 7, 'type': 'integer', 'description': 'Days users can cancel account deletion request'},
+        'gdpr_export_cooldown_hours': {'value': 24, 'type': 'integer', 'description': 'Minimum hours between data export requests'},
+        'gdpr_cookie_consent': {'value': False, 'type': 'boolean', 'description': 'Show cookie consent banner to visitors'},
+        'gdpr_allow_export': {'value': True, 'type': 'boolean', 'description': 'Allow users to export their personal data'},
+        'gdpr_allow_deletion': {'value': False, 'type': 'boolean', 'description': 'Allow users to delete their own accounts'},
+        # Payment Gateways
+        'payment_bank_enabled': {'value': False, 'type': 'boolean', 'description': 'Enable bank transfer payment method'},
+        'payment_bank_instructions': {'value': '', 'type': 'string', 'description': 'Bank transfer payment instructions shown to users'},
+        'payment_paypal_enabled': {'value': False, 'type': 'boolean', 'description': 'Enable PayPal payment gateway'},
+        'payment_paypal_client_id': {'value': '', 'type': 'string', 'description': 'PayPal OAuth client ID'},
+        'payment_paypal_client_secret': {'value': '', 'type': 'string', 'description': 'PayPal OAuth client secret'},
+        'payment_paypal_webhook_id': {'value': '', 'type': 'string', 'description': 'PayPal webhook ID'},
+        'payment_paypal_sandbox': {'value': True, 'type': 'boolean', 'description': 'Use PayPal sandbox (test) environment'},
+        'payment_stripe_enabled': {'value': False, 'type': 'boolean', 'description': 'Enable Stripe payment gateway'},
+        'payment_stripe_secret_key': {'value': '', 'type': 'string', 'description': 'Stripe secret API key'},
+        'payment_stripe_webhook_secret': {'value': '', 'type': 'string', 'description': 'Stripe webhook signing secret'},
+        'payment_tap_enabled': {'value': False, 'type': 'boolean', 'description': 'Enable Tap payment gateway'},
+        'payment_tap_environment': {'value': 'sandbox', 'type': 'string', 'description': 'Tap environment: sandbox or production'},
+        'payment_tap_merchant_id': {'value': '', 'type': 'string', 'description': 'Tap merchant ID'},
+        'payment_tap_test_public_key': {'value': '', 'type': 'string', 'description': 'Tap test public key'},
+        'payment_tap_test_secret_key': {'value': '', 'type': 'string', 'description': 'Tap test secret key'},
     }
 
     @staticmethod

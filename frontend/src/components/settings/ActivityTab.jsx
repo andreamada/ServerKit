@@ -138,12 +138,6 @@ const ActivityTab = () => {
 
     return (
         <div className="activity-tab">
-            <div className="tab-header">
-                <div className="tab-header-content">
-                    <h3>Activity Dashboard</h3>
-                    <p>Monitor team activity, audit actions, and system events</p>
-                </div>
-            </div>
 
             {summary && (
                 <>

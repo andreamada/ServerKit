@@ -243,6 +243,88 @@ export async function syncTemplates() {
     return this.request('/templates/sync', { method: 'POST' });
 }
 
+export async function listLocalTemplates() {
+    return this.request('/templates/local');
+}
+
+export async function getLocalTemplateRaw(templateId) {
+    return this.request(`/templates/local/${templateId}`);
+}
+
+export async function createLocalTemplate(data) {
+    return this.request('/templates/local', { method: 'POST', body: data });
+}
+
+export async function updateLocalTemplate(templateId, data) {
+    return this.request(`/templates/local/${templateId}`, { method: 'PUT', body: data });
+}
+
+export async function deleteLocalTemplate(templateId) {
+    return this.request(`/templates/local/${templateId}`, { method: 'DELETE' });
+}
+
+export async function getCustomCategories() {
+    return this.request('/templates/categories/custom');
+}
+
+export async function addCustomCategory(name) {
+    return this.request('/templates/categories/custom', { method: 'POST', body: { name } });
+}
+
+export async function removeCustomCategory(name) {
+    return this.request(`/templates/categories/custom/${encodeURIComponent(name)}`, { method: 'DELETE' });
+}
+
+// ── WordPress WaaS Template endpoints ────────────────────────────────────────
+
+export async function listWpTemplates(category = null, search = null) {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return this.request(`/wp-templates/${q ? '?' + q : ''}`);
+}
+
+export async function getWpTemplateCategories() {
+    return this.request('/wp-templates/categories');
+}
+
+export async function getWpTemplate(templateId) {
+    return this.request(`/wp-templates/${templateId}`);
+}
+
+export async function createWpTemplate(data) {
+    return this.request('/wp-templates/', { method: 'POST', body: data });
+}
+
+export async function updateWpTemplate(templateId, data) {
+    return this.request(`/wp-templates/${templateId}`, { method: 'PUT', body: data });
+}
+
+export async function deleteWpTemplate(templateId) {
+    return this.request(`/wp-templates/${templateId}`, { method: 'DELETE' });
+}
+
+export async function getWpTemplateRaw(templateId) {
+    return this.request(`/wp-templates/${templateId}/raw`);
+}
+
+export async function createWpTemplateFromBackup(formData) {
+    return this.request('/wp-templates/from-backup', { method: 'POST', body: formData });
+}
+
+export async function getWpCustomCategories() {
+    return this.request('/wp-templates/categories/custom');
+}
+
+export async function addWpCustomCategory(name) {
+    return this.request('/wp-templates/categories/custom', { method: 'POST', body: { name } });
+}
+
+export async function removeWpCustomCategory(name) {
+    return this.request(`/wp-templates/categories/custom/${encodeURIComponent(name)}`, { method: 'DELETE' });
+}
+
 // Git Deployment endpoints
 export async function getDeployConfig(appId) {
     return this.request(`/deploy/apps/${appId}/config`);

@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, ShoppingCart, Globe, ChevronDown, Settings, LogOut, User, Check, BellOff, CheckCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useCommandPalette } from '../../contexts/CommandPaletteContext';
 import { cn } from '../../lib/utils';
 import { Separator } from '../ui/separator';
 import {
@@ -23,33 +24,8 @@ export default function AppHeader() {
     const { user, logout } = useAuth();
     const { theme, setTheme } = useTheme();
     const navigate = useNavigate();
+    const { openPalette } = useCommandPalette();
     const [lang, setLang] = useState('en');
-    const [searchFocused, setSearchFocused] = useState(false);
-    const [searchValue, setSearchValue] = useState('');
-    const searchRef = useRef(null);
-
-    // Ctrl+K focuses search
-    useEffect(() => {
-        const handler = (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                e.preventDefault();
-                searchRef.current?.focus();
-            }
-        };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, []);
-
-    const handleSearch = (e) => {
-        if (e.key === 'Enter' && searchValue.trim()) {
-            navigate(`/search?q=${encodeURIComponent(searchValue.trim())}`);
-            setSearchValue('');
-        }
-        if (e.key === 'Escape') {
-            setSearchValue('');
-            searchRef.current?.blur();
-        }
-    };
 
     return (
         <header className="sticky top-0 flex h-14 items-center gap-4 border-b border-border bg-background px-4" style={{zIndex: 50}}>
@@ -57,28 +33,17 @@ export default function AppHeader() {
             {/* Left spacer */}
             <div className="flex-1" />
 
-            {/* Center: Search */}
-            <div className={cn(
-                'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-all w-64',
-                searchFocused
-                    ? 'border-[var(--accent-primary)] ring-2 ring-[var(--accent-shadow)] bg-background'
-                    : 'border-border bg-muted/40 hover:bg-muted/70'
-            )}>
+            {/* Center: Search trigger */}
+            <button
+                onClick={openPalette}
+                className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm w-64 transition-colors hover:bg-muted/70 hover:border-[var(--accent-primary)]"
+            >
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <input
-                    ref={searchRef}
-                    value={searchValue}
-                    onChange={e => setSearchValue(e.target.value)}
-                    onFocus={() => setSearchFocused(true)}
-                    onBlur={() => setSearchFocused(false)}
-                    onKeyDown={handleSearch}
-                    placeholder="Search..."
-                    className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground text-foreground text-sm"
-                />
-                <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+                <span className="flex-1 text-left text-muted-foreground">Search...</span>
+                <kbd className="hidden sm:inline-flex h-5 select-none items-center rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
                     ⌘K
                 </kbd>
-            </div>
+            </button>
 
             {/* Right: actions */}
             <div className="flex items-center gap-1">

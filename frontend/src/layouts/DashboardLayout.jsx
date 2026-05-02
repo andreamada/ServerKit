@@ -1,21 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import AppHeader from '../components/layout/AppHeader';
 import CommandPalette from '../components/CommandPalette';
 import LogsDrawer from '../components/LogsDrawer';
 import { LogsDrawerProvider } from '../contexts/LogsDrawerContext';
+import { CommandPaletteProvider, useCommandPalette } from '../contexts/CommandPaletteContext';
 import { SidebarProvider, SidebarInset } from '../components/ui/sidebar';
 
-const DashboardLayout = () => {
-    const [paletteOpen, setPaletteOpen] = useState(false);
+function DashboardLayoutInner() {
+    const { open, openPalette, closePalette } = useCommandPalette();
 
     const handleKeyDown = useCallback((e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
-            setPaletteOpen(prev => !prev);
+            openPalette();
         }
-    }, []);
+    }, [openPalette]);
 
     useEffect(() => {
         document.addEventListener('keydown', handleKeyDown);
@@ -32,11 +33,17 @@ const DashboardLayout = () => {
                         <Outlet />
                     </main>
                 </SidebarInset>
-                <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+                <CommandPalette open={open} onClose={closePalette} />
                 <LogsDrawer />
             </SidebarProvider>
         </LogsDrawerProvider>
     );
-};
+}
+
+const DashboardLayout = () => (
+    <CommandPaletteProvider>
+        <DashboardLayoutInner />
+    </CommandPaletteProvider>
+);
 
 export default DashboardLayout;

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
 import SSOProviderIcon from '../components/SSOProviderIcon';
 import ServerKitLogo from '../components/ServerKitLogo';
@@ -19,8 +20,13 @@ const Login = () => {
     const [backupCode, setBackupCode] = useState('');
 
     const { login, setUser, setTokens, registrationEnabled, ssoProviders, passwordLoginEnabled } = useAuth();
+    const { whiteLabel } = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
+
+    const brandName = (whiteLabel.enabled && whiteLabel.brandName) ? whiteLabel.brandName : 'ServerKit';
+    const showCustomLogo = whiteLabel.enabled && whiteLabel.logoData && whiteLabel.mode !== 'text_only';
+    const showLogo = !whiteLabel.enabled || whiteLabel.mode !== 'text_only';
     const [ssoLoading, setSsoLoading] = useState(null);
 
     // Refs for TOTP input fields
@@ -246,10 +252,15 @@ const Login = () => {
         <div className="auth-container">
             <div className="auth-card">
                 <div className="auth-header">
-                    <div className="brand-logo">
-                        <ServerKitLogo width={40} height={40} />
-                    </div>
-                    <h1>ServerKit</h1>
+                    {showLogo && (
+                        <div className="brand-logo">
+                            {showCustomLogo
+                                ? <img src={whiteLabel.logoData} alt={brandName} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                                : <ServerKitLogo width={40} height={40} />
+                            }
+                        </div>
+                    )}
+                    <h1>{brandName}</h1>
                     <p>Sign in to your account</p>
                 </div>
 

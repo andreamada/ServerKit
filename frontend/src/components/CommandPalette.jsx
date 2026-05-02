@@ -1,59 +1,72 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { useNavigate } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import api from '../services/api';
+import { cn } from '../lib/utils';
 
 const STATIC_PAGES = [
-    { label: 'Services', path: '/services', category: 'Pages', keywords: 'apps containers' },
-    { label: 'Docker', path: '/docker', category: 'Pages', keywords: 'containers images' },
-    { label: 'Databases', path: '/databases', category: 'Pages', keywords: 'mysql postgres sql' },
-    { label: 'Domains', path: '/domains', category: 'Pages', keywords: 'dns nginx' },
-    { label: 'SSL Certificates', path: '/ssl', category: 'Pages', keywords: 'https tls' },
-    { label: 'Templates', path: '/templates', category: 'Pages', keywords: 'deploy one-click' },
-    { label: 'Workflow Builder', path: '/workflow', category: 'Pages', keywords: 'automation pipeline' },
-    { label: 'WordPress', path: '/wordpress', category: 'Pages', keywords: 'wp sites' },
-    { label: 'WordPress Projects', path: '/wordpress/projects', category: 'Pages', keywords: 'wp environments' },
-    { label: 'Git', path: '/git', category: 'Pages', keywords: 'repos deploy' },
-    { label: 'Files', path: '/files', category: 'Pages', keywords: 'file manager explorer' },
-    { label: 'FTP Server', path: '/ftp', category: 'Pages', keywords: 'sftp upload' },
-    { label: 'Monitoring', path: '/monitoring', category: 'Pages', keywords: 'metrics uptime' },
-    { label: 'Backups', path: '/backups', category: 'Pages', keywords: 'snapshots restore' },
-    { label: 'Cron Jobs', path: '/cron', category: 'Pages', keywords: 'schedule tasks' },
-    { label: 'Security', path: '/security', category: 'Pages', keywords: 'firewall fail2ban' },
-    { label: 'Email', path: '/email', category: 'Pages', keywords: 'smtp postfix' },
-    { label: 'Terminal', path: '/terminal', category: 'Pages', keywords: 'shell ssh console' },
-    { label: 'Servers', path: '/servers', category: 'Pages', keywords: 'fleet agents' },
-    { label: 'Fleet Monitor', path: '/fleet-monitor', category: 'Pages', keywords: 'agents status' },
-    { label: 'DNS Zones', path: '/dns', category: 'Pages', keywords: 'records nameserver' },
-    { label: 'Status Pages', path: '/status-pages', category: 'Pages', keywords: 'uptime incidents' },
-    { label: 'Cloud Provision', path: '/cloud', category: 'Pages', keywords: 'vps deploy' },
-    { label: 'Marketplace', path: '/marketplace', category: 'Pages', keywords: 'extensions plugins' },
-    { label: 'Downloads', path: '/downloads', category: 'Pages', keywords: 'agent installer' },
-    { label: 'Settings', path: '/settings', category: 'Settings', keywords: 'profile preferences' },
-    { label: 'Settings: Users', path: '/settings/users', category: 'Settings', keywords: 'accounts team' },
-    { label: 'Settings: API Keys', path: '/settings/api', category: 'Settings', keywords: 'tokens access' },
-    { label: 'Settings: SSO', path: '/settings/sso', category: 'Settings', keywords: 'oauth saml login' },
-    { label: 'Settings: Appearance', path: '/settings/appearance', category: 'Settings', keywords: 'theme dark light' },
+    { label: 'Dashboard',          path: '/',                   category: 'Pages',          keywords: 'home overview' },
+    { label: 'Services',           path: '/services',           category: 'Pages',          keywords: 'apps containers' },
+    { label: 'Docker',             path: '/docker',             category: 'Pages',          keywords: 'containers images' },
+    { label: 'Databases',          path: '/databases',          category: 'Pages',          keywords: 'mysql postgres sql' },
+    { label: 'Domains',            path: '/domains',            category: 'Pages',          keywords: 'dns nginx' },
+    { label: 'SSL Certificates',   path: '/ssl',                category: 'Pages',          keywords: 'https tls' },
+    { label: 'Templates',          path: '/templates',          category: 'Pages',          keywords: 'deploy one-click' },
+    { label: 'Workflow Builder',   path: '/workflow',           category: 'Pages',          keywords: 'automation pipeline' },
+    { label: 'WordPress',          path: '/wordpress',          category: 'Pages',          keywords: 'wp sites' },
+    { label: 'WordPress Projects', path: '/wordpress/projects', category: 'Pages',          keywords: 'wp environments' },
+    { label: 'Git',                path: '/git',                category: 'Pages',          keywords: 'repos deploy' },
+    { label: 'Files',              path: '/files',              category: 'Pages',          keywords: 'file manager explorer' },
+    { label: 'FTP Server',         path: '/ftp',                category: 'Pages',          keywords: 'sftp upload' },
+    { label: 'Monitoring',         path: '/monitoring',         category: 'Pages',          keywords: 'metrics uptime' },
+    { label: 'Backups',            path: '/backups',            category: 'Pages',          keywords: 'snapshots restore' },
+    { label: 'Cron Jobs',          path: '/cron',               category: 'Pages',          keywords: 'schedule tasks' },
+    { label: 'Security',           path: '/security',           category: 'Pages',          keywords: 'firewall fail2ban' },
+    { label: 'Email',              path: '/email',              category: 'Pages',          keywords: 'smtp postfix' },
+    { label: 'Terminal',           path: '/terminal',           category: 'Pages',          keywords: 'shell ssh console' },
+    { label: 'Servers',            path: '/servers',            category: 'Pages',          keywords: 'fleet agents' },
+    { label: 'Fleet Monitor',      path: '/fleet-monitor',      category: 'Pages',          keywords: 'agents status' },
+    { label: 'DNS Zones',          path: '/dns',                category: 'Pages',          keywords: 'records nameserver' },
+    { label: 'Status Pages',       path: '/status-pages',       category: 'Pages',          keywords: 'uptime incidents' },
+    { label: 'Cloud Provision',    path: '/cloud',              category: 'Pages',          keywords: 'vps deploy' },
+    { label: 'Marketplace',        path: '/marketplace',        category: 'Pages',          keywords: 'extensions plugins' },
+    { label: 'Downloads',          path: '/downloads',          category: 'Pages',          keywords: 'agent installer' },
+    // Administration
+    { label: 'Users',              path: '/users',              category: 'Administration', keywords: 'accounts team roles invitations' },
+    { label: 'Subscriptions',      path: '/subscriptions',      category: 'Administration', keywords: 'billing plans customers' },
+    { label: 'Transactions',       path: '/transactions',       category: 'Administration', keywords: 'payments invoices history' },
+    { label: 'Pricing Plans',      path: '/pricing',            category: 'Administration', keywords: 'tiers packages billing' },
+    { label: 'Payment Gateways',   path: '/payment-gateways',   category: 'Administration', keywords: 'stripe paypal billing' },
+    // Settings
+    { label: 'Settings',           path: '/settings',           category: 'Settings',       keywords: 'profile preferences' },
+    { label: 'Settings: Profile',  path: '/settings/profile',   category: 'Settings',       keywords: 'avatar name email' },
+    { label: 'Settings: Security', path: '/settings/security',  category: 'Settings',       keywords: 'password 2fa' },
+    { label: 'Settings: API Keys', path: '/settings/api',       category: 'Settings',       keywords: 'tokens access' },
+    { label: 'Settings: SSO',      path: '/settings/sso',       category: 'Settings',       keywords: 'oauth saml login' },
+    { label: 'Settings: Appearance', path: '/settings/appearance', category: 'Settings',    keywords: 'theme dark light accent' },
     { label: 'Settings: Notifications', path: '/settings/notifications', category: 'Settings', keywords: 'alerts email slack' },
-    { label: 'Settings: System', path: '/settings/system', category: 'Settings', keywords: 'server config' },
+    { label: 'Settings: Site',     path: '/settings/site',      category: 'Settings',       keywords: 'domain license language session' },
+    { label: 'Settings: System',   path: '/settings/system',    category: 'Settings',       keywords: 'server config info' },
 ];
 
-function fuzzyMatch(text, query) {
-    const lower = text.toLowerCase();
-    const q = query.toLowerCase();
-    const idx = lower.indexOf(q);
-    if (idx === -1) return -1;
-    return idx === 0 ? 2 : 1;
-}
-
 function scoreItem(item, query) {
-    const labelScore = fuzzyMatch(item.label, query);
-    if (labelScore > 0) return labelScore + 1;
-    const kwScore = fuzzyMatch(item.keywords || '', query);
-    if (kwScore > 0) return kwScore;
-    const pathScore = fuzzyMatch(item.path, query);
-    if (pathScore > 0) return pathScore;
+    const q = query.toLowerCase();
+    const label = item.label.toLowerCase();
+    const kw = (item.keywords || '').toLowerCase();
+    const path = item.path.toLowerCase();
+    if (label.startsWith(q)) return 4;
+    if (label.includes(q)) return 3;
+    if (kw.includes(q)) return 2;
+    if (path.includes(q)) return 1;
     return -1;
 }
+
+const Kbd = ({ children }) => (
+    <kbd className="inline-flex h-5 select-none items-center rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+        {children}
+    </kbd>
+);
 
 const CommandPalette = ({ open, onClose }) => {
     const [query, setQuery] = useState('');
@@ -63,7 +76,6 @@ const CommandPalette = ({ open, onClose }) => {
     const listRef = useRef(null);
     const navigate = useNavigate();
 
-    // Fetch dynamic items (services/containers + servers) when opened
     useEffect(() => {
         if (!open) return;
         setQuery('');
@@ -75,28 +87,24 @@ const CommandPalette = ({ open, onClose }) => {
             try {
                 const containers = await api.getContainers();
                 if (!cancelled && Array.isArray(containers)) {
-                    containers.forEach(c => {
-                        items.push({
-                            label: c.name || c.Names?.[0]?.replace(/^\//, ''),
-                            path: `/docker`,
-                            category: 'Containers',
-                            keywords: `${c.Image || ''} ${c.State || ''}`,
-                        });
-                    });
+                    containers.forEach(c => items.push({
+                        label: c.name || c.Names?.[0]?.replace(/^\//, ''),
+                        path: `/docker`,
+                        category: 'Containers',
+                        keywords: `${c.Image || ''} ${c.State || ''}`,
+                    }));
                 }
             } catch {}
             try {
                 const serverData = await api.getServers();
                 const servers = serverData?.servers || serverData || [];
                 if (!cancelled && Array.isArray(servers)) {
-                    servers.forEach(s => {
-                        items.push({
-                            label: s.name || s.hostname,
-                            path: `/servers/${s.id}`,
-                            category: 'Servers',
-                            keywords: `${s.hostname || ''} ${s.ip_address || ''}`,
-                        });
-                    });
+                    servers.forEach(s => items.push({
+                        label: s.name || s.hostname,
+                        path: `/servers/${s.id}`,
+                        category: 'Servers',
+                        keywords: `${s.hostname || ''} ${s.ip_address || ''}`,
+                    }));
                 }
             } catch {}
             if (!cancelled) setDynamicItems(items);
@@ -105,11 +113,8 @@ const CommandPalette = ({ open, onClose }) => {
         return () => { cancelled = true; };
     }, [open]);
 
-    // Focus input when opened
     useEffect(() => {
-        if (open && inputRef.current) {
-            requestAnimationFrame(() => inputRef.current?.focus());
-        }
+        if (open) requestAnimationFrame(() => inputRef.current?.focus());
     }, [open]);
 
     const allItems = useMemo(() => [...STATIC_PAGES, ...dynamicItems], [dynamicItems]);
@@ -123,10 +128,7 @@ const CommandPalette = ({ open, onClose }) => {
             .slice(0, 20);
     }, [query, allItems]);
 
-    // Reset selected index when results change
-    useEffect(() => {
-        setSelectedIndex(0);
-    }, [results]);
+    useEffect(() => { setSelectedIndex(0); }, [results]);
 
     const handleSelect = useCallback((item) => {
         navigate(item.path);
@@ -143,79 +145,121 @@ const CommandPalette = ({ open, onClose }) => {
         } else if (e.key === 'Enter' && results[selectedIndex]) {
             e.preventDefault();
             handleSelect(results[selectedIndex]);
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            onClose();
         }
-    }, [results, selectedIndex, handleSelect, onClose]);
+    }, [results, selectedIndex, handleSelect]);
 
-    // Scroll selected item into view
     useEffect(() => {
         if (!listRef.current) return;
-        const selected = listRef.current.children[selectedIndex];
-        if (selected) selected.scrollIntoView({ block: 'nearest' });
+        const items = listRef.current.querySelectorAll('[data-item]');
+        items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
     }, [selectedIndex]);
 
-    if (!open) return null;
-
     // Group results by category
-    const grouped = {};
-    results.forEach(item => {
-        if (!grouped[item.category]) grouped[item.category] = [];
-        grouped[item.category].push(item);
-    });
+    const grouped = useMemo(() => {
+        const g = {};
+        results.forEach(item => {
+            if (!g[item.category]) g[item.category] = [];
+            g[item.category].push(item);
+        });
+        return g;
+    }, [results]);
 
-    let flatIndex = -1;
+    // Build a flat list for selectedIndex tracking
+    const flatItems = useMemo(() => results, [results]);
+
+    let itemCounter = -1;
 
     return (
-        <div className="command-palette-overlay" onClick={onClose}>
-            <div className="command-palette" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command palette">
-                <div className="command-palette__input-wrapper">
-                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" strokeWidth="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Search pages, services, servers..."
-                        className="command-palette__input"
-                        autoComplete="off"
-                        spellCheck="false"
-                    />
-                    <kbd className="command-palette__kbd">ESC</kbd>
-                </div>
-                <div className="command-palette__results" ref={listRef}>
-                    {results.length === 0 ? (
-                        <div className="command-palette__empty">No results found</div>
-                    ) : (
-                        Object.entries(grouped).map(([category, items]) => (
-                            <div key={category} className="command-palette__group">
-                                <div className="command-palette__group-label">{category}</div>
-                                {items.map(item => {
-                                    flatIndex++;
-                                    const idx = flatIndex;
-                                    return (
-                                        <button
-                                            key={`${item.category}-${item.path}-${item.label}`}
-                                            className={`command-palette__item ${idx === selectedIndex ? 'command-palette__item--active' : ''}`}
-                                            onClick={() => handleSelect(item)}
-                                            onMouseEnter={() => setSelectedIndex(idx)}
-                                        >
-                                            <span className="command-palette__item-label">{item.label}</span>
-                                            <span className="command-palette__item-path">{item.path}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ))
+        <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
+            <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 duration-150" />
+                <Dialog.Content
+                    onOpenAutoFocus={e => e.preventDefault()}
+                    aria-label="Command palette"
+                    className={cn(
+                        'fixed left-1/2 top-[18%] z-50 w-full max-w-lg -translate-x-1/2',
+                        'rounded-xl border border-border bg-popover shadow-2xl overflow-hidden',
+                        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+                        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+                        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+                        'data-[state=closed]:slide-out-to-top-4 data-[state=open]:slide-in-from-top-4',
+                        'duration-150'
                     )}
-                </div>
-            </div>
-        </div>
+                >
+                    {/* Search input row */}
+                    <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+                        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={query}
+                            onChange={e => setQuery(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Search pages, services, servers…"
+                            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                            autoComplete="off"
+                            spellCheck="false"
+                        />
+                        <Kbd>ESC</Kbd>
+                    </div>
+
+                    {/* Results list */}
+                    <div
+                        ref={listRef}
+                        className="max-h-[min(60vh,380px)] overflow-y-auto overscroll-contain p-1"
+                    >
+                        {results.length === 0 ? (
+                            <div className="py-10 text-center text-sm text-muted-foreground">
+                                No results for &ldquo;{query}&rdquo;
+                            </div>
+                        ) : (
+                            Object.entries(grouped).map(([category, items]) => (
+                                <div key={category}>
+                                    <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                        {category}
+                                    </p>
+                                    {items.map(item => {
+                                        itemCounter++;
+                                        const idx = itemCounter;
+                                        const isSelected = idx === selectedIndex;
+                                        return (
+                                            <button
+                                                key={`${item.category}-${item.path}-${item.label}`}
+                                                data-item
+                                                className={cn(
+                                                    'flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                                                    isSelected
+                                                        ? 'bg-accent text-accent-foreground'
+                                                        : 'text-foreground hover:bg-accent/60'
+                                                )}
+                                                onClick={() => handleSelect(item)}
+                                                onMouseEnter={() => setSelectedIndex(idx)}
+                                            >
+                                                <span className="font-medium truncate">{item.label}</span>
+                                                <span className="shrink-0 text-[11px] text-muted-foreground">{item.path}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center gap-4 border-t border-border px-4 py-2">
+                        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <Kbd>↑</Kbd><Kbd>↓</Kbd> navigate
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <Kbd>↵</Kbd> open
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <Kbd>ESC</Kbd> close
+                        </span>
+                    </div>
+                </Dialog.Content>
+            </Dialog.Portal>
+        </Dialog.Root>
     );
 };
 

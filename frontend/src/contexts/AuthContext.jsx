@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 
 const AuthContext = createContext(null);
@@ -13,8 +13,11 @@ export function AuthProvider({ children }) {
         passwordLoginEnabled: true,
         needsMigration: false,
         migrationInfo: null,
+        sessionTimeoutMinutes: 120,
         checked: false
     });
+    // Always points to the current logout function — avoids stale closure in the idle timer
+    const logoutRef = useRef(null);
 
     useEffect(() => {
         checkSetupStatus();
@@ -30,6 +33,7 @@ export function AuthProvider({ children }) {
                 passwordLoginEnabled: status.password_login_enabled !== false,
                 needsMigration: status.needs_migration || false,
                 migrationInfo: status.migration_info || null,
+                sessionTimeoutMinutes: parseInt(status.session_timeout_minutes) || 120,
                 checked: true
             });
 
@@ -77,6 +81,7 @@ export function AuthProvider({ children }) {
                 passwordLoginEnabled: status.password_login_enabled !== false,
                 needsMigration: status.needs_migration || false,
                 migrationInfo: status.migration_info || null,
+                sessionTimeoutMinutes: parseInt(status.session_timeout_minutes) || 120,
                 checked: true
             });
         } catch (error) {
@@ -110,6 +115,27 @@ export function AuthProvider({ children }) {
         api.logout();
         setUser(null);
     }
+
+    // Keep ref current so the idle timer never closes over a stale logout
+    logoutRef.current = logout;
+
+    // Idle session timeout — fires logout after N minutes with no user activity
+    useEffect(() => {
+        if (!user) return;
+        const ms = (setupStatus.sessionTimeoutMinutes || 120) * 60 * 1000;
+        let timer;
+        const reset = () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => logoutRef.current(), ms);
+        };
+        const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+        events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+        reset();
+        return () => {
+            clearTimeout(timer);
+            events.forEach(e => window.removeEventListener(e, reset));
+        };
+    }, [user, setupStatus.sessionTimeoutMinutes]);
 
     async function updateUser(data) {
         const response = await api.updateCurrentUser(data);
@@ -154,6 +180,7 @@ export function AuthProvider({ children }) {
         registrationEnabled: setupStatus.registrationEnabled,
         ssoProviders: setupStatus.ssoProviders,
         passwordLoginEnabled: setupStatus.passwordLoginEnabled,
+        sessionTimeoutMinutes: setupStatus.sessionTimeoutMinutes,
     };
 
     return (

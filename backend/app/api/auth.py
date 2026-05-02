@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import (
     create_access_token,
@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__)
 
 
+def _session_expires_delta():
+    """Return access token lifetime from the session_timeout_minutes setting."""
+    minutes = SettingsService.get('session_timeout_minutes', 120)
+    try:
+        minutes = int(minutes)
+    except (TypeError, ValueError):
+        minutes = 120
+    return timedelta(minutes=max(1, minutes))
+
+
 @auth_bp.route('/setup-status', methods=['GET'])
 def get_setup_status():
     """Check if initial setup is needed and if registration is enabled."""
@@ -33,6 +43,12 @@ def get_setup_status():
     from app.services.migration_service import MigrationService
     migration_status = MigrationService.get_status()
 
+    session_timeout = SettingsService.get('session_timeout_minutes', 120)
+    try:
+        session_timeout = int(session_timeout)
+    except (TypeError, ValueError):
+        session_timeout = 120
+
     return jsonify({
         'needs_setup': needs_setup,
         'registration_enabled': registration_enabled,
@@ -44,6 +60,7 @@ def get_setup_status():
             'current_revision': migration_status['current_revision'],
             'head_revision': migration_status['head_revision'],
         },
+        'session_timeout_minutes': session_timeout,
     }), 200
 
 
@@ -139,7 +156,7 @@ def register():
     )
     db.session.commit()
 
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=user.id, expires_delta=_session_expires_delta())
     refresh_token = create_refresh_token(identity=user.id)
 
     return jsonify({
@@ -253,7 +270,7 @@ def login():
     AuditService.log_login(user.id, success=True)
     db.session.commit()
 
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=user.id, expires_delta=_session_expires_delta())
     refresh_token = create_refresh_token(identity=user.id)
 
     return jsonify({
@@ -272,7 +289,7 @@ def refresh():
     if not user or not user.is_active:
         return jsonify({'error': 'Invalid user'}), 401
 
-    access_token = create_access_token(identity=current_user_id)
+    access_token = create_access_token(identity=current_user_id, expires_delta=_session_expires_delta())
 
     return jsonify({
         'access_token': access_token

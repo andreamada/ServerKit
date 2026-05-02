@@ -32,7 +32,7 @@ import {
 
 const Sidebar = () => {
     const { open: sidebarOpen } = useSidebar();
-    const { user, logout, updateUser } = useAuth();
+    const { user, logout, updateUser, isAdmin } = useAuth();
     const { theme, setTheme, whiteLabel } = useTheme();
     const navigate = useNavigate();
     const [starAnimating, setStarAnimating] = useState(false);
@@ -80,7 +80,7 @@ const Sidebar = () => {
         api.updateCurrentUser({ sidebar_config: config }).catch(() => {});
     };
 
-    const visibleItems = useMemo(() => getVisibleItems(user?.sidebar_config), [user?.sidebar_config]);
+    const visibleItems = useMemo(() => getVisibleItems(user?.sidebar_config, isAdmin), [user?.sidebar_config, isAdmin]);
 
     const groupedItems = useMemo(() => {
         const groups = {};
@@ -139,15 +139,17 @@ const Sidebar = () => {
                         </SidebarMenuButton>
                         {sidebarOpen && isExpanded && visibleSubs.length > 0 && (
                             <SidebarMenuSub>
-                                <SidebarMenuSubItem key={`${item.id}-overview`}>
-                                    <SidebarMenuSubButton
-                                        isActive={location.pathname === item.route}
-                                        onClick={() => navigate(item.route)}
-                                    >
-                                        <NavIcon icon={item.icon} />
-                                        <span>Overview</span>
-                                    </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
+                                {!item.noAutoSubItem && (
+                                    <SidebarMenuSubItem key={`${item.id}-overview`}>
+                                        <SidebarMenuSubButton
+                                            isActive={location.pathname === item.route}
+                                            onClick={() => navigate(item.route)}
+                                        >
+                                            <NavIcon icon={item.icon} />
+                                            <span>Overview</span>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                )}
                                 {visibleSubs.map(sub => (
                                     <SidebarMenuSubItem key={sub.id}>
                                         <SidebarMenuSubButton

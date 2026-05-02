@@ -19,9 +19,10 @@
     width: 100%;
     max-width: 560px;
     max-height: 90vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    @include custom-scrollbar();
 }
 
 .modal-lg {
@@ -32,6 +33,7 @@
     @include flex-between();
     padding: $space-5 $space-6;
     border-bottom: 1px solid hsl(var(--border));
+    flex-shrink: 0;
 
     h2, h3 {
         font-size: $font-size-base;
@@ -64,13 +66,13 @@
 
 .modal-body {
     padding: $space-6;
-    max-height: 60vh;
     overflow-y: auto;
+    flex: 1;
     @include custom-scrollbar();
 }
 
 .modal form {
-    padding: $space-6;
+    padding: 0;
 }
 
 .modal-actions {
@@ -88,6 +90,7 @@
     justify-content: flex-end;
     padding: $space-4 $space-6;
     border-top: 1px solid hsl(var(--border));
+    flex-shrink: 0;
 }
 
 // Type selection grid (used in create app modal)

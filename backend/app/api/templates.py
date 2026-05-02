@@ -39,11 +39,14 @@ def list_templates():
     category = request.args.get('category')
     search = request.args.get('search')
 
-    templates = TemplateService.list_all_templates(category=category, search=search)
+    templates, repo_errors = TemplateService.list_all_templates(
+        category=category, search=search, collect_errors=True
+    )
 
     return jsonify({
         'templates': templates,
-        'count': len(templates)
+        'count': len(templates),
+        'repo_errors': repo_errors or []
     }), 200
 
 
@@ -409,10 +412,69 @@ def create_local_template():
     return jsonify(result), 201 if result.get('success') else 400
 
 
+@templates_bp.route('/local', methods=['GET'])
+@jwt_required()
+@admin_required
+def list_local_templates():
+    """List local templates with editable flag."""
+    templates = TemplateService.list_local_templates()
+    return jsonify({'templates': templates}), 200
+
+
+@templates_bp.route('/local/<template_id>', methods=['GET'])
+@jwt_required()
+@admin_required
+def get_local_template_raw(template_id):
+    """Get a local template's content for editing."""
+    result = TemplateService.get_local_template_raw(template_id)
+    return jsonify(result), 200 if result.get('success') else 404
+
+
+@templates_bp.route('/local/<template_id>', methods=['PUT'])
+@jwt_required()
+@admin_required
+def update_local_template(template_id):
+    """Update an existing local template."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    result = TemplateService.update_local_template(template_id, data)
+    return jsonify(result), 200 if result.get('success') else 400
+
+
 @templates_bp.route('/local/<template_id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
 def delete_local_template(template_id):
     """Delete a local template."""
     result = TemplateService.delete_local_template(template_id)
+    return jsonify(result), 200 if result.get('success') else 404
+
+
+# ==================== CATEGORY MANAGEMENT ====================
+
+@templates_bp.route('/categories/custom', methods=['GET'])
+@jwt_required()
+def get_custom_categories():
+    """Get admin-defined custom categories."""
+    return jsonify({'categories': TemplateService.get_custom_categories()}), 200
+
+
+@templates_bp.route('/categories/custom', methods=['POST'])
+@jwt_required()
+@admin_required
+def add_custom_category():
+    """Add a custom category."""
+    data = request.get_json()
+    name = (data or {}).get('name', '')
+    result = TemplateService.add_custom_category(name)
+    return jsonify(result), 201 if result.get('success') else 400
+
+
+@templates_bp.route('/categories/custom/<name>', methods=['DELETE'])
+@jwt_required()
+@admin_required
+def remove_custom_category(name):
+    """Remove a custom category."""
+    result = TemplateService.remove_custom_category(name)
     return jsonify(result), 200 if result.get('success') else 404

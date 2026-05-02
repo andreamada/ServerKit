@@ -35,7 +35,10 @@ class ApiClient {
             ...options,
         };
 
-        if (options.body && typeof options.body === 'object') {
+        if (options.body instanceof FormData) {
+            config.body = options.body;
+            delete config.headers['Content-Type'];
+        } else if (options.body && typeof options.body === 'object') {
             config.body = JSON.stringify(options.body);
         }
 
@@ -43,15 +46,19 @@ class ApiClient {
             const response = await fetch(url, config);
 
             if (response.status === 401) {
-                const refreshed = await this.refreshToken();
-                if (refreshed) {
-                    config.headers.Authorization = `Bearer ${this.getToken()}`;
-                    const retryResponse = await fetch(url, config);
-                    return this.handleResponse(retryResponse);
+                // Login/register return 401 for invalid credentials — don't treat as expired session
+                const isAuthEndpoint = /\/auth\/(login|register)/.test(endpoint);
+                if (!isAuthEndpoint) {
+                    const refreshed = await this.refreshToken();
+                    if (refreshed) {
+                        config.headers.Authorization = `Bearer ${this.getToken()}`;
+                        const retryResponse = await fetch(url, config);
+                        return this.handleResponse(retryResponse);
+                    }
+                    this.clearTokens();
+                    window.location.href = '/login';
+                    throw new Error('Session expired');
                 }
-                this.clearTokens();
-                window.location.href = '/login';
-                throw new Error('Session expired');
             }
 
             return this.handleResponse(response);

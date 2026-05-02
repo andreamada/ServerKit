@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
 import ServerKitLogo from '../components/ServerKitLogo';
 
@@ -15,8 +16,13 @@ const Register = () => {
     const [inviteLoading, setInviteLoading] = useState(false);
     const [inviteInvalid, setInviteInvalid] = useState(false);
     const { register, registrationEnabled } = useAuth();
+    const { whiteLabel } = useTheme();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+
+    const brandName = (whiteLabel.enabled && whiteLabel.brandName) ? whiteLabel.brandName : 'ServerKit';
+    const showCustomLogo = whiteLabel.enabled && whiteLabel.logoData && whiteLabel.mode !== 'text_only';
+    const showLogo = !whiteLabel.enabled || whiteLabel.mode !== 'text_only';
     const inviteToken = searchParams.get('invite');
 
     useEffect(() => {
@@ -40,10 +46,15 @@ const Register = () => {
             <div className="auth-container">
                 <div className="auth-card">
                     <div className="auth-header">
-                        <div className="brand-logo">
-                            <ServerKitLogo width={40} height={40} />
-                        </div>
-                        <h1>ServerKit</h1>
+                        {showLogo && (
+                            <div className="brand-logo">
+                                {showCustomLogo
+                                    ? <img src={whiteLabel.logoData} alt={brandName} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                                    : <ServerKitLogo width={40} height={40} />
+                                }
+                            </div>
+                        )}
+                        <h1>{brandName}</h1>
                         <p>Registration is currently disabled</p>
                     </div>
                     <p className="auth-footer">
@@ -59,10 +70,15 @@ const Register = () => {
             <div className="auth-container">
                 <div className="auth-card">
                     <div className="auth-header">
-                        <div className="brand-logo">
-                            <ServerKitLogo width={40} height={40} />
-                        </div>
-                        <h1>ServerKit</h1>
+                        {showLogo && (
+                            <div className="brand-logo">
+                                {showCustomLogo
+                                    ? <img src={whiteLabel.logoData} alt={brandName} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                                    : <ServerKitLogo width={40} height={40} />
+                                }
+                            </div>
+                        )}
+                        <h1>{brandName}</h1>
                         <p>Validating invitation...</p>
                     </div>
                 </div>
@@ -75,10 +91,15 @@ const Register = () => {
             <div className="auth-container">
                 <div className="auth-card">
                     <div className="auth-header">
-                        <div className="brand-logo">
-                            <ServerKitLogo width={40} height={40} />
-                        </div>
-                        <h1>ServerKit</h1>
+                        {showLogo && (
+                            <div className="brand-logo">
+                                {showCustomLogo
+                                    ? <img src={whiteLabel.logoData} alt={brandName} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                                    : <ServerKitLogo width={40} height={40} />
+                                }
+                            </div>
+                        )}
+                        <h1>{brandName}</h1>
                         <p>This invitation is invalid or has expired</p>
                     </div>
                     <p className="auth-footer">
@@ -119,10 +140,15 @@ const Register = () => {
         <div className="auth-container">
             <div className="auth-card">
                 <div className="auth-header">
-                    <div className="brand-logo">
-                        <ServerKitLogo width={40} height={40} />
-                    </div>
-                    <h1>ServerKit</h1>
+                    {showLogo && (
+                        <div className="brand-logo">
+                            {showCustomLogo
+                                ? <img src={whiteLabel.logoData} alt={brandName} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                                : <ServerKitLogo width={40} height={40} />
+                            }
+                        </div>
+                    )}
+                    <h1>{brandName}</h1>
                     <p>{inviteInfo ? `You've been invited as ${inviteInfo.role}` : 'Create your account'}</p>
                 </div>
 

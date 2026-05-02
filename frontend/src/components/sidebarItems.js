@@ -2,13 +2,14 @@
 // Items with subItems render as collapsible groups (collapsed by default)
 // The 'dashboard' item is always visible and cannot be hidden
 
-export const SIDEBAR_CATEGORIES = ['overview', 'infrastructure', 'operations', 'system'];
+export const SIDEBAR_CATEGORIES = ['overview', 'infrastructure', 'operations', 'system', 'administration'];
 
 export const CATEGORY_LABELS = {
     overview: 'Overview',
     infrastructure: 'Infrastructure',
     operations: 'Operations',
-    system: 'System'
+    system: 'System',
+    administration: 'Administration',
 };
 
 export const SIDEBAR_ITEMS = [
@@ -157,6 +158,54 @@ export const SIDEBAR_ITEMS = [
         icon: '<path d="M4 17l6-6-6-6M12 19h8"/>'
     },
     {
+        id: 'admin-overview',
+        label: 'Overview',
+        route: '/activity',
+        category: 'administration',
+        requiresAdmin: true,
+        icon: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    },
+    {
+        id: 'admin-users',
+        label: 'Users',
+        route: '/users',
+        category: 'administration',
+        requiresAdmin: true,
+        icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'
+    },
+    {
+        id: 'subscriptions',
+        label: 'Subscriptions',
+        route: '/subscriptions',
+        category: 'administration',
+        requiresAdmin: true,
+        icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 2v20"/><path d="M2 12h20"/>'
+    },
+    {
+        id: 'transactions',
+        label: 'Transactions',
+        route: '/transactions',
+        category: 'administration',
+        requiresAdmin: true,
+        icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
+    },
+    {
+        id: 'pricing',
+        label: 'Pricing Plans',
+        route: '/pricing',
+        category: 'administration',
+        requiresAdmin: true,
+        icon: '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'
+    },
+    {
+        id: 'payment-gateways',
+        label: 'Payment Gateways',
+        route: '/payment-gateways',
+        category: 'administration',
+        requiresAdmin: true,
+        icon: '<rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>'
+    },
+    {
         id: 'marketplace',
         label: 'Marketplace',
         route: '/marketplace',
@@ -197,15 +246,16 @@ export const SIDEBAR_PRESETS = {
     }
 };
 
-// Get visible items based on config
-export function getVisibleItems(sidebarConfig) {
+// Get visible items based on config and user role
+export function getVisibleItems(sidebarConfig, isAdmin = false) {
     const { preset = 'full', hiddenItems = [] } = sidebarConfig || {};
 
     const hidden = preset === 'custom'
         ? hiddenItems
         : (SIDEBAR_PRESETS[preset]?.hiddenItems || []);
 
-    return SIDEBAR_ITEMS.filter(item =>
-        item.alwaysVisible || !hidden.includes(item.id)
-    );
+    return SIDEBAR_ITEMS.filter(item => {
+        if (item.requiresAdmin && !isAdmin) return false;
+        return item.alwaysVisible || !hidden.includes(item.id);
+    });
 }

@@ -36,14 +36,8 @@ class TemplateService:
     INSTALLED_DIR = paths.APPS_DIR
     TEMPLATE_CONFIG = os.path.join(CONFIG_DIR, 'templates.json')
 
-    # Default template repository
-    DEFAULT_REPOS = [
-        {
-            'name': 'serverkit-official',
-            'url': 'https://raw.githubusercontent.com/serverkit/templates/main',
-            'enabled': True
-        }
-    ]
+    # Default template repositories (empty — add your own via the UI)
+    DEFAULT_REPOS = []
 
     # Template schema version
     SCHEMA_VERSION = '1.0'
@@ -383,12 +377,15 @@ class TemplateService:
         return templates
 
     @classmethod
-    def fetch_remote_templates(cls, repo_url: str) -> List[Dict]:
-        """Fetch templates from a remote repository."""
+    def fetch_remote_templates(cls, repo_url: str) -> tuple:
+        """Fetch templates from a remote repository.
+
+        Returns:
+            (templates, error_message) — error_message is None on success.
+        """
         templates = []
 
         try:
-            # Fetch index.json from repo
             index_url = f"{repo_url}/index.json"
             response = requests.get(index_url, timeout=30)
             response.raise_for_status()
@@ -399,15 +396,25 @@ class TemplateService:
                 template_info['repo_url'] = repo_url
                 templates.append(template_info)
 
-        except Exception as e:
-            print(f"Failed to fetch templates from {repo_url}: {e}")
+            return templates, None
 
-        return templates
+        except Exception as e:
+            error_msg = f"Failed to fetch templates from {repo_url}: {e}"
+            print(error_msg)
+            return templates, error_msg
 
     @classmethod
-    def list_all_templates(cls, category: str = None, search: str = None) -> List[Dict]:
-        """List all available templates from all sources."""
+    def list_all_templates(cls, category: str = None, search: str = None,
+                            collect_errors: bool = False):
+        """List all available templates from all sources.
+
+        Args:
+            collect_errors: If True, returns (templates, errors) tuple instead
+                            of just templates. Callers that don't need errors
+                            can leave this False.
+        """
         templates = []
+        errors = []
 
         # Local templates
         templates.extend(cls.list_local_templates())
@@ -416,7 +423,10 @@ class TemplateService:
         config = cls.get_config()
         for repo in config.get('repos', []):
             if repo.get('enabled', True):
-                templates.extend(cls.fetch_remote_templates(repo['url']))
+                repo_templates, error = cls.fetch_remote_templates(repo['url'])
+                templates.extend(repo_templates)
+                if error:
+                    errors.append(error)
 
         # Filter by category
         if category:
@@ -431,6 +441,8 @@ class TemplateService:
                 or search_lower in t.get('description', '').lower()
             ]
 
+        if collect_errors:
+            return templates, errors
         return templates
 
     @classmethod
@@ -441,18 +453,22 @@ class TemplateService:
             for ext in ['.yaml', '.yml']:
                 filepath = os.path.join(templates_dir, f"{template_id}{ext}")
                 if os.path.exists(filepath):
-                    result = cls.parse_template(filepath)
-                    if result.get('success'):
-                        template = result['template']
-                        template['source'] = 'local'
-                        template['filepath'] = filepath
-                        return {'success': True, 'template': template}
-                    return result
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            template = yaml.safe_load(f)
+                        if isinstance(template, dict):
+                            template['source'] = 'local'
+                            template['filepath'] = filepath
+                            return {'success': True, 'template': template}
+                    except Exception as e:
+                        return {'success': False, 'error': str(e)}
 
         # Check remote repos
         config = cls.get_config()
         for repo in config.get('repos', []):
             if not repo.get('enabled', True):
+                continue
+            if repo.get('built_in'):
                 continue
 
             try:
@@ -460,8 +476,7 @@ class TemplateService:
                 response = requests.get(url, timeout=30)
                 if response.status_code == 200:
                     template = yaml.safe_load(response.text)
-                    validation = cls.validate_template(template)
-                    if validation['valid']:
+                    if isinstance(template, dict):
                         template['source'] = 'remote'
                         template['repo_url'] = repo['url']
                         return {'success': True, 'template': template}
@@ -1137,9 +1152,20 @@ class TemplateService:
 
     @classmethod
     def list_repositories(cls) -> List[Dict]:
-        """List configured template repositories."""
+        """List configured template repositories, always prepending the built-in library."""
         config = cls.get_config()
-        return config.get('repos', cls.DEFAULT_REPOS)
+        count = sum(
+            1 for fn in os.listdir(cls.LOCAL_TEMPLATES_DIR)
+            if fn.endswith(('.yaml', '.yml'))
+        ) if os.path.exists(cls.LOCAL_TEMPLATES_DIR) else 0
+        builtin = {
+            'name': 'Built-in Library',
+            'url': 'local://bundled',
+            'enabled': True,
+            'built_in': True,
+            'template_count': count,
+        }
+        return [builtin] + config.get('repos', cls.DEFAULT_REPOS)
 
     @classmethod
     def sync_templates(cls) -> Dict:
@@ -1206,13 +1232,28 @@ class TemplateService:
     @classmethod
     def create_local_template(cls, template_data: Dict) -> Dict:
         """Create a local template."""
-        validation = cls.validate_template(template_data)
+        # Work on a copy so we don't mutate the caller's dict
+        data = dict(template_data)
+
+        # Use an explicit 'id' field if provided, otherwise derive from name
+        template_id = data.pop('id', None) or re.sub(r'[^a-z0-9]+', '-', data.get('name', '').lower()).strip('-')
+
+        # Parse compose_yaml string into the 'compose' dict required by the schema
+        compose_yaml_str = data.pop('compose_yaml', None)
+        if compose_yaml_str:
+            try:
+                compose = yaml.safe_load(compose_yaml_str)
+                if isinstance(compose, dict):
+                    data['compose'] = compose
+            except yaml.YAMLError as e:
+                return {'success': False, 'error': f'Invalid compose YAML: {e}'}
+
+        validation = cls.validate_template(data)
         if not validation['valid']:
             return {'success': False, 'errors': validation['errors']}
 
         os.makedirs(cls.TEMPLATES_DIR, exist_ok=True)
 
-        template_id = template_data['name'].lower().replace(' ', '-')
         filepath = os.path.join(cls.TEMPLATES_DIR, f"{template_id}.yaml")
 
         if os.path.exists(filepath):
@@ -1220,7 +1261,7 @@ class TemplateService:
 
         try:
             with open(filepath, 'w') as f:
-                yaml.dump(template_data, f, default_flow_style=False, sort_keys=False)
+                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
             return {'success': True, 'template_id': template_id, 'filepath': filepath}
         except Exception as e:
@@ -1236,3 +1277,109 @@ class TemplateService:
                 return {'success': True}
 
         return {'success': False, 'error': 'Template not found'}
+
+    @classmethod
+    def update_local_template(cls, template_id: str, data: Dict) -> Dict:
+        """Update an existing local template's metadata and compose content."""
+        filepath = None
+        for templates_dir in [cls.TEMPLATES_DIR, cls.LOCAL_TEMPLATES_DIR]:
+            for ext in ['.yaml', '.yml']:
+                candidate = os.path.join(templates_dir, f"{template_id}{ext}")
+                if os.path.exists(candidate):
+                    filepath = candidate
+                    break
+            if filepath:
+                break
+
+        if not filepath:
+            return {'success': False, 'error': 'Template not found'}
+
+        # Load existing template to preserve all existing fields
+        try:
+            with open(filepath, 'r') as f:
+                existing = yaml.safe_load(f) or {}
+        except Exception:
+            existing = {}
+
+        # Apply metadata updates
+        for field in ['name', 'version', 'description', 'categories', 'featured', 'website', 'documentation', 'icon']:
+            if field in data:
+                existing[field] = data[field]
+
+        # Replace compose section if provided as raw YAML string
+        if 'compose_yaml' in data and data['compose_yaml']:
+            try:
+                compose = yaml.safe_load(data['compose_yaml'])
+                if isinstance(compose, dict):
+                    existing['compose'] = compose
+            except yaml.YAMLError as e:
+                return {'success': False, 'error': f'Invalid compose YAML: {e}'}
+
+        try:
+            with open(filepath, 'w') as f:
+                yaml.dump(existing, f, default_flow_style=False, sort_keys=False)
+            return {'success': True, 'template_id': template_id}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    @classmethod
+    def get_local_template_raw(cls, template_id: str) -> Dict:
+        """Get a local template's raw YAML content for editing."""
+        for templates_dir in [cls.TEMPLATES_DIR, cls.LOCAL_TEMPLATES_DIR]:
+            for ext in ['.yaml', '.yml']:
+                filepath = os.path.join(templates_dir, f"{template_id}{ext}")
+                if os.path.exists(filepath):
+                    try:
+                        with open(filepath, 'r') as f:
+                            content = f.read()
+                        template = yaml.safe_load(content)
+                        editable = templates_dir == cls.TEMPLATES_DIR
+                        compose = template.get('compose', {})
+                        compose_yaml = yaml.dump(compose, default_flow_style=False, sort_keys=False) if compose else ''
+                        return {
+                            'success': True,
+                            'template_id': template_id,
+                            'name': template.get('name', ''),
+                            'version': template.get('version', '1.0.0'),
+                            'description': template.get('description', ''),
+                            'categories': template.get('categories', []),
+                            'website': template.get('website', ''),
+                            'documentation': template.get('documentation', ''),
+                            'icon': template.get('icon', ''),
+                            'compose_yaml': compose_yaml,
+                            'editable': editable,
+                            'filepath': filepath,
+                        }
+                    except Exception as e:
+                        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': 'Template not found'}
+
+    @classmethod
+    def get_custom_categories(cls) -> List[str]:
+        """Get admin-defined custom category list."""
+        config = cls.get_config()
+        return sorted(config.get('custom_categories', []))
+
+    @classmethod
+    def add_custom_category(cls, name: str) -> Dict:
+        """Add a custom category."""
+        name = name.strip().lower().replace(' ', '-')
+        if not name:
+            return {'success': False, 'error': 'Category name is required'}
+        config = cls.get_config()
+        cats = config.setdefault('custom_categories', [])
+        if name in cats:
+            return {'success': False, 'error': 'Category already exists'}
+        cats.append(name)
+        cats.sort()
+        return cls.save_config(config)
+
+    @classmethod
+    def remove_custom_category(cls, name: str) -> Dict:
+        """Remove a custom category."""
+        config = cls.get_config()
+        cats = config.get('custom_categories', [])
+        if name not in cats:
+            return {'success': False, 'error': 'Category not found'}
+        config['custom_categories'] = [c for c in cats if c != name]
+        return cls.save_config(config)

@@ -11,6 +11,7 @@ const DEFAULT_WHITE_LABEL = {
     mode: 'image_text',    // 'image_text' | 'image_full' | 'text_only'
     brandName: '',
     logoData: '',          // base64 data URL
+    faviconData: '',       // base64 data URL
 };
 
 // Get the resolved theme based on current setting and OS preference
@@ -43,6 +44,21 @@ function deriveAccentVariants(hex) {
         glow: `rgba(${r}, ${g}, ${b}, 0.15)`,
         shadow: `rgba(${r}, ${g}, ${b}, 0.3)`,
     };
+}
+
+// Apply custom favicon, or restore defaults when cleared
+function applyFavicon(dataUrl) {
+    document.querySelectorAll("link[rel*='icon']").forEach(el => {
+        if (dataUrl) {
+            el.setAttribute('href', dataUrl);
+            el.setAttribute('type', 'image/png');
+        } else {
+            const sizes = el.getAttribute('sizes');
+            if (sizes === '32x32') { el.setAttribute('href', '/favicon-32x32.png'); el.setAttribute('type', 'image/png'); }
+            else if (sizes === '16x16') { el.setAttribute('href', '/favicon-16x16.png'); el.setAttribute('type', 'image/png'); }
+            else { el.setAttribute('href', '/favicon.ico'); el.setAttribute('type', 'image/x-icon'); }
+        }
+    });
 }
 
 // Apply accent CSS custom properties to the document
@@ -154,6 +170,11 @@ export function ThemeProvider({ children }) {
         applyTheme(theme);
         applyAccentToDOM(accentColor);
     }, [theme, applyTheme, accentColor]);
+
+    // Apply custom favicon whenever white-label favicon changes
+    useEffect(() => {
+        applyFavicon(whiteLabel.enabled && whiteLabel.faviconData ? whiteLabel.faviconData : '');
+    }, [whiteLabel.enabled, whiteLabel.faviconData]);
 
     const value = {
         theme,           // Current setting: 'dark' | 'light' | 'system'

@@ -11,22 +11,19 @@ import SidebarSettings from '../components/settings/SidebarSettings';
 import WhiteLabelTab from '../components/settings/WhiteLabelTab';
 import NotificationsTab from '../components/settings/NotificationsTab';
 import SystemTab from '../components/settings/SystemTab';
-import UsersTab from '../components/settings/UsersTab';
-import ActivityTab from '../components/settings/ActivityTab';
 import SiteSettingsTab from '../components/settings/SiteSettingsTab';
-import PricingPlansTab from '../components/settings/PricingPlansTab';
 import SSOConfigTab from '../components/settings/SSOConfigTab';
 import ApiSettingsTab from '../components/settings/ApiSettingsTab';
 import MigrationHistoryTab from '../components/settings/MigrationHistoryTab';
 import IconReferenceTab from '../components/settings/IconReferenceTab';
 import AboutTab from '../components/settings/AboutTab';
+import PrivacyGdprTab from '../components/settings/PrivacyGdprTab';
 import {
     User, Lock, Bell, Sun, LayoutTemplate, Layers,
-    Users, Activity, Settings2, CreditCard, LogIn,
-    Code, Database, Monitor, Info,
+    Settings2, LogIn, Code, Database, Monitor, Info, ShieldCheck,
 } from 'lucide-react';
 
-const VALID_TABS = ['profile', 'security', 'appearance', 'sidebar', 'whitelabel', 'notifications', 'system', 'users', 'activity', 'site', 'sso', 'api', 'migrations', 'developer', 'about', 'pricing'];
+const VALID_TABS = ['profile', 'security', 'appearance', 'sidebar', 'whitelabel', 'notifications', 'system', 'site', 'privacy', 'sso', 'api', 'migrations', 'developer', 'about'];
 
 function NavItem({ tab, label, icon: Icon, activeTab, setActiveTab }) {
     const active = activeTab === tab;
@@ -90,13 +87,9 @@ const Settings = () => {
 
                     {isAdmin && (
                         <>
-                            <NavSection title="Admin" />
-                            <NavItem tab="users"    label="Users"         icon={Users}     activeTab={activeTab} setActiveTab={setActiveTab} />
-                            <NavItem tab="activity" label="Activity"      icon={Activity}  activeTab={activeTab} setActiveTab={setActiveTab} />
-                            <NavItem tab="site"     label="Site Settings" icon={Settings2} activeTab={activeTab} setActiveTab={setActiveTab} />
-
-                            <NavSection title="Workspace" />
-                            <NavItem tab="pricing"    label="Pricing Plans" icon={CreditCard} activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavSection title="Platform" />
+                            <NavItem tab="site"       label="Site Settings" icon={Settings2}  activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavItem tab="privacy"    label="Privacy & GDPR" icon={ShieldCheck} activeTab={activeTab} setActiveTab={setActiveTab} />
                             <NavItem tab="sso"        label="SSO"           icon={LogIn}      activeTab={activeTab} setActiveTab={setActiveTab} />
                             <NavItem tab="api"        label="API"           icon={Code}       activeTab={activeTab} setActiveTab={setActiveTab} />
                             <NavItem tab="migrations" label="Migrations"    icon={Database}   activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -123,10 +116,8 @@ const Settings = () => {
                     {activeTab === 'sidebar'       && <SidebarSettings />}
                     {activeTab === 'whitelabel'    && <WhiteLabelTab />}
                     {activeTab === 'notifications' && <NotificationsTab />}
-                    {activeTab === 'users'         && isAdmin && <UsersTab />}
-                    {activeTab === 'activity'      && isAdmin && <ActivityTab />}
                     {activeTab === 'site'          && isAdmin && <SiteSettingsTab onDevModeChange={setDevMode} />}
-                    {activeTab === 'pricing'       && isAdmin && <PricingPlansTab />}
+                    {activeTab === 'privacy'       && isAdmin && <PrivacyGdprTab />}
                     {activeTab === 'sso'           && isAdmin && <SSOConfigTab />}
                     {activeTab === 'api'           && isAdmin && <ApiSettingsTab />}
                     {activeTab === 'migrations'    && isAdmin && <MigrationHistoryTab />}

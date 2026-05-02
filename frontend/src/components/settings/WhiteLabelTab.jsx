@@ -11,6 +11,7 @@ const WHITELABEL_MODES = [
 const WhiteLabelTab = () => {
     const { whiteLabel, setWhiteLabel } = useTheme();
     const logoInputRef = useRef(null);
+    const faviconInputRef = useRef(null);
 
     return (
         <div className="settings-section">
@@ -112,6 +113,50 @@ const WhiteLabelTab = () => {
                                     </div>
                                 </div>
                             )}
+
+                            <div className="form-group">
+                                <label>Favicon</label>
+                                <div className="whitelabel-upload whitelabel-upload--favicon" onClick={() => faviconInputRef.current?.click()}>
+                                    {whiteLabel.faviconData ? (
+                                        <div className="whitelabel-favicon-preview">
+                                            <img src={whiteLabel.faviconData} alt="Favicon preview" />
+                                            <div>
+                                                <p className="whitelabel-favicon-preview__name">Custom favicon active</p>
+                                                <button
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={(e) => { e.stopPropagation(); setWhiteLabel({ faviconData: '' }); }}
+                                                >
+                                                    <X size={12} /> Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="whitelabel-upload__placeholder">
+                                            <Upload size={16} />
+                                            <span>Click to upload favicon</span>
+                                            <span className="whitelabel-upload__hint">PNG, ICO, SVG — 32×32 recommended — max 100KB</span>
+                                        </div>
+                                    )}
+                                    <input
+                                        ref={faviconInputRef}
+                                        type="file"
+                                        accept="image/png,image/x-icon,image/svg+xml,image/webp"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            if (file.size > 100 * 1024) {
+                                                alert('Favicon must be under 100KB');
+                                                return;
+                                            }
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => setWhiteLabel({ faviconData: ev.target.result });
+                                            reader.readAsDataURL(file);
+                                            e.target.value = '';
+                                        }}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="whitelabel-preview">

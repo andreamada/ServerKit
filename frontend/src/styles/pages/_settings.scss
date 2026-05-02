@@ -1410,6 +1410,34 @@
     }
 }
 
+.whitelabel-upload--favicon {
+    padding: $space-3 $space-4;
+}
+
+.whitelabel-favicon-preview {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    justify-content: center;
+
+    img {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        border-radius: $radius-sm;
+        border: 1px solid $border-subtle;
+        background: $bg-hover;
+        padding: 2px;
+        image-rendering: pixelated;
+    }
+
+    &__name {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        margin-bottom: $space-2;
+    }
+}
+
 .whitelabel-preview {
     margin-top: $space-4;
 

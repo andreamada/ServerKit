@@ -221,6 +221,9 @@ def create_app(config_name=None):
     from app.api.templates import templates_bp
     app.register_blueprint(templates_bp, url_prefix='/api/v1/templates')
 
+    from app.api.wp_templates import wp_templates_bp
+    app.register_blueprint(wp_templates_bp, url_prefix='/api/v1/wp-templates')
+
     # Register blueprints - File Manager
     from app.api.files import files_bp
     app.register_blueprint(files_bp, url_prefix='/api/v1/files')

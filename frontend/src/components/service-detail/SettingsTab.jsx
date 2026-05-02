@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import { useConfirm } from '../../hooks/useConfirm';
+import { ConfirmDialog } from '../ConfirmDialog';
 
 const SettingsTab = ({ app, deployConfig, onUpdate, onOpenGitModal }) => {
     const navigate = useNavigate();
     const toast = useToast();
+    const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
     const [deleting, setDeleting] = useState(false);
     const [environmentType, setEnvironmentType] = useState(app.environment_type || 'standalone');
     const [savingEnvironment, setSavingEnvironment] = useState(false);
@@ -35,7 +38,12 @@ const SettingsTab = ({ app, deployConfig, onUpdate, onOpenGitModal }) => {
     }
 
     async function handleUnlink() {
-        if (!confirm(`Unlink ${app.name} from its linked application?`)) return;
+        const ok = await confirm({
+            title: 'Unlink Application',
+            message: `Unlink ${app.name} from its linked application? Both apps will revert to standalone mode.`,
+            confirmText: 'Unlink',
+        });
+        if (!ok) return;
 
         setUnlinking(true);
         try {
@@ -49,16 +57,27 @@ const SettingsTab = ({ app, deployConfig, onUpdate, onOpenGitModal }) => {
     }
 
     async function handleDelete() {
-        if (!confirm(`Delete ${app.name}? This action cannot be undone.`)) return;
-        if (!confirm('Are you sure? This will permanently remove the service.')) return;
+        const first = await confirm({
+            title: 'Delete Service',
+            message: `Delete "${app.name}"? This action cannot be undone.`,
+            confirmText: 'Yes, Delete',
+        });
+        if (!first) return;
+
+        const second = await confirm({
+            title: 'Confirm Deletion',
+            message: 'This will permanently remove the service and all its data. Are you sure?',
+            confirmText: 'Delete Forever',
+        });
+        if (!second) return;
 
         setDeleting(true);
         try {
             await api.deleteApp(app.id);
-            navigate('/services');
         } catch (err) {
-            toast.error('Failed to delete service');
-            setDeleting(false);
+            toast.error('Failed to delete service: ' + (err.message || 'Unknown error'));
+        } finally {
+            navigate('/services');
         }
     }
 
@@ -157,6 +176,17 @@ const SettingsTab = ({ app, deployConfig, onUpdate, onOpenGitModal }) => {
                     </button>
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                title={confirmState.title}
+                message={confirmState.message}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                variant={confirmState.variant}
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
+            />
         </div>
     );
 };
