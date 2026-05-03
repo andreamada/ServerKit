@@ -920,7 +920,8 @@ RewriteRule ^wp-content/uploads/.*\\.php$ - [F]
         if site.application:
             site_data['name'] = site.application.name
             site_data['port'] = site.application.port
-            running = cls._check_container_running(site.application.name)
+            container_name = site.application.container_id or site.application.name
+            running = cls._check_container_running(container_name)
             if running and site.application.status != 'running':
                 site.application.status = 'running'
             elif not running and site.application.status == 'running':

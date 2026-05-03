@@ -201,26 +201,151 @@ class WpTemplateService:
         raise RuntimeError('No free port available in range')
 
     @classmethod
+    def _save_sql_dump(cls, db_file, dest_path: str) -> None:
+        """Save a SQL dump file, decompressing .gz if needed."""
+        import gzip
+        import shutil
+        import tempfile
+
+        tmp_fd, tmp_path = tempfile.mkstemp()
+        os.close(tmp_fd)
+        try:
+            db_file.save(tmp_path)
+            # Detect gzip magic bytes
+            with open(tmp_path, 'rb') as f:
+                magic = f.read(2)
+            if magic == b'\x1f\x8b':
+                with gzip.open(tmp_path, 'rb') as gz, open(dest_path, 'wb') as out:
+                    shutil.copyfileobj(gz, out)
+            else:
+                shutil.copy2(tmp_path, dest_path)
+                os.unlink(tmp_path)
+                tmp_path = None
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+    @classmethod
+    def _import_db_background(cls, flask_app, template_id: str, preview_url: str,
+                              sql_path: str, app_id: int = None) -> None:
+        """Wait for MySQL, import the SQL dump, fix URLs, then restart WordPress."""
+        import subprocess
+        import time
+
+        db_container = f'{template_id}-template-db'
+        wp_container = f'{template_id}-template'
+
+        # Wait up to 4 minutes for MySQL to accept connections
+        for _ in range(48):
+            time.sleep(5)
+            try:
+                r = subprocess.run(
+                    ['docker', 'exec', db_container,
+                     'mysql', '-u', 'wordpress', '-pwordpress', '-e', 'SELECT 1'],
+                    capture_output=True, timeout=10,
+                )
+                if r.returncode == 0:
+                    break
+            except Exception:
+                continue
+        else:
+            return  # MySQL never became ready
+
+        # Detect table prefix from the dump
+        prefix = 'wp_'
+        try:
+            with open(sql_path, 'r', encoding='utf-8', errors='ignore') as f:
+                head = f.read(8192)
+            m = re.search(r'CREATE TABLE `(\w+)options`', head)
+            if m:
+                prefix = m.group(1)
+        except Exception:
+            pass
+
+        # Import the SQL dump via docker exec
+        try:
+            with open(sql_path, 'rb') as f:
+                subprocess.run(
+                    ['docker', 'exec', '-i', db_container,
+                     'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress'],
+                    input=f.read(),
+                    capture_output=True,
+                    timeout=300,
+                )
+        except Exception:
+            return
+
+        # Fix site URL and home so WordPress doesn't redirect away
+        try:
+            sql = (
+                f"UPDATE `{prefix}options` "
+                f"SET option_value = '{preview_url}' "
+                f"WHERE option_name IN ('siteurl', 'home');"
+            )
+            subprocess.run(
+                ['docker', 'exec', db_container,
+                 'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress', '-e', sql],
+                capture_output=True, timeout=30,
+            )
+        except Exception:
+            pass
+
+        # Restart the WordPress container so it picks up the restored database
+        try:
+            subprocess.run(
+                ['docker', 'restart', wp_container],
+                capture_output=True, timeout=30,
+            )
+        except Exception:
+            pass
+
+        # Mark the Application as running now that DB import + restart are done
+        if app_id and flask_app:
+            try:
+                with flask_app.app_context():
+                    from app import db
+                    from app.models import Application
+                    rec = db.session.get(Application, app_id)
+                    if rec:
+                        rec.status = 'running'
+                        db.session.commit()
+            except Exception:
+                pass
+
+    @classmethod
     def create_from_backup(cls, name: str, description: str, category: str,
                            version: str, theme_name: str, theme_slug: str,
                            plugins: str, featured: bool,
-                           backup_file, db_file) -> Dict:
-        """Extract a WP backup, register as template, then start Docker preview in background."""
+                           backup_file, db_file, user_id: int = None) -> Dict:
+        """Extract a WP backup, register as template, start Docker preview, and create an Application record."""
         import zipfile
         import subprocess
         import shutil
         import tempfile
+        import threading
 
         name = name.strip()
         if not name:
             return {'success': False, 'error': 'Name is required'}
 
         template_id = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
-        preview_dir = os.path.join(cls.CUSTOM_DIR, 'previews', template_id)
-        os.makedirs(preview_dir, exist_ok=True)
-        wp_content_dir = os.path.join(preview_dir, 'wp-content')
+        # Store app files in the shared apps directory so it appears in Services
+        app_dir = os.path.join(paths.APPS_DIR, template_id)
+        wp_content_dir = os.path.join(app_dir, 'wp-content')
+
+        # Grab Flask app object while we're in request context (needed for background thread)
+        flask_app = None
+        try:
+            from flask import current_app
+            flask_app = current_app._get_current_object()
+        except Exception:
+            pass
 
         try:
+            os.makedirs(app_dir, exist_ok=True)
             # Save backup to a temp path, then close before reading (Windows-safe)
             tmp_fd, tmp_path = tempfile.mkstemp(suffix='.zip')
             os.close(tmp_fd)
@@ -230,12 +355,11 @@ class WpTemplateService:
                 with zipfile.ZipFile(tmp_path, 'r') as zf:
                     members = [m for m in zf.namelist() if 'wp-content/' in m]
                     if members:
-                        zf.extractall(preview_dir, members=members)
+                        zf.extractall(app_dir, members=members)
                     else:
                         zf.extractall(wp_content_dir)
             except zipfile.BadZipFile:
-                os.unlink(tmp_path)
-                shutil.rmtree(preview_dir, ignore_errors=True)
+                shutil.rmtree(app_dir, ignore_errors=True)
                 return {'success': False, 'error': 'Invalid or corrupted zip file'}
             finally:
                 try:
@@ -243,15 +367,17 @@ class WpTemplateService:
                 except OSError:
                     pass
 
-            # Save DB dump if provided
+            # Save SQL dump (handles .gz decompression)
+            sql_path = None
             if db_file:
-                sql_path = os.path.join(preview_dir, 'import.sql')
-                db_file.save(sql_path)
+                sql_path = os.path.join(app_dir, 'import.sql')
+                cls._save_sql_dump(db_file, sql_path)
 
             # Find a free port for the preview
             port = cls._find_free_port()
+            preview_url = f'http://localhost:{port}'
 
-            # Write docker-compose
+            # docker-compose for this WP preview instance
             compose_content = f"""name: {template_id}-template
 services:
   db:
@@ -282,16 +408,14 @@ services:
 volumes:
   db_data:
 """
-            compose_path = os.path.join(preview_dir, 'docker-compose.yml')
+            compose_path = os.path.join(app_dir, 'docker-compose.yml')
             with open(compose_path, 'w') as f:
                 f.write(compose_content)
-
-            preview_url = f'http://localhost:{port}'
 
             # Parse comma-separated plugins list
             plugin_list = [p.strip() for p in plugins.split(',') if p.strip()] if plugins else []
 
-            # Register the template YAML immediately (before Docker starts)
+            # Register the template YAML in the wp-templates config dir
             template_data = {
                 'name': name,
                 'description': description or '',
@@ -299,24 +423,64 @@ volumes:
                 'version': version or '1.0.0',
                 'featured': bool(featured),
                 'preview_url': preview_url,
-                'theme': {
-                    'name': theme_name or '',
-                    'slug': theme_slug or '',
-                },
+                'theme': {'name': theme_name or '', 'slug': theme_slug or ''},
                 'plugins': plugin_list,
             }
             result = cls.create_template(template_data)
             if not result.get('success'):
                 return result
 
-            # Start Docker in the background — don't block the HTTP response
+            # Create an Application DB record so this WP preview shows in Services
+            app_id = None
+            if user_id is not None and flask_app:
+                try:
+                    with flask_app.app_context():
+                        from app import db
+                        from app.models import Application
+                        from app.models.wordpress_site import WordPressSite
+                        app_record = Application(
+                            name=name,
+                            app_type='wordpress',
+                            status='deploying',
+                            port=port,
+                            root_path=app_dir,
+                            docker_image='wordpress:latest',
+                            container_id=f'{template_id}-template',
+                            user_id=user_id,
+                        )
+                        db.session.add(app_record)
+                        db.session.flush()  # get app_record.id before commit
+
+                        wp_site = WordPressSite(
+                            application_id=app_record.id,
+                            is_production=True,
+                            environment_type='standalone',
+                            compose_project_name=f'{template_id}-template',
+                            container_prefix=template_id,
+                        )
+                        db.session.add(wp_site)
+                        db.session.commit()
+                        app_id = app_record.id
+                        result['app_id'] = app_id
+                except Exception:
+                    pass  # non-fatal — template YAML was still created
+
             if os.name != 'nt':
+                # Start containers in background
                 subprocess.Popen(
                     ['docker', 'compose', 'up', '-d'],
-                    cwd=preview_dir,
+                    cwd=app_dir,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
+                # Import DB after MySQL is ready (in a daemon thread)
+                if sql_path:
+                    t = threading.Thread(
+                        target=cls._import_db_background,
+                        args=(flask_app, template_id, preview_url, sql_path, app_id),
+                        daemon=True,
+                    )
+                    t.start()
 
             result['preview_url'] = preview_url
             result['port'] = port
@@ -324,6 +488,78 @@ volumes:
 
         except Exception as exc:
             return {'success': False, 'error': str(exc)}
+
+    # ── Preview status ────────────────────────────────────────────────────────
+
+    @classmethod
+    def get_preview_status(cls, template_id: str) -> Dict:
+        """Return live container status with descriptive message for the frontend progress bar."""
+        import subprocess
+        import urllib.request
+        import urllib.error
+
+        if os.name == 'nt':
+            t = cls.get_template(template_id)
+            url = t['template'].get('preview_url', '') if t.get('success') else ''
+            return {'status': 'ready', 'preview_url': url}
+
+        # Check if container exists at all (image pull may still be in progress)
+        try:
+            r = subprocess.run(
+                ['docker', 'inspect', '--format',
+                 '{{.State.Status}}|||{{.State.Running}}',
+                 f'{template_id}-template'],
+                capture_output=True, text=True, timeout=10,
+            )
+        except Exception:
+            return {'status': 'starting', 'message': 'Pulling Docker images…'}
+
+        if r.returncode != 0:
+            return {'status': 'starting', 'message': 'Pulling Docker images…'}
+
+        parts = r.stdout.strip().split('|||')
+        container_status = parts[0] if parts else ''
+        is_running = parts[1].strip() == 'true' if len(parts) > 1 else False
+
+        if not is_running:
+            if container_status in ('created', 'restarting'):
+                return {'status': 'starting', 'message': 'Starting containers…'}
+            return {'status': 'starting', 'message': 'Container starting…'}
+
+        # Container running — resolve preview URL and probe HTTP
+        t = cls.get_template(template_id)
+        if not t.get('success'):
+            return {'status': 'error', 'message': 'Template not found'}
+
+        preview_url = t['template'].get('preview_url', '')
+        if not preview_url:
+            return {'status': 'error', 'message': 'No preview URL configured'}
+
+        def _mark_running():
+            try:
+                from app import db
+                from app.models import Application
+                rec = Application.query.filter_by(container_id=f'{template_id}-template').first()
+                if rec and rec.status != 'running':
+                    rec.status = 'running'
+                    db.session.commit()
+            except Exception:
+                pass
+
+        try:
+            req = urllib.request.Request(preview_url, headers={'User-Agent': 'ServerKit/1.0'})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status < 500:
+                    _mark_running()
+                    return {'status': 'ready', 'preview_url': preview_url}
+        except urllib.error.HTTPError as e:
+            if e.code < 500:
+                _mark_running()
+                return {'status': 'ready', 'preview_url': preview_url}
+        except Exception:
+            pass
+
+        return {'status': 'starting', 'message': 'WordPress initializing…'}
 
     # ── Categories ────────────────────────────────────────────────────────────
 

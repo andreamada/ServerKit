@@ -85,12 +85,19 @@ def get_template_raw(template_id):
     return jsonify(result), 200 if result.get('success') else 404
 
 
+@wp_templates_bp.route('/<template_id>/preview-status', methods=['GET'])
+@jwt_required()
+def get_preview_status(template_id):
+    return jsonify(WpTemplateService.get_preview_status(template_id)), 200
+
+
 # ── Create from backup ────────────────────────────────────────────────────────
 
 @wp_templates_bp.route('/from-backup', methods=['POST'])
 @jwt_required()
 @admin_required
 def create_from_backup():
+    user_id = get_jwt_identity()
     name = request.form.get('name', '').strip()
     if not name:
         return jsonify({'error': 'Name is required'}), 400
@@ -110,6 +117,7 @@ def create_from_backup():
         featured=request.form.get('featured', '0') in ('1', 'true', 'True'),
         backup_file=backup_file,
         db_file=request.files.get('db_file'),
+        user_id=user_id,
     )
     return jsonify(result), 201 if result.get('success') else 400
 

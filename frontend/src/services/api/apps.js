@@ -313,6 +313,10 @@ export async function createWpTemplateFromBackup(formData) {
     return this.request('/wp-templates/from-backup', { method: 'POST', body: formData });
 }
 
+export async function getWpPreviewStatus(templateId) {
+    return this.request(`/wp-templates/${templateId}/preview-status`);
+}
+
 export async function getWpCustomCategories() {
     return this.request('/wp-templates/categories/custom');
 }
