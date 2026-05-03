@@ -450,18 +450,28 @@ function WaasTemplateEditor({ initial, onClose, onSaved }) {
 // WaaS — From-Backup Modal (the only creation path)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const UPLOAD_STEPS = [
-    'Uploading backup file…',
-    'Extracting WordPress content…',
-    'Registering template…',
+// All progress steps shown in one unified bar (upload + docker launch)
+const ALL_STEPS = [
+    { label: 'Uploading backup file…',        pct: 5  },
+    { label: 'Extracting WordPress content…', pct: 15 },
+    { label: 'Registering template…',         pct: 25 },
+    { label: 'Starting containers…',          pct: 35 },
+    { label: 'Pulling Docker images…',        pct: 48 },
+    { label: 'Importing database…',           pct: 62 },
+    { label: 'Copying files into container…', pct: 76 },
+    { label: 'WordPress initializing…',       pct: 88 },
+    { label: 'Almost ready…',                 pct: 95 },
 ];
-const UPLOAD_DELAYS = [0, 2000, 4500];
-
-const LAUNCH_MESSAGES = [
-    'Starting containers…',
-    'Pulling WordPress image…',
-    'Waiting for MySQL…',
-    'WordPress initializing…',
+// delays for the first 3 steps while the upload request is in-flight
+const UPLOAD_DELAYS = [0, 1800, 3600];
+// map backend message substrings to step indices
+const MSG_STEP = [
+    ['Pulling',   4],
+    ['Importing', 5],
+    ['Copying',   6],
+    ['initiali',  7],
+    ['Almost',    8],
+    ['Starting',  3],
 ];
 
 function WaasFromBackupModal({ onClose, onSaved }) {
@@ -475,21 +485,20 @@ function WaasFromBackupModal({ onClose, onSaved }) {
     const [dbFile, setDbFile] = useState(null);
     // phase: 'form' | 'uploading' | 'launching' | 'ready'
     const [phase, setPhase] = useState('form');
-    const [uploadStep, setUploadStep] = useState(0);
-    const [launchMsg, setLaunchMsg] = useState('Starting containers…');
+    const [stepIndex, setStepIndex] = useState(0);
     const [templateId, setTemplateId] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
 
     const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-    // Animate upload progress steps
+    // Animate the first 3 upload steps while the request is in-flight
     useEffect(() => {
         if (phase !== 'uploading') return;
-        const timers = UPLOAD_DELAYS.map((delay, i) => setTimeout(() => setUploadStep(i), delay));
+        const timers = UPLOAD_DELAYS.map((delay, i) => setTimeout(() => setStepIndex(i), delay));
         return () => timers.forEach(clearTimeout);
     }, [phase]);
 
-    // Poll backend for real container status
+    // Poll backend for real container status (launching phase)
     useEffect(() => {
         if (phase !== 'launching' || !templateId) return;
 
@@ -507,13 +516,15 @@ function WaasFromBackupModal({ onClose, onSaved }) {
                     toast.error(s.message || 'Container failed to start');
                     setPhase('form');
                 } else if (s.message) {
-                    setLaunchMsg(s.message);
+                    // Map backend message to the right step index
+                    const match = MSG_STEP.find(([substr]) => s.message.includes(substr));
+                    if (match) setStepIndex(prev => Math.max(prev, match[1]));
                 }
             } catch { /* ignore transient poll errors */ }
         }
 
         poll();
-        timers.poll = setInterval(poll, 5000);
+        timers.poll = setInterval(poll, 4000);
 
         return () => clearInterval(timers.poll);
     }, [phase, templateId]);
@@ -523,7 +534,7 @@ function WaasFromBackupModal({ onClose, onSaved }) {
         if (!backupFile) { toast.error('Backup file is required'); return; }
 
         setPhase('uploading');
-        setUploadStep(0);
+        setStepIndex(0);
 
         const fd = new FormData();
         fd.append('name', form.name);
@@ -541,7 +552,7 @@ function WaasFromBackupModal({ onClose, onSaved }) {
             const res = await api.createWpTemplateFromBackup(fd);
             setTemplateId(res.template_id);
             setPreviewUrl(res.preview_url);
-            setLaunchMsg(LAUNCH_MESSAGES[0]);
+            setStepIndex(3);   // jump past upload steps to 'Starting containers…'
             setPhase('launching');
         } catch (err) {
             toast.error(err.message || 'Upload failed');
@@ -563,8 +574,7 @@ function WaasFromBackupModal({ onClose, onSaved }) {
                             <CheckCircle2 size={40} className="text-success" />
                             <p className="text-sm font-medium">WordPress preview is live</p>
                             <p className="text-xs text-muted-foreground text-center">
-                                Your template has been created. Open the preview to complete the WordPress setup
-                                (site name, admin email and password only — themes and plugins are already installed).
+                                Your template is ready. Open the preview to verify the site looks correct before using it for deployments.
                             </p>
                             {previewUrl && (
                                 <a href={previewUrl} target="_blank" rel="noopener noreferrer"
@@ -590,34 +600,26 @@ function WaasFromBackupModal({ onClose, onSaved }) {
                     <button className="modal-close" onClick={onClose}><X size={16} /></button>
                 </div>
                 <div className="modal-body">
-                    {phase === 'uploading' ? (
+                    {(phase === 'uploading' || phase === 'launching') ? (
                         <div className="flex flex-col gap-3 py-8 px-2">
                             <div className="flex items-center gap-3">
                                 <RefreshCw size={15} className="animate-spin text-primary shrink-0" />
                                 <span className="text-sm text-foreground font-medium flex-1 truncate">
-                                    {UPLOAD_STEPS[uploadStep]}
+                                    {ALL_STEPS[stepIndex]?.label}
                                 </span>
                                 <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
-                                    {Math.round((uploadStep / (UPLOAD_STEPS.length - 1)) * 100)}%
+                                    {ALL_STEPS[stepIndex]?.pct}%
                                 </span>
                             </div>
                             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                                 <div className="h-full bg-primary rounded-full transition-all duration-700"
-                                    style={{ width: `${Math.round((uploadStep / (UPLOAD_STEPS.length - 1)) * 100)}%` }} />
+                                    style={{ width: `${ALL_STEPS[stepIndex]?.pct}%` }} />
                             </div>
-                        </div>
-                    ) : phase === 'launching' ? (
-                        <div className="flex flex-col gap-4 py-8 px-2">
-                            <div className="flex items-center gap-3">
-                                <RefreshCw size={15} className="animate-spin text-primary shrink-0" />
-                                <span className="text-sm text-foreground font-medium flex-1">{launchMsg}</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-primary/50 rounded-full animate-pulse w-full" />
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center">
-                                Docker is pulling WordPress and MySQL images. This takes 2–5 minutes on first run.
-                            </p>
+                            {phase === 'launching' && stepIndex <= 4 && (
+                                <p className="text-xs text-muted-foreground text-center">
+                                    Pulling Docker images on first run may take 2–5 minutes.
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-3">
@@ -722,7 +724,7 @@ function WaasFromBackupModal({ onClose, onSaved }) {
                             <div className="col-span-2 rounded-md bg-muted/50 px-3 py-2">
                                 <p className="text-xs text-muted-foreground leading-relaxed">
                                     Your WordPress backup will be uploaded, wp-content extracted, and a Docker preview container
-                                    named <code className="font-mono">&lt;template&gt;-template</code> started automatically.
+                                    named <code className="font-mono">&lt;template&gt;_template</code> started automatically.
                                 </p>
                             </div>
                         </div>
@@ -755,6 +757,7 @@ function WaasManageTab({ isAdmin }) {
     const [editing, setEditing] = useState(null);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
+    const [pendingDelete, setPendingDelete] = useState(null);
 
     const reload = useCallback(async () => {
         try {
@@ -783,11 +786,12 @@ function WaasManageTab({ isAdmin }) {
         } catch (err) { toast.error(err.message || 'Failed'); }
     }
 
-    async function deleteTemplate(t) {
-        if (!confirm(`Delete "${t.name}"?`)) return;
+    async function confirmDeleteTemplate() {
+        if (!pendingDelete) return;
         try {
-            await api.deleteWpTemplate(t.id);
+            await api.deleteWpTemplate(pendingDelete.id);
             toast.success('Template deleted');
+            setPendingDelete(null);
             reload();
         } catch (err) { toast.error(err.message || 'Failed'); }
     }
@@ -877,7 +881,7 @@ function WaasManageTab({ isAdmin }) {
                                         <Edit2 size={12} />
                                     </button>
                                     <button className="btn btn-ghost btn-xs text-destructive"
-                                        onClick={() => deleteTemplate(t)}>
+                                        onClick={() => setPendingDelete(t)}>
                                         <Trash2 size={12} />
                                     </button>
                                 </div>
@@ -900,6 +904,32 @@ function WaasManageTab({ isAdmin }) {
                     onClose={() => setEditing(null)}
                     onSaved={() => { setEditing(null); reload(); }}
                 />
+            )}
+
+            {pendingDelete && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: 420 }}>
+                        <div className="modal-header">
+                            <h3>Delete Template</h3>
+                            <button className="modal-close" onClick={() => setPendingDelete(null)}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="text-sm text-muted-foreground">
+                                You are about to permanently delete the template <strong>{pendingDelete.name}</strong>.
+                                All associated files will be removed.
+                            </p>
+                            <p className="text-sm text-destructive font-medium mt-3">This action cannot be undone.</p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setPendingDelete(null)}>Cancel</button>
+                            <button className="btn btn-danger" onClick={confirmDeleteTemplate}>
+                                Delete Template
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

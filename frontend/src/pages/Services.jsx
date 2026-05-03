@@ -29,6 +29,8 @@ const Services = () => {
     const [actionLoading, setActionLoading] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkLoading, setBulkLoading] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState(null);  // single-row delete
 
     useEffect(() => {
         loadApps();
@@ -81,17 +83,22 @@ const Services = () => {
         }
     }
 
-    async function handleBulkDelete() {
-        if (selectedIds.size === 0) return;
-        if (!confirm(`Delete ${selectedIds.size} service(s)? This cannot be undone.`)) return;
+    async function executeDelete() {
         setBulkLoading(true);
+        setShowDeleteConfirm(false);
         try {
-            await Promise.allSettled([...selectedIds].map(id => api.deleteApp(id)));
-            toast.success(`${selectedIds.size} service(s) deleted`);
-            setSelectedIds(new Set());
+            if (deleteTargetId !== null) {
+                await api.deleteApp(deleteTargetId);
+                toast.success('Service deleted');
+                setDeleteTargetId(null);
+            } else {
+                await Promise.allSettled([...selectedIds].map(id => api.deleteApp(id)));
+                toast.success(`${selectedIds.size} service(s) deleted`);
+                setSelectedIds(new Set());
+            }
             await loadApps();
         } catch (err) {
-            toast.error('Bulk delete failed');
+            toast.error('Delete failed');
         } finally {
             setBulkLoading(false);
         }
@@ -293,7 +300,7 @@ const Services = () => {
                         <button className="btn btn-sm" onClick={() => handleBulkAction('start')} disabled={bulkLoading}>
                             Start All
                         </button>
-                        <button className="btn btn-sm btn-danger" onClick={handleBulkDelete} disabled={bulkLoading}>
+                        <button className="btn btn-sm btn-danger" onClick={() => { setDeleteTargetId(null); setShowDeleteConfirm(true); }} disabled={bulkLoading}>
                             Delete All
                         </button>
                         <button className="btn btn-ghost btn-sm" onClick={() => setSelectedIds(new Set())}>
@@ -447,11 +454,54 @@ const Services = () => {
                                                 </svg>
                                             </button>
                                         )}
+                                        <button
+                                            className="btn btn-ghost btn-sm text-destructive"
+                                            onClick={(e) => { e.stopPropagation(); setDeleteTargetId(app.id); setShowDeleteConfirm(true); }}
+                                            title="Delete"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <polyline points="3 6 5 6 21 6"/>
+                                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                <path d="M10 11v6M14 11v6"/>
+                                                <path d="M9 6V4h6v2"/>
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {showDeleteConfirm && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: 420 }}>
+                        <div className="modal-header">
+                            <h3>Delete Services</h3>
+                            <button className="modal-close" onClick={() => setShowDeleteConfirm(false)}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            {deleteTargetId !== null ? (
+                                <p className="text-sm text-muted-foreground">
+                                    You are about to permanently delete <strong>{apps.find(a => a.id === deleteTargetId)?.name || 'this service'}</strong>. This will stop all containers, remove volumes, and delete all associated data.
+                                </p>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    You are about to permanently delete <strong>{selectedIds.size} service{selectedIds.size !== 1 ? 's' : ''}</strong>. This will stop all containers, remove volumes, and delete all associated data.
+                                </p>
+                            )}
+                            <p className="text-sm text-destructive font-medium mt-3">This action cannot be undone.</p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}>Cancel</button>
+                            <button className="btn btn-danger" onClick={executeDelete} disabled={bulkLoading}>
+                                {bulkLoading ? 'Deleting…' : deleteTargetId !== null ? 'Delete Service' : `Delete ${selectedIds.size} Service${selectedIds.size !== 1 ? 's' : ''}`}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

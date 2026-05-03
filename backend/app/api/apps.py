@@ -374,10 +374,9 @@ def delete_app(app_id):
         'nginx': None
     }
 
-    # For Docker apps, stop and remove containers/volumes
-    if app.app_type == 'docker' and app.root_path:
+    # For Docker and wp_template apps, stop and remove containers/volumes
+    if app.app_type in ('docker', 'wp_template') and app.root_path:
         try:
-            # Stop and remove containers, networks, and volumes
             result = DockerService.compose_down(app.root_path, volumes=True, remove_orphans=True)
             cleanup_results['docker'] = result
         except Exception as e:
@@ -385,12 +384,23 @@ def delete_app(app_id):
 
         # Delete the app folder
         try:
-            if app.root_path and app.root_path.startswith(paths.APPS_DIR):
-                if os.path.exists(app.root_path):
-                    shutil.rmtree(app.root_path)
-                    cleanup_results['folder'] = {'success': True}
+            root = os.path.abspath(app.root_path)
+            apps_dir = os.path.abspath(paths.APPS_DIR)
+            if root.startswith(apps_dir) and os.path.exists(root):
+                shutil.rmtree(root)
+                cleanup_results['folder'] = {'success': True}
         except Exception as e:
             cleanup_results['folder'] = {'error': str(e)}
+
+        # For wp_template: also remove the template YAML from the registry
+        if app.app_type == 'wp_template':
+            try:
+                from app.services.wp_template_service import WpTemplateService
+                template_id = os.path.basename(os.path.abspath(app.root_path))
+                WpTemplateService.delete_template(template_id)
+                cleanup_results['template_yaml'] = {'success': True}
+            except Exception as e:
+                cleanup_results['template_yaml'] = {'error': str(e)}
 
     # Remove nginx site config
     try:

@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export function useConfirm() {
+    const resolveRef = useRef(null);
     const [confirmState, setConfirmState] = useState({
         isOpen: false,
         title: '',
@@ -8,7 +9,6 @@ export function useConfirm() {
         confirmText: 'Confirm',
         cancelText: 'Cancel',
         variant: 'danger',
-        resolve: null
     });
 
     const confirm = useCallback(({
@@ -19,6 +19,7 @@ export function useConfirm() {
         variant = 'danger'
     } = {}) => {
         return new Promise((resolve) => {
+            resolveRef.current = resolve;
             setConfirmState({
                 isOpen: true,
                 title,
@@ -26,24 +27,21 @@ export function useConfirm() {
                 confirmText,
                 cancelText,
                 variant,
-                resolve
             });
         });
     }, []);
 
     const handleConfirm = useCallback(() => {
-        if (confirmState.resolve) {
-            confirmState.resolve(true);
-        }
+        resolveRef.current?.(true);
+        resolveRef.current = null;
         setConfirmState(prev => ({ ...prev, isOpen: false }));
-    }, [confirmState.resolve]);
+    }, []);
 
     const handleCancel = useCallback(() => {
-        if (confirmState.resolve) {
-            confirmState.resolve(false);
-        }
+        resolveRef.current?.(false);
+        resolveRef.current = null;
         setConfirmState(prev => ({ ...prev, isOpen: false }));
-    }, [confirmState.resolve]);
+    }, []);
 
     return {
         confirm,

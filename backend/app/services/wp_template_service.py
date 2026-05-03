@@ -229,94 +229,96 @@ class WpTemplateService:
                     pass
 
     @classmethod
-    def _import_db_background(cls, flask_app, template_id: str, preview_url: str,
-                              sql_path: str, app_id: int = None, app_dir: str = None) -> None:
-        """Wait for MySQL, import the SQL dump, fix URLs, then start WordPress for the first time."""
+    def _fix_urls_background(cls, flask_app, template_id: str, preview_url: str,
+                             sql_path: str, wp_content_dir: str,
+                             app_id: int = None, app_dir: str = None) -> None:
+        """After containers start: wait for MySQL import, fix URLs, copy wp-content, mark running."""
         import subprocess
         import time
 
         db_container = f'{template_id}_template_db'
         wp_container = f'{template_id}_template'
 
-        # Wait up to 4 minutes for MySQL to accept connections
-        for _ in range(48):
-            time.sleep(5)
-            try:
-                r = subprocess.run(
-                    ['docker', 'exec', db_container,
-                     'mysql', '-u', 'wordpress', '-pwordpress', '-e', 'SELECT 1'],
-                    capture_output=True, timeout=10,
-                )
-                if r.returncode == 0:
-                    break
-            except Exception:
-                continue
-        else:
-            return  # MySQL never became ready
-
-        # Detect table prefix from the dump
+        # ── 1. Detect table prefix from the SQL dump ──────────────────────────
         prefix = 'wp_'
-        try:
-            with open(sql_path, 'r', encoding='utf-8', errors='ignore') as f:
-                head = f.read(8192)
-            m = re.search(r'CREATE TABLE `(\w+)options`', head)
-            if m:
-                prefix = m.group(1)
-        except Exception:
-            pass
+        if sql_path:
+            try:
+                with open(sql_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    head = f.read(16384)
+                m = re.search(r'CREATE TABLE `(\w+)options`', head)
+                if m:
+                    prefix = m.group(1)
+            except Exception:
+                pass
 
-        # Import the SQL dump into a clean database
-        # Drop and recreate the database to avoid any leftover auto-init tables
-        try:
-            subprocess.run(
-                ['docker', 'exec', db_container,
-                 'mysql', '-u', 'root', '-ppreview123', '-e',
-                 'DROP DATABASE IF EXISTS wordpress; CREATE DATABASE wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'],
-                capture_output=True, timeout=30,
-            )
-        except Exception:
-            pass
+        # ── 2. Wait for MySQL to finish the initdb.d import ───────────────────
+        if sql_path:
+            for _ in range(72):  # up to 6 min
+                time.sleep(5)
+                try:
+                    r = subprocess.run(
+                        ['docker', 'exec', db_container,
+                         'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress',
+                         '-e', f'SELECT option_value FROM `{prefix}options`'
+                               f' WHERE option_name="siteurl" LIMIT 1'],
+                        capture_output=True, timeout=10,
+                    )
+                    if r.returncode == 0 and b'http' in r.stdout:
+                        break
+                except Exception:
+                    continue
+            else:
+                pass  # continue anyway — fix URLs best-effort
 
-        try:
-            with open(sql_path, 'rb') as f:
+            # Fix siteurl and home to point at the preview URL
+            try:
+                fix_sql = (
+                    f"UPDATE `{prefix}options` "
+                    f"SET option_value = '{preview_url}' "
+                    f"WHERE option_name IN ('siteurl', 'home');"
+                )
                 subprocess.run(
-                    ['docker', 'exec', '-i', db_container,
-                     'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress'],
-                    input=f.read(),
-                    capture_output=True,
+                    ['docker', 'exec', db_container,
+                     'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress', '-e', fix_sql],
+                    capture_output=True, timeout=30,
+                )
+            except Exception:
+                pass
+
+        # ── 3. Wait for the WP container to be running, then docker-cp wp-content ──
+        if wp_content_dir and os.path.isdir(wp_content_dir):
+            # Wait up to 3 min for the wp container to appear
+            for _ in range(36):
+                time.sleep(5)
+                try:
+                    r = subprocess.run(
+                        ['docker', 'inspect', '--format', '{{.State.Running}}', wp_container],
+                        capture_output=True, timeout=10,
+                    )
+                    if r.returncode == 0 and b'true' in r.stdout:
+                        break
+                except Exception:
+                    continue
+
+            # Copy all wp-content subdirs into the container
+            # docker cp <src>/. <container>:<dest>  copies the *contents* of src
+            # Use abspath — docker cp requires an absolute path on Windows
+            try:
+                abs_wp_content = os.path.abspath(wp_content_dir)
+                subprocess.run(
+                    ['docker', 'cp', abs_wp_content + '/.', f'{wp_container}:/var/www/html/wp-content/'],
                     timeout=300,
                 )
-        except Exception:
-            return
+                # Fix ownership inside the container
+                subprocess.run(
+                    ['docker', 'exec', wp_container,
+                     'chown', '-R', 'www-data:www-data', '/var/www/html/wp-content'],
+                    capture_output=True, timeout=60,
+                )
+            except Exception:
+                pass
 
-        # Fix site URL and home so WordPress doesn't redirect away
-        try:
-            sql = (
-                f"UPDATE `{prefix}options` "
-                f"SET option_value = '{preview_url}' "
-                f"WHERE option_name IN ('siteurl', 'home');"
-            )
-            subprocess.run(
-                ['docker', 'exec', db_container,
-                 'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress', '-e', sql],
-                capture_output=True, timeout=30,
-            )
-        except Exception:
-            pass
-
-        # Now start the WordPress container — it will connect to the already-populated DB
-        # instead of triggering a fresh install
-        try:
-            cwd = app_dir or os.path.join(paths.APPS_DIR, template_id)
-            subprocess.run(
-                ['docker', 'compose', 'up', '-d', 'wp'],
-                cwd=cwd,
-                capture_output=True, timeout=60,
-            )
-        except Exception:
-            pass
-
-        # Mark the Application as running now that DB import + WP start are done
+        # ── 4. Mark the Application as running ───────────────────────────────
         if app_id and flask_app:
             try:
                 with flask_app.app_context():
@@ -350,6 +352,14 @@ class WpTemplateService:
         app_dir = os.path.join(paths.APPS_DIR, template_id)
         wp_content_dir = os.path.join(app_dir, 'wp-content')
 
+        # Early collision check: prevent [Errno 17] and confusing partial failures
+        if os.path.exists(app_dir):
+            return {'success': False, 'error': f'A template named "{name}" already exists. Delete it first.'}
+        # Also check the YAML template registry
+        yaml_path = os.path.join(cls.CUSTOM_DIR, f'{template_id}.yaml')
+        if os.path.exists(yaml_path):
+            return {'success': False, 'error': f'Template ID "{template_id}" already registered. Delete it first.'}
+
         # Grab Flask app object while we're in request context (needed for background thread)
         flask_app = None
         try:
@@ -366,11 +376,31 @@ class WpTemplateService:
             backup_file.save(tmp_path)
 
             try:
+                os.makedirs(wp_content_dir, exist_ok=True)
                 with zipfile.ZipFile(tmp_path, 'r') as zf:
-                    members = [m for m in zf.namelist() if 'wp-content/' in m]
-                    if members:
-                        zf.extractall(app_dir, members=members)
+                    all_names = zf.namelist()
+                    # Find members that contain wp-content/
+                    wp_members = [m for m in all_names if 'wp-content/' in m]
+                    if wp_members:
+                        # Strip everything before (and including) 'wp-content/' so all
+                        # files land directly under app_dir/wp-content/
+                        for member in wp_members:
+                            idx = member.find('wp-content/')
+                            rel = member[idx + len('wp-content/'):]  # path inside wp-content
+                            if not rel or rel.endswith('/'):
+                                continue  # skip directory entries
+                            dest = os.path.join(wp_content_dir, rel)
+                            # On Windows, prepend \\?\ to bypass MAX_PATH 260-char limit
+                            if os.name == 'nt':
+                                dest = '\\\\?\\' + os.path.abspath(dest)
+                            parent = os.path.dirname(dest)
+                            if os.name == 'nt' and not parent.startswith('\\\\?\\'):
+                                parent = '\\\\?\\' + os.path.abspath(parent)
+                            os.makedirs(parent, exist_ok=True)
+                            with zf.open(member) as src, open(dest, 'wb') as dst:
+                                shutil.copyfileobj(src, dst)
                     else:
+                        # No wp-content structure found — extract everything flat into wp_content_dir
                         zf.extractall(wp_content_dir)
             except zipfile.BadZipFile:
                 shutil.rmtree(app_dir, ignore_errors=True)
@@ -391,38 +421,61 @@ class WpTemplateService:
             port = cls._find_free_port()
             preview_url = f'http://localhost:{port}'
 
-            # docker-compose for this WP preview instance
-            compose_content = f"""name: {template_id}_template
-services:
-  db:
-    image: mysql:8.0
-    container_name: {template_id}_template_db
-    environment:
-      MYSQL_ROOT_PASSWORD: preview123
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: wordpress
-    volumes:
-      - {template_id}_template_db:/var/lib/mysql
-  wp:
-    image: wordpress:latest
-    container_name: {template_id}_template
-    depends_on:
-      - db
-    ports:
-      - "{port}:80"
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: wordpress
-      WORDPRESS_DB_NAME: wordpress
-    volumes:
-      - {template_id}_template_html:/var/www/html/wp-content
+            # docker-compose for this WP preview instance.
+            # - wp-content is bind-mounted from the extracted directory.
+            # - DB data uses a named volume with an explicit name (no project-prefix duplication).
+            # - SQL dump (if any) is mounted into initdb.d so MySQL imports it automatically.
+            # - A healthcheck on db + depends_on condition ensures WP only starts AFTER the
+            #   SQL import is fully complete, preventing the "WordPress install" page.
+            vol_name = f'{template_id}_template_db'
 
-volumes:
-  {template_id}_template_db:
-  {template_id}_template_html:
-"""
+            # Build compose sections that differ based on whether a SQL dump was provided
+            db_sql_mount = f'      - ./import.sql:/docker-entrypoint-initdb.d/import.sql:ro\n' if sql_path else ''
+            if sql_path:
+                wp_depends_block = (
+                    '    depends_on:\n'
+                    '      db:\n'
+                    '        condition: service_healthy\n'
+                )
+            else:
+                wp_depends_block = '    depends_on:\n      - db\n'
+
+            compose_content = (
+                f'name: {template_id}_template\n'
+                f'services:\n'
+                f'  db:\n'
+                f'    image: mysql:8.0\n'
+                f'    container_name: {template_id}_template_db\n'
+                f'    environment:\n'
+                f'      MYSQL_ROOT_PASSWORD: preview123\n'
+                f'      MYSQL_DATABASE: wordpress\n'
+                f'      MYSQL_USER: wordpress\n'
+                f'      MYSQL_PASSWORD: wordpress\n'
+                f'    volumes:\n'
+                f'      - {vol_name}:/var/lib/mysql\n'
+                + db_sql_mount +
+                f'    healthcheck:\n'
+                f'      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wordpress", "-pwordpress"]\n'
+                f'      interval: 5s\n'
+                f'      timeout: 5s\n'
+                f'      retries: 20\n'
+                f'      start_period: 30s\n'
+                f'  wp:\n'
+                f'    image: wordpress:latest\n'
+                f'    container_name: {template_id}_template\n'
+                + wp_depends_block +
+                f'    ports:\n'
+                f'      - "{port}:80"\n'
+                f'    environment:\n'
+                f'      WORDPRESS_DB_HOST: db\n'
+                f'      WORDPRESS_DB_USER: wordpress\n'
+                f'      WORDPRESS_DB_PASSWORD: wordpress\n'
+                f'      WORDPRESS_DB_NAME: wordpress\n'
+                f'\n'
+                f'volumes:\n'
+                f'  {vol_name}:\n'
+                f'    name: {vol_name}\n'
+            )
             compose_path = os.path.join(app_dir, 'docker-compose.yml')
             with open(compose_path, 'w') as f:
                 f.write(compose_content)
@@ -480,30 +533,21 @@ volumes:
                 except Exception:
                     pass  # non-fatal — template YAML was still created
 
-            if os.name != 'nt':
-                if sql_path:
-                    # Start DB container only first so we can import before WP boots
-                    subprocess.Popen(
-                        ['docker', 'compose', 'up', '-d', 'db'],
-                        cwd=app_dir,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                    # Background thread: import SQL, then start WP container
-                    t = threading.Thread(
-                        target=cls._import_db_background,
-                        args=(flask_app, template_id, preview_url, sql_path, app_id, app_dir),
-                        daemon=True,
-                    )
-                    t.start()
-                else:
-                    # No SQL dump — start everything directly
-                    subprocess.Popen(
-                        ['docker', 'compose', 'up', '-d'],
-                        cwd=app_dir,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
+            # Start everything — MySQL auto-imports via initdb.d, WP waits for db healthcheck
+            subprocess.Popen(
+                ['docker', 'compose', 'up', '-d'],
+                cwd=app_dir,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            # Background thread: fix URLs + docker-cp wp-content into the running container
+            t = threading.Thread(
+                target=cls._fix_urls_background,
+                args=(flask_app, template_id, preview_url, sql_path, wp_content_dir,
+                      app_id, app_dir),
+                daemon=True,
+            )
+            t.start()
 
             result['preview_url'] = preview_url
             result['port'] = port
@@ -520,11 +564,6 @@ volumes:
         import subprocess
         import urllib.request
         import urllib.error
-
-        if os.name == 'nt':
-            t = cls.get_template(template_id)
-            url = t['template'].get('preview_url', '') if t.get('success') else ''
-            return {'status': 'ready', 'preview_url': url}
 
         # Check if container exists at all (image pull may still be in progress)
         try:
@@ -557,6 +596,48 @@ volumes:
         preview_url = t['template'].get('preview_url', '')
         if not preview_url:
             return {'status': 'error', 'message': 'No preview URL configured'}
+
+        # While the background thread (DB import + docker cp) is still working,
+        # keep reporting 'starting' with a meaningful message.
+        try:
+            from app import db
+            from app.models import Application
+            rec = Application.query.filter_by(container_id=f'{template_id}_template').first()
+            if rec and rec.status != 'running':
+                # Decide message based on whether SQL import has finished yet
+                sql_path = None
+                try:
+                    app_dir_check = os.path.join(paths.APPS_DIR, template_id)
+                    sql_candidate = os.path.join(app_dir_check, 'import.sql')
+                    if os.path.exists(sql_candidate):
+                        sql_path = sql_candidate
+                except Exception:
+                    pass
+                if sql_path:
+                    # Check if the siteurl row has been updated already
+                    try:
+                        import re as _re
+                        with open(sql_path, 'r', encoding='utf-8', errors='ignore') as _f:
+                            _head = _f.read(16384)
+                        _m = _re.search(r'CREATE TABLE `(\w+)options`', _head)
+                        _prefix = _m.group(1) if _m else 'wp_'
+                        _r = subprocess.run(
+                            ['docker', 'exec', f'{template_id}_template_db',
+                             'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress',
+                             '-e', f'SELECT option_value FROM `{_prefix}options`'
+                                   f' WHERE option_name="siteurl" LIMIT 1'],
+                            capture_output=True, timeout=5,
+                        )
+                        if _r.returncode == 0 and b'http' in _r.stdout:
+                            return {'status': 'starting', 'message': 'Copying files into container…'}
+                        else:
+                            return {'status': 'starting', 'message': 'Importing database…'}
+                    except Exception:
+                        return {'status': 'starting', 'message': 'Importing database…'}
+                else:
+                    return {'status': 'starting', 'message': 'Copying files into container…'}
+        except Exception:
+            pass
 
         def _mark_running():
             try:

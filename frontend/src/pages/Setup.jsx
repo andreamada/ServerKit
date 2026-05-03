@@ -129,7 +129,7 @@ const Setup = () => {
     }
 
     return (
-        <div className="setup-wizard">
+        <div className="setup-wizard" data-theme="light">
             <div className="wizard-card">
                 <div className="wizard-header">
                     <ServerKitLogo className="wizard-logo" width={48} height={48} />
