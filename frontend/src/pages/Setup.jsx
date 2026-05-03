@@ -6,14 +6,16 @@ import ServerKitLogo from '../components/ServerKitLogo';
 import SetupStepAccount from '../components/setup/SetupStepAccount';
 import SetupStepIntent from '../components/setup/SetupStepIntent';
 import SetupStepTier from '../components/setup/SetupStepTier';
+import SetupStepConfig from '../components/setup/SetupStepConfig';
 import SetupStepSummary from '../components/setup/SetupStepSummary';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 const STEP_TITLES = [
     'Account',
     'Use Cases',
     'Resources',
+    'Configuration',
     'Summary',
 ];
 
@@ -24,6 +26,7 @@ const Setup = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [accountInfo, setAccountInfo] = useState(null);
     const [useCases, setUseCases] = useState([]);
+    const [configInfo, setConfigInfo] = useState({ defaultDomain: '', licenseKey: '' });
 
     // If user is already authenticated (e.g. page refresh mid-wizard), skip to step 2
     useEffect(() => {
@@ -46,6 +49,11 @@ const Setup = () => {
         setCurrentStep(4);
     }
 
+    function handleConfigComplete(info) {
+        setConfigInfo(info);
+        setCurrentStep(5);
+    }
+
     async function handleFinish() {
         await completeOnboarding(useCases);
         navigate('/');
@@ -56,6 +64,7 @@ const Setup = () => {
             setCurrentStep(currentStep - 1);
         }
     }
+
 
     function renderProgressBar() {
         const items = [];
@@ -101,9 +110,16 @@ const Setup = () => {
                 );
             case 4:
                 return (
+                    <SetupStepConfig
+                        onComplete={handleConfigComplete}
+                    />
+                );
+            case 5:
+                return (
                     <SetupStepSummary
                         accountInfo={accountInfo}
                         useCases={useCases}
+                        configInfo={configInfo}
                         onFinish={handleFinish}
                     />
                 );

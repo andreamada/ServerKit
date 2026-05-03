@@ -35,7 +35,7 @@ function getRecommendations(useCases) {
     return result.length > 0 ? result.slice(0, 4) : DEFAULT_RECOMMENDATIONS;
 }
 
-const SetupStepSummary = ({ accountInfo, useCases, onFinish }) => {
+const SetupStepSummary = ({ accountInfo, useCases, configInfo, onFinish }) => {
     const { tier, specs, loading } = useResourceTier();
     const recommendations = getRecommendations(useCases);
 
@@ -101,6 +101,24 @@ const SetupStepSummary = ({ accountInfo, useCases, onFinish }) => {
                         <span className="summary-value">{formatSpecs()}</span>
                     </div>
                 </div>
+
+                {(configInfo?.defaultDomain || configInfo?.licenseKey) && (
+                    <div className="summary-section">
+                        <div className="summary-section-title">Configuration</div>
+                        {configInfo.defaultDomain && (
+                            <div className="summary-row">
+                                <span className="summary-label">Default Domain</span>
+                                <span className="summary-value">{configInfo.defaultDomain}</span>
+                            </div>
+                        )}
+                        {configInfo.licenseKey && (
+                            <div className="summary-row">
+                                <span className="summary-label">License Key</span>
+                                <span className="summary-value">{configInfo.licenseKey}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="summary-section">
                     <div className="summary-section-title">

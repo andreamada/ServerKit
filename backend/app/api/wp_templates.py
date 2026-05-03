@@ -122,6 +122,28 @@ def create_from_backup():
     return jsonify(result), 201 if result.get('success') else 400
 
 
+# ── Deploy site from template ─────────────────────────────────────────────────
+
+@wp_templates_bp.route('/<template_id>/deploy', methods=['POST'])
+@jwt_required()
+def deploy_from_template(template_id):
+    """Create a new WordPress site from a WaaS template."""
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Site name is required'}), 400
+
+    from app.services.wordpress_service import WordPressService
+    result = WordPressService.create_site_from_template(
+        template_id=template_id,
+        name=name,
+        admin_email=data.get('adminEmail', ''),
+        user_id=int(user_id),
+    )
+    return jsonify(result), 201 if result.get('success') else 400
+
+
 # ── Custom categories ─────────────────────────────────────────────────────────
 
 @wp_templates_bp.route('/categories/custom', methods=['GET'])

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import wordpressApi from '../services/wordpress';
+import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useResourceTier } from '../contexts/ResourceTierContext';
 import ResourceGate from '../components/ResourceGate';
@@ -14,10 +15,17 @@ function WordPress() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [createLoading, setCreateLoading] = useState(false);
     const [createForm, setCreateForm] = useState({ name: '', adminEmail: '' });
+    const [platformMode, setPlatformMode] = useState('saas');
 
     const navigate = useNavigate();
     const toast = useToast();
     const { isLiteTier } = useResourceTier();
+
+    useEffect(() => {
+        api.getSystemSettings()
+            .then(s => setPlatformMode(s.platform_mode || 'saas'))
+            .catch(() => setPlatformMode('saas'));
+    }, []);
 
     useEffect(() => {
         loadSites();
@@ -116,9 +124,12 @@ function WordPress() {
                     <p className="page-description">Manage your WordPress sites</p>
                 </div>
                 <div className="page-header-actions">
-                    <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => platformMode === 'waas' ? navigate('/templates') : setShowCreateModal(true)}
+                    >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        Create Site
+                        {platformMode === 'waas' ? 'New Site from Template' : 'Create Site'}
                     </button>
                 </div>
             </div>
@@ -134,8 +145,11 @@ function WordPress() {
                     </div>
                     <h2>No WordPress Sites</h2>
                     <p>Create your first WordPress site powered by Docker. Each site gets its own isolated environment with MySQL.</p>
-                    <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-                        Create Site
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => platformMode === 'waas' ? navigate('/templates') : setShowCreateModal(true)}
+                    >
+                        {platformMode === 'waas' ? 'Choose a Template' : 'Create Site'}
                     </button>
                 </div>
             ) : (

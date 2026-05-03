@@ -230,13 +230,13 @@ class WpTemplateService:
 
     @classmethod
     def _import_db_background(cls, flask_app, template_id: str, preview_url: str,
-                              sql_path: str, app_id: int = None) -> None:
-        """Wait for MySQL, import the SQL dump, fix URLs, then restart WordPress."""
+                              sql_path: str, app_id: int = None, app_dir: str = None) -> None:
+        """Wait for MySQL, import the SQL dump, fix URLs, then start WordPress for the first time."""
         import subprocess
         import time
 
-        db_container = f'{template_id}-template-db'
-        wp_container = f'{template_id}-template'
+        db_container = f'{template_id}_template_db'
+        wp_container = f'{template_id}_template'
 
         # Wait up to 4 minutes for MySQL to accept connections
         for _ in range(48):
@@ -265,7 +265,18 @@ class WpTemplateService:
         except Exception:
             pass
 
-        # Import the SQL dump via docker exec
+        # Import the SQL dump into a clean database
+        # Drop and recreate the database to avoid any leftover auto-init tables
+        try:
+            subprocess.run(
+                ['docker', 'exec', db_container,
+                 'mysql', '-u', 'root', '-ppreview123', '-e',
+                 'DROP DATABASE IF EXISTS wordpress; CREATE DATABASE wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'],
+                capture_output=True, timeout=30,
+            )
+        except Exception:
+            pass
+
         try:
             with open(sql_path, 'rb') as f:
                 subprocess.run(
@@ -293,16 +304,19 @@ class WpTemplateService:
         except Exception:
             pass
 
-        # Restart the WordPress container so it picks up the restored database
+        # Now start the WordPress container — it will connect to the already-populated DB
+        # instead of triggering a fresh install
         try:
+            cwd = app_dir or os.path.join(paths.APPS_DIR, template_id)
             subprocess.run(
-                ['docker', 'restart', wp_container],
-                capture_output=True, timeout=30,
+                ['docker', 'compose', 'up', '-d', 'wp'],
+                cwd=cwd,
+                capture_output=True, timeout=60,
             )
         except Exception:
             pass
 
-        # Mark the Application as running now that DB import + restart are done
+        # Mark the Application as running now that DB import + WP start are done
         if app_id and flask_app:
             try:
                 with flask_app.app_context():
@@ -331,7 +345,7 @@ class WpTemplateService:
         if not name:
             return {'success': False, 'error': 'Name is required'}
 
-        template_id = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+        template_id = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
         # Store app files in the shared apps directory so it appears in Services
         app_dir = os.path.join(paths.APPS_DIR, template_id)
         wp_content_dir = os.path.join(app_dir, 'wp-content')
@@ -378,21 +392,21 @@ class WpTemplateService:
             preview_url = f'http://localhost:{port}'
 
             # docker-compose for this WP preview instance
-            compose_content = f"""name: {template_id}-template
+            compose_content = f"""name: {template_id}_template
 services:
   db:
     image: mysql:8.0
-    container_name: {template_id}-template-db
+    container_name: {template_id}_template_db
     environment:
       MYSQL_ROOT_PASSWORD: preview123
       MYSQL_DATABASE: wordpress
       MYSQL_USER: wordpress
       MYSQL_PASSWORD: wordpress
     volumes:
-      - db_data:/var/lib/mysql
+      - {template_id}_template_db:/var/lib/mysql
   wp:
     image: wordpress:latest
-    container_name: {template_id}-template
+    container_name: {template_id}_template
     depends_on:
       - db
     ports:
@@ -403,10 +417,11 @@ services:
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
     volumes:
-      - ./wp-content:/var/www/html/wp-content
+      - {template_id}_template_html:/var/www/html/wp-content
 
 volumes:
-  db_data:
+  {template_id}_template_db:
+  {template_id}_template_html:
 """
             compose_path = os.path.join(app_dir, 'docker-compose.yml')
             with open(compose_path, 'w') as f:
@@ -440,12 +455,12 @@ volumes:
                         from app.models.wordpress_site import WordPressSite
                         app_record = Application(
                             name=name,
-                            app_type='wordpress',
+                            app_type='wp_template',
                             status='deploying',
                             port=port,
                             root_path=app_dir,
                             docker_image='wordpress:latest',
-                            container_id=f'{template_id}-template',
+                            container_id=f'{template_id}_template',
                             user_id=user_id,
                         )
                         db.session.add(app_record)
@@ -455,7 +470,7 @@ volumes:
                             application_id=app_record.id,
                             is_production=True,
                             environment_type='standalone',
-                            compose_project_name=f'{template_id}-template',
+                            compose_project_name=f'{template_id}_template',
                             container_prefix=template_id,
                         )
                         db.session.add(wp_site)
@@ -466,21 +481,29 @@ volumes:
                     pass  # non-fatal — template YAML was still created
 
             if os.name != 'nt':
-                # Start containers in background
-                subprocess.Popen(
-                    ['docker', 'compose', 'up', '-d'],
-                    cwd=app_dir,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                # Import DB after MySQL is ready (in a daemon thread)
                 if sql_path:
+                    # Start DB container only first so we can import before WP boots
+                    subprocess.Popen(
+                        ['docker', 'compose', 'up', '-d', 'db'],
+                        cwd=app_dir,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    # Background thread: import SQL, then start WP container
                     t = threading.Thread(
                         target=cls._import_db_background,
-                        args=(flask_app, template_id, preview_url, sql_path, app_id),
+                        args=(flask_app, template_id, preview_url, sql_path, app_id, app_dir),
                         daemon=True,
                     )
                     t.start()
+                else:
+                    # No SQL dump — start everything directly
+                    subprocess.Popen(
+                        ['docker', 'compose', 'up', '-d'],
+                        cwd=app_dir,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
 
             result['preview_url'] = preview_url
             result['port'] = port
@@ -508,7 +531,7 @@ volumes:
             r = subprocess.run(
                 ['docker', 'inspect', '--format',
                  '{{.State.Status}}|||{{.State.Running}}',
-                 f'{template_id}-template'],
+                 f'{template_id}_template'],
                 capture_output=True, text=True, timeout=10,
             )
         except Exception:
@@ -539,7 +562,7 @@ volumes:
             try:
                 from app import db
                 from app.models import Application
-                rec = Application.query.filter_by(container_id=f'{template_id}-template').first()
+                rec = Application.query.filter_by(container_id=f'{template_id}_template').first()
                 if rec and rec.status != 'running':
                     rec.status = 'running'
                     db.session.commit()

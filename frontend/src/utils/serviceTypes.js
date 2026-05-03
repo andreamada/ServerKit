@@ -47,6 +47,14 @@ const SERVICE_TYPES = {
         icon: 'wordpress',
         tabs: ['overview', 'events', 'logs', 'environment', 'settings'],
     },
+    wp_template: {
+        label: 'WP Template',
+        color: '#21759b',
+        bgColor: 'rgba(33, 117, 155, 0.1)',
+        borderColor: 'rgba(33, 117, 155, 0.2)',
+        icon: 'wordpress',
+        tabs: ['overview', 'events', 'logs', 'environment', 'settings'],
+    },
 };
 
 const STATUS_CONFIG = {

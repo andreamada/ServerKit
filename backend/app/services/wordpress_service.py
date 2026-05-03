@@ -1061,6 +1061,225 @@ RewriteRule ^wp-content/uploads/.*\\.php$ - [F]
             return {'success': False, 'error': str(e)}
 
     @classmethod
+    def create_site_from_template(cls, template_id: str, name: str,
+                                  admin_email: str, user_id: int) -> Dict:
+        """Create a new WordPress site by cloning a WaaS template."""
+        import subprocess
+        import shutil
+        from app import db
+        from app.models import Application, WordPressSite
+        from app.services.wp_template_service import WpTemplateService
+
+        # Validate template exists
+        tpl = WpTemplateService.get_template(template_id)
+        if not tpl.get('success'):
+            return {'success': False, 'error': f'Template "{template_id}" not found'}
+
+        # Sanitise site name -> Docker project name
+        safe_name = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+        if not safe_name:
+            return {'success': False, 'error': 'Invalid site name'}
+
+        if Application.query.filter_by(name=safe_name).first():
+            return {'success': False, 'error': f'A site named "{safe_name}" already exists'}
+
+        template_dir = os.path.join(paths.APPS_DIR, template_id)
+        site_dir = os.path.join(paths.APPS_DIR, safe_name)
+
+        # Find a free port
+        try:
+            import socket
+            port = None
+            for p in range(8300, 8399):
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.bind(('', p))
+                        port = p
+                        break
+                except OSError:
+                    continue
+            if not port:
+                return {'success': False, 'error': 'No free port available'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+        try:
+            os.makedirs(site_dir, exist_ok=True)
+
+            # Copy wp-content from the template directory if it exists
+            template_wpcontent = os.path.join(template_dir, 'wp-content')
+            site_wpcontent = os.path.join(site_dir, 'wp-content')
+            if os.path.exists(template_wpcontent):
+                shutil.copytree(template_wpcontent, site_wpcontent, dirs_exist_ok=True)
+
+            # Copy the template's SQL dump if present
+            template_sql = os.path.join(template_dir, 'import.sql')
+            site_sql = os.path.join(site_dir, 'import.sql') if os.path.exists(template_sql) else None
+            if site_sql:
+                shutil.copy2(template_sql, site_sql)
+
+            # Write a fresh docker-compose for this site
+            compose_content = f"""name: {safe_name}
+services:
+  db:
+    image: mysql:8.0
+    container_name: {safe_name}_db
+    environment:
+      MYSQL_ROOT_PASSWORD: preview123
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - {safe_name}_db:/var/lib/mysql
+  wp:
+    image: wordpress:latest
+    container_name: {safe_name}_wp
+    depends_on:
+      - db
+    ports:
+      - "{port}:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - {safe_name}_html:/var/www/html/wp-content
+
+volumes:
+  {safe_name}_db:
+  {safe_name}_html:
+"""
+            with open(os.path.join(site_dir, 'docker-compose.yml'), 'w') as f:
+                f.write(compose_content)
+
+            # Create DB records
+            app_record = Application(
+                name=safe_name,
+                app_type='wordpress',
+                status='deploying',
+                port=port,
+                root_path=site_dir,
+                docker_image='wordpress:latest',
+                container_id=f'{safe_name}_wp',
+                user_id=user_id,
+            )
+            db.session.add(app_record)
+            db.session.flush()
+
+            wp_site = WordPressSite(
+                application_id=app_record.id,
+                admin_email=admin_email,
+                is_production=True,
+                environment_type='production',
+                wp_version='6.4',
+                compose_project_name=safe_name,
+            )
+            db.session.add(wp_site)
+            db.session.commit()
+            site_id = wp_site.id
+            app_id = app_record.id
+
+        except Exception as e:
+            db.session.rollback()
+            shutil.rmtree(site_dir, ignore_errors=True)
+            return {'success': False, 'error': str(e)}
+
+        preview_url = f'http://localhost:{port}'
+
+        if os.name != 'nt':
+            if site_sql:
+                # Start DB only, import SQL, then start WP
+                import threading
+                subprocess.Popen(
+                    ['docker', 'compose', 'up', '-d', 'db'],
+                    cwd=site_dir,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+
+                def _import_and_start():
+                    import time
+                    db_container = f'{safe_name}_db'
+                    wp_container = f'{safe_name}_wp'
+                    for _ in range(48):
+                        time.sleep(5)
+                        try:
+                            r = subprocess.run(
+                                ['docker', 'exec', db_container,
+                                 'mysql', '-u', 'wordpress', '-pwordpress', '-e', 'SELECT 1'],
+                                capture_output=True, timeout=10,
+                            )
+                            if r.returncode == 0:
+                                break
+                        except Exception:
+                            continue
+                    # Drop + recreate to clear any auto-init
+                    try:
+                        subprocess.run(
+                            ['docker', 'exec', db_container,
+                             'mysql', '-u', 'root', '-ppreview123', '-e',
+                             'DROP DATABASE IF EXISTS wordpress; CREATE DATABASE wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'],
+                            capture_output=True, timeout=30,
+                        )
+                    except Exception:
+                        pass
+                    # Import
+                    try:
+                        import re as _re
+                        prefix = 'wp_'
+                        with open(site_sql, 'r', encoding='utf-8', errors='ignore') as fh:
+                            head = fh.read(8192)
+                        m = _re.search(r'CREATE TABLE `(\w+)options`', head)
+                        if m:
+                            prefix = m.group(1)
+                        with open(site_sql, 'rb') as fh:
+                            subprocess.run(
+                                ['docker', 'exec', '-i', db_container,
+                                 'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress'],
+                                input=fh.read(), capture_output=True, timeout=300,
+                            )
+                        # Fix siteurl/home
+                        sql_fix = (
+                            f"UPDATE `{prefix}options` "
+                            f"SET option_value = '{preview_url}' "
+                            f"WHERE option_name IN ('siteurl', 'home');"
+                        )
+                        subprocess.run(
+                            ['docker', 'exec', db_container,
+                             'mysql', '-u', 'wordpress', '-pwordpress', 'wordpress', '-e', sql_fix],
+                            capture_output=True, timeout=30,
+                        )
+                    except Exception:
+                        pass
+                    # Start WP
+                    try:
+                        subprocess.run(
+                            ['docker', 'compose', 'up', '-d', 'wp'],
+                            cwd=site_dir, capture_output=True, timeout=60,
+                        )
+                    except Exception:
+                        pass
+
+                threading.Thread(target=_import_and_start, daemon=True).start()
+            else:
+                subprocess.Popen(
+                    ['docker', 'compose', 'up', '-d'],
+                    cwd=site_dir,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+
+        return {
+            'success': True,
+            'message': f'WordPress site "{safe_name}" is being created from template "{template_id}"',
+            'site_id': site_id,
+            'app_id': app_id,
+            'url': preview_url,
+            'port': port,
+        }
+
+    @classmethod
     def delete_site(cls, site_id: int) -> Dict:
         """Delete a WordPress site and all its environments."""
         from app import db

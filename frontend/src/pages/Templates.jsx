@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
     Search, X, Plus, Edit2, Trash2, RefreshCw, ChevronRight,
     Globe, BookOpen, Star, Package, FolderOpen, Settings2,
@@ -981,8 +981,11 @@ function WaasBrowseTab({ isAdmin }) {
 
     function clearSearch() { setSearch(''); applyFilters(activeCategory, ''); }
 
+    const [deploying, setDeploying] = useState(null);
+
     function handleInstall(t) {
-        toast.info(`Deploy "${t.name}" — integrate with your WordPress installer here.`);
+        setPreview(null);
+        setDeploying(t);
     }
 
     const featured = templates.filter(t => t.featured);
@@ -1087,10 +1090,100 @@ function WaasBrowseTab({ isAdmin }) {
                 <WaasPreviewModal
                     template={preview}
                     onClose={() => setPreview(null)}
-                    onInstall={() => { setPreview(null); toast.info('Deploy flow coming soon'); }}
+                    onInstall={handleInstall}
                     isAdmin={isAdmin}
                 />
             )}
+
+            {deploying && (
+                <WaasDeployModal
+                    template={deploying}
+                    onClose={() => setDeploying(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WaaS — Deploy Modal (spawn a site from a template)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function WaasDeployModal({ template, onClose }) {
+    const toast = useToast();
+    const navigate = useNavigate();
+    const [name, setName] = useState('');
+    const [adminEmail, setAdminEmail] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    async function handleDeploy() {
+        if (!name.trim()) { toast.error('Site name is required'); return; }
+        setLoading(true);
+        try {
+            const res = await api.deployWpSiteFromTemplate(template.id, {
+                name: name.trim(),
+                adminEmail: adminEmail.trim(),
+            });
+            if (res.success) {
+                toast.success(`Site "${name.trim()}" is being created`);
+                onClose();
+                navigate('/wordpress');
+            } else {
+                toast.error(res.error || 'Failed to create site');
+            }
+        } catch (err) {
+            toast.error(err.message || 'Failed to create site');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal">
+                <div className="modal-header">
+                    <h3>Deploy from Template</h3>
+                    <button className="modal-close" onClick={onClose} disabled={loading}><X size={16} /></button>
+                </div>
+                <div className="modal-body flex flex-col gap-4">
+                    <p className="text-sm text-muted-foreground">
+                        Creating a new WordPress site from <strong>{template.name}</strong>.
+                    </p>
+                    <div className="form-group mb-0">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Site name *</label>
+                        <input
+                            className="form-control w-full"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="my-client-site"
+                            disabled={loading}
+                            autoFocus
+                        />
+                        <span className="form-hint text-xs text-muted-foreground">Letters, numbers, and hyphens only.</span>
+                    </div>
+                    <div className="form-group mb-0">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Admin email</label>
+                        <input
+                            className="form-control w-full"
+                            type="email"
+                            value={adminEmail}
+                            onChange={e => setAdminEmail(e.target.value)}
+                            placeholder="admin@example.com"
+                            disabled={loading}
+                        />
+                    </div>
+                </div>
+                <div className="modal-footer">
+                    <button className="btn btn-ghost" onClick={onClose} disabled={loading}>Cancel</button>
+                    <button
+                        className="btn btn-primary flex items-center gap-1"
+                        onClick={handleDeploy}
+                        disabled={loading || !name.trim()}
+                    >
+                        {loading ? <><RefreshCw size={13} className="animate-spin" /> Creating…</> : <><Server size={13} /> Create Site</>}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

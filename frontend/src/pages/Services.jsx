@@ -81,6 +81,22 @@ const Services = () => {
         }
     }
 
+    async function handleBulkDelete() {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`Delete ${selectedIds.size} service(s)? This cannot be undone.`)) return;
+        setBulkLoading(true);
+        try {
+            await Promise.allSettled([...selectedIds].map(id => api.deleteApp(id)));
+            toast.success(`${selectedIds.size} service(s) deleted`);
+            setSelectedIds(new Set());
+            await loadApps();
+        } catch (err) {
+            toast.error('Bulk delete failed');
+        } finally {
+            setBulkLoading(false);
+        }
+    }
+
     function toggleSelect(e, appId) {
         e.stopPropagation();
         setSelectedIds(prev => {
@@ -276,6 +292,9 @@ const Services = () => {
                         </button>
                         <button className="btn btn-sm" onClick={() => handleBulkAction('start')} disabled={bulkLoading}>
                             Start All
+                        </button>
+                        <button className="btn btn-sm btn-danger" onClick={handleBulkDelete} disabled={bulkLoading}>
+                            Delete All
                         </button>
                         <button className="btn btn-ghost btn-sm" onClick={() => setSelectedIds(new Set())}>
                             Clear
