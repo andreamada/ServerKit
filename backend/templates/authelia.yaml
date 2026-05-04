@@ -9,6 +9,8 @@ categories:
 - security
 - authentication
 - sso
+- AI & Data
+- test
 variables:
 - name: HTTP_PORT
   description: HTTP port
@@ -51,3 +53,4 @@ post_install: "# Create basic configuration\ncat > /var/serverkit/apps/${APP_NAM
   session:\n  name: authelia_session\n  domain: ${DOMAIN}\n  expiration: 1h\n  inactivity:\
   \ 5m\nstorage:\n  local:\n    path: /config/db.sqlite3\nnotifier:\n  filesystem:\n\
   \    filename: /config/notification.txt\nEOF\n"
+featured: false

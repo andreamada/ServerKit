@@ -1,5 +1,6 @@
 """WordPress WaaS Template API endpoints."""
 
+import os
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import User
@@ -19,6 +20,27 @@ def admin_required(fn):
             return jsonify({'error': 'Admin access required'}), 403
         return fn(*args, **kwargs)
     return wrapper
+
+
+# ── Orphan cleanup ───────────────────────────────────────────────────────────
+
+@wp_templates_bp.route('/orphans', methods=['GET', 'DELETE'])
+@jwt_required()
+@admin_required
+def handle_orphans():
+    """List (GET) or purge (DELETE) wp_template Application records whose folder no longer exists."""
+    from app import db
+    from app.models import Application
+    orphans = [
+        a for a in Application.query.filter_by(app_type='wp_template').all()
+        if a.root_path and not os.path.exists(os.path.abspath(a.root_path))
+    ]
+    if request.method == 'GET':
+        return jsonify({'orphans': [{'id': a.id, 'name': a.name, 'root_path': a.root_path} for a in orphans]})
+    for a in orphans:
+        db.session.delete(a)
+    db.session.commit()
+    return jsonify({'deleted': len(orphans), 'names': [a.name for a in orphans]})
 
 
 # ── Browse ────────────────────────────────────────────────────────────────────
@@ -119,6 +141,9 @@ def create_from_backup():
         db_file=request.files.get('db_file'),
         user_id=user_id,
     )
+    if not result.get('success') and result.get('detail'):
+        from flask import current_app
+        current_app.logger.error('create_from_backup failed:\n%s', result['detail'])
     return jsonify(result), 201 if result.get('success') else 400
 
 

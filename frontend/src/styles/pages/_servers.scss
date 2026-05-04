@@ -102,6 +102,7 @@
         top: 50%;
         transform: translateY(-50%);
         color: $text-tertiary;
+        pointer-events: none;
     }
 
     input {
@@ -109,7 +110,7 @@
         background: $bg-card;
         border: 1px solid $border-subtle;
         border-radius: $radius-md;
-        padding: $space-3 $space-3 $space-3 $space-10;
+        padding: $space-3 $space-10 $space-3 $space-10;
         color: $text-primary;
         font-size: $font-size-sm;
 
@@ -120,6 +121,25 @@
         &:focus {
             outline: none;
             border-color: $accent-primary;
+        }
+    }
+
+    .search-clear-btn {
+        position: absolute;
+        right: $space-3;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        padding: $space-1;
+        cursor: pointer;
+        color: $text-tertiary;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+            color: $text-primary;
         }
     }
 }

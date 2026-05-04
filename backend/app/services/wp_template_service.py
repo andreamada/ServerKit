@@ -1,6 +1,7 @@
 """WordPress WaaS Template Service — manages site-design templates for WordPress deployments."""
 
 import os
+import sys
 import re
 import json
 import yaml
@@ -191,14 +192,17 @@ class WpTemplateService:
     @classmethod
     def _find_free_port(cls, start: int = 8200, end: int = 8299) -> int:
         import socket
-        for port in range(start, end + 1):
+        for port in range(start, end):
+            # Check both WordPress port and phpMyAdmin port (port+1) are available
             try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(('', port))
-                    return port
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s1:
+                    s1.bind(('', port))
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s2:
+                    s2.bind(('', port + 1))
+                return port
             except OSError:
                 continue
-        raise RuntimeError('No free port available in range')
+        raise RuntimeError('No free port pair available in range')
 
     @classmethod
     def _save_sql_dump(cls, db_file, dest_path: str) -> None:
@@ -284,6 +288,16 @@ class WpTemplateService:
                 )
             except Exception:
                 pass
+            
+            # Remove SQL from initdb.d to prevent re-import on container restart
+            try:
+                subprocess.run(
+                    ['docker', 'exec', db_container, 'rm', '-f', '/docker-entrypoint-initdb.d/import.sql'],
+                    capture_output=True, timeout=10,
+                )
+                print(f"[DEBUG] Cleaned up initdb.d SQL after import", file=sys.stderr)
+            except Exception:
+                pass
 
         # ── 3. Wait for the WP container to be running, then docker-cp wp-content ──
         if wp_content_dir and os.path.isdir(wp_content_dir):
@@ -348,17 +362,84 @@ class WpTemplateService:
             return {'success': False, 'error': 'Name is required'}
 
         template_id = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
-        # Store app files in the shared apps directory so it appears in Services
-        app_dir = os.path.join(paths.APPS_DIR, template_id)
+        # Always use absolute paths so checks work regardless of CWD
+        app_dir = os.path.abspath(os.path.join(paths.APPS_DIR, template_id))
         wp_content_dir = os.path.join(app_dir, 'wp-content')
 
-        # Early collision check: prevent [Errno 17] and confusing partial failures
-        if os.path.exists(app_dir):
-            return {'success': False, 'error': f'A template named "{name}" already exists. Delete it first.'}
-        # Also check the YAML template registry
-        yaml_path = os.path.join(cls.CUSTOM_DIR, f'{template_id}.yaml')
+        # Early collision checks: prevent [Errno 17] and confusing partial failures
+        # First, try to clean up any existing file/directory at app_dir (handles stale files/symlinks)
+        import shutil as _shutil
+        import time as _time
+        
+        # Aggressive cleanup: try multiple times in case of file locks
+        for attempt in range(3):
+            try:
+                if os.path.exists(app_dir) or os.path.islink(app_dir):
+                    if os.path.isdir(app_dir):
+                        _shutil.rmtree(app_dir, ignore_errors=True)
+                    else:
+                        try:
+                            os.remove(app_dir)
+                        except:
+                            pass
+                    print(f"[DEBUG] Cleaned up existing path: {app_dir} (attempt {attempt + 1})", file=sys.stderr)
+                    _time.sleep(0.1)  # Small delay to ensure cleanup completes
+                else:
+                    break
+            except Exception as e:
+                if attempt == 2:  # Last attempt
+                    print(f"[DEBUG] Failed to cleanup after 3 attempts: {e}", file=sys.stderr)
+                _time.sleep(0.2)
+        
+        # Double-check: list parent dir to see what's there
+        parent_dir = os.path.dirname(app_dir)
+        try:
+            if os.path.exists(parent_dir):
+                entries = os.listdir(parent_dir)
+                basename = os.path.basename(app_dir)
+                matches = [e for e in entries if e.lower() == basename.lower()]
+                if matches:
+                    print(f"[DEBUG] Found matching entries in parent: {matches}", file=sys.stderr)
+                    for m in matches:
+                        full_path = os.path.join(parent_dir, m)
+                        try:
+                            if os.path.isdir(full_path):
+                                _shutil.rmtree(full_path, ignore_errors=True)
+                            os.remove(full_path)
+                            print(f"[DEBUG] Removed: {full_path}", file=sys.stderr)
+                        except Exception as e2:
+                            print(f"[DEBUG] Could not remove {full_path}: {e2}", file=sys.stderr)
+        except Exception as e:
+            print(f"[DEBUG] Error listing parent dir: {e}", file=sys.stderr)
+        
+        yaml_path = os.path.abspath(os.path.join(cls.CUSTOM_DIR, f'{template_id}.yaml'))
         if os.path.exists(yaml_path):
-            return {'success': False, 'error': f'Template ID "{template_id}" already registered. Delete it first.'}
+            return {'success': False, 'error': f'Template ID "{template_id}" already registered (YAML found). Delete it first.'}
+        # Also check for a stale DB record from a previous failed attempt
+        try:
+            from app import db
+            from app.models import Application
+            # Normalize paths for cross-platform comparison
+            import re as _re
+            norm_template_id = _re.sub(r'[^a-z0-9]+', '_', template_id.lower()).strip('_')
+            all_wp = Application.query.filter_by(app_type='wp_template').all()
+            existing_rec = None
+            for rec in all_wp:
+                # Check name match
+                if rec.name and rec.name.lower() == name.lower():
+                    existing_rec = rec
+                    break
+                # Check path match (handle both Windows and WSL path formats)
+                if rec.root_path:
+                    rp = rec.root_path.lower().replace('\\', '/').replace('/mnt/c/', 'c:/')
+                    if norm_template_id in rp or template_id.lower() in rp:
+                        existing_rec = rec
+                        break
+            if existing_rec:
+                return {'success': False, 'error': f'A template named "{name}" already exists in the database (id={existing_rec.id}, path={existing_rec.root_path}). Delete it from the Services page first.'}
+        except Exception as e:
+            import traceback
+            print(f"[DEBUG] DB check error: {e}\n{traceback.format_exc()}", file=sys.stderr)
 
         # Grab Flask app object while we're in request context (needed for background thread)
         flask_app = None
@@ -369,7 +450,68 @@ class WpTemplateService:
             pass
 
         try:
-            os.makedirs(app_dir, exist_ok=True)
+            # Ultra-defensive: force-remove anything at app_dir before makedirs
+            # This handles edge cases where os.path.exists() returns False but path still blocks makedirs
+            import pathlib as _pathlib
+            p = _pathlib.Path(app_dir)
+            if p.exists() or p.is_symlink():
+                print(f"[DEBUG] Pre-makedirs cleanup: removing {app_dir}", file=sys.stderr)
+                if p.is_dir():
+                    _shutil.rmtree(app_dir, ignore_errors=True)
+                else:
+                    try:
+                        p.unlink()
+                    except:
+                        pass
+                _time.sleep(0.1)
+            
+            # Try makedirs, but catch FileExistsError and force-remove/retry
+            try:
+                os.makedirs(app_dir, exist_ok=True)
+            except FileExistsError:
+                print(f"[DEBUG] FileExistsError on makedirs, forcing removal and retry: {app_dir}", file=sys.stderr)
+                # Force remove with system command as last resort
+                if p.exists() or p.is_symlink():
+                    if p.is_dir():
+                        _shutil.rmtree(app_dir, ignore_errors=True)
+                    else:
+                        p.unlink(missing_ok=True)
+                
+                # Use system rm -rf as nuclear option (WSL/Windows compatibility)
+                import subprocess as _subprocess
+                try:
+                    _subprocess.run(['rm', '-rf', app_dir], capture_output=True, check=False)
+                    print(f"[DEBUG] Used rm -rf on {app_dir}", file=sys.stderr)
+                except Exception as rm_err:
+                    print(f"[DEBUG] rm -rf failed: {rm_err}", file=sys.stderr)
+                
+                _time.sleep(0.3)
+                
+                # Delete DB record if exists
+                try:
+                    from app import db
+                    from app.models import Application
+                    all_wp = Application.query.filter_by(app_type='wp_template').all()
+                    for rec in all_wp:
+                        if rec.root_path and template_id.lower() in rec.root_path.lower():
+                            print(f"[DEBUG] Deleting stale DB record: id={rec.id}, name={rec.name}", file=sys.stderr)
+                            db.session.delete(rec)
+                    db.session.commit()
+                except Exception as db_err:
+                    print(f"[DEBUG] DB cleanup error: {db_err}", file=sys.stderr)
+                
+                # ALWAYS use unique suffix when makedirs fails (WSL ghost file workaround)
+                # The p.exists() check returns False but makedirs still fails - filesystem race condition
+                print(f"[DEBUG] Using unique suffix workaround for WSL ghost file", file=sys.stderr)
+                import uuid as _uuid
+                unique_suffix = _uuid.uuid4().hex[:8]
+                template_id = f"{template_id}_{unique_suffix}"
+                app_dir = os.path.abspath(os.path.join(paths.APPS_DIR, template_id))
+                wp_content_dir = os.path.join(app_dir, 'wp-content')
+                print(f"[DEBUG] New app_dir with suffix: {app_dir}", file=sys.stderr)
+                
+                os.makedirs(app_dir, exist_ok=False)  # Now should work
+            
             # Save backup to a temp path, then close before reading (Windows-safe)
             tmp_fd, tmp_path = tempfile.mkstemp(suffix='.zip')
             os.close(tmp_fd)
@@ -428,6 +570,19 @@ class WpTemplateService:
             # - A healthcheck on db + depends_on condition ensures WP only starts AFTER the
             #   SQL import is fully complete, preventing the "WordPress install" page.
             vol_name = f'{template_id}_template_db'
+            html_vol_name = f'{template_id}_template_html'
+            
+            # Create the named volumes explicitly before compose up (ensures proper naming)
+            for vname in [vol_name, html_vol_name]:
+                try:
+                    subprocess.run(
+                        ['docker', 'volume', 'create', vname],
+                        capture_output=True,
+                        timeout=30,
+                    )
+                    print(f"[DEBUG] Created/verified volume: {vname}", file=sys.stderr)
+                except Exception as vol_err:
+                    print(f"[DEBUG] Volume create warning (non-fatal): {vol_err}", file=sys.stderr)
 
             # Build compose sections that differ based on whether a SQL dump was provided
             db_sql_mount = f'      - ./import.sql:/docker-entrypoint-initdb.d/import.sql:ro\n' if sql_path else ''
@@ -452,7 +607,7 @@ class WpTemplateService:
                 f'      MYSQL_USER: wordpress\n'
                 f'      MYSQL_PASSWORD: wordpress\n'
                 f'    volumes:\n'
-                f'      - {vol_name}:/var/lib/mysql\n'
+                f'      - {vol_name}:/var/lib/mysql:rw\n'
                 + db_sql_mount +
                 f'    healthcheck:\n'
                 f'      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wordpress", "-pwordpress"]\n'
@@ -471,10 +626,26 @@ class WpTemplateService:
                 f'      WORDPRESS_DB_USER: wordpress\n'
                 f'      WORDPRESS_DB_PASSWORD: wordpress\n'
                 f'      WORDPRESS_DB_NAME: wordpress\n'
+                f'    volumes:\n'
+                f'      - {html_vol_name}:/var/www/html/wp-content:rw\n'
+                f'  phpmyadmin:\n'
+                f'    image: phpmyadmin/phpmyadmin:latest\n'
+                f'    container_name: {template_id}_template_pma\n'
+                f'    depends_on:\n'
+                f'      - db\n'
+                f'    ports:\n'
+                f'      - "{port + 1}:80"\n'
+                f'    environment:\n'
+                f'      PMA_HOST: db\n'
+                f'      PMA_PORT: 3306\n'
+                f'      PMA_USER: root\n'
+                f'      PMA_PASSWORD: preview123\n'
                 f'\n'
                 f'volumes:\n'
                 f'  {vol_name}:\n'
-                f'    name: {vol_name}\n'
+                f'    external: true\n'
+                f'  {html_vol_name}:\n'
+                f'    external: true\n'
             )
             compose_path = os.path.join(app_dir, 'docker-compose.yml')
             with open(compose_path, 'w') as f:
@@ -533,13 +704,38 @@ class WpTemplateService:
                 except Exception:
                     pass  # non-fatal — template YAML was still created
 
-            # Start everything — MySQL auto-imports via initdb.d, WP waits for db healthcheck
-            subprocess.Popen(
+            # Pull images first (no timeout - can take a while on first run)
+            print(f"[DEBUG] Pulling Docker images...", file=sys.stderr)
+            try:
+                pull_result = subprocess.run(
+                    ['docker', 'compose', 'pull'],
+                    cwd=app_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=None,  # No timeout for pull
+                )
+                if pull_result.returncode != 0:
+                    print(f"[DEBUG] docker compose pull warning: {pull_result.stderr}", file=sys.stderr)
+                else:
+                    print(f"[DEBUG] Docker images pulled successfully", file=sys.stderr)
+            except Exception as pull_err:
+                print(f"[DEBUG] docker compose pull error (continuing): {pull_err}", file=sys.stderr)
+
+            # Start containers — images are now cached so this should be fast
+            print(f"[DEBUG] Starting containers...", file=sys.stderr)
+            compose_result = subprocess.run(
                 ['docker', 'compose', 'up', '-d'],
                 cwd=app_dir,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                timeout=60,  # 1 min timeout since images are already pulled
             )
+            if compose_result.returncode != 0:
+                error_msg = compose_result.stderr or compose_result.stdout or 'Unknown error'
+                print(f"[DEBUG] docker compose up failed: {error_msg}", file=sys.stderr)
+                # Don't fail immediately - container might still be starting
+            else:
+                print(f"[DEBUG] docker compose up succeeded", file=sys.stderr)
             # Background thread: fix URLs + docker-cp wp-content into the running container
             t = threading.Thread(
                 target=cls._fix_urls_background,
@@ -554,7 +750,15 @@ class WpTemplateService:
             return result
 
         except Exception as exc:
-            return {'success': False, 'error': str(exc)}
+            import traceback
+            # Clean up partial app_dir so the next attempt doesn't hit Errno 17
+            try:
+                if os.path.exists(app_dir):
+                    import shutil as _shutil
+                    _shutil.rmtree(app_dir, ignore_errors=True)
+            except Exception:
+                pass
+            return {'success': False, 'error': str(exc), 'detail': traceback.format_exc()}
 
     # ── Preview status ────────────────────────────────────────────────────────
 

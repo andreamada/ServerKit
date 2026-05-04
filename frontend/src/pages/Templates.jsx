@@ -298,9 +298,27 @@ const BLANK_WP_TEMPLATE = {
     plugins: '', pages: '',
 };
 
-function WaasTemplateEditor({ initial, onClose, onSaved }) {
+const BUILTIN_WP_CATS = [
+    'general','restaurant','landing','saas','portfolio','ecommerce',
+    'blog','corporate','agency','healthcare','education','church',
+    'nonprofit','hotel','real_estate','fitness','beauty','tech',
+    'finance','legal','construction',
+];
+
+function WaasTemplateEditor({ initial, onClose, onSaved, extraCats = [] }) {
     const toast = useToast();
     const isNew = !initial?.id;
+    const [customCats, setCustomCats] = useState(extraCats);
+    useEffect(() => {
+        if (extraCats.length === 0) {
+            api.getWpCustomCategories().then(r => setCustomCats(r.categories || [])).catch(() => {});
+        }
+    }, []);
+    const allCats = useMemo(() => {
+        const merged = [...BUILTIN_WP_CATS];
+        for (const c of customCats) { if (!merged.includes(c)) merged.push(c); }
+        return merged;
+    }, [customCats]);
     const [form, setForm] = useState(() => initial ? {
         name: initial.name || '',
         description: initial.description || '',
@@ -373,8 +391,20 @@ function WaasTemplateEditor({ initial, onClose, onSaved }) {
                         </div>
                         <div className="form-group mb-0">
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Category</label>
-                            <input className="form-control w-full" value={form.category}
-                                onChange={e => set('category', e.target.value)} placeholder="restaurant" />
+                            <div className="flex flex-wrap gap-1.5 p-2 border border-border rounded-md bg-background min-h-[40px]">
+                                {allCats.map(c => (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => set('category', c)}
+                                        className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors capitalize ${
+                                            form.category === c
+                                                ? 'bg-primary text-primary-foreground border-primary'
+                                                : 'bg-muted text-muted-foreground border-transparent hover:border-border'
+                                        }`}
+                                    >{c}</button>
+                                ))}
+                            </div>
                         </div>
                         <div className="form-group mb-0">
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Color Scheme</label>
@@ -481,6 +511,15 @@ function WaasFromBackupModal({ onClose, onSaved }) {
         version: '1.0.0', theme_name: '', theme_slug: '',
         plugins: '', featured: false,
     });
+    const [customCats, setCustomCats] = useState([]);
+    useEffect(() => {
+        api.getWpCustomCategories().then(r => setCustomCats(r.categories || [])).catch(() => {});
+    }, []);
+    const allCats = useMemo(() => {
+        const merged = [...BUILTIN_WP_CATS];
+        for (const c of customCats) { if (!merged.includes(c)) merged.push(c); }
+        return merged;
+    }, [customCats]);
     const [backupFile, setBackupFile] = useState(null);
     const [dbFile, setDbFile] = useState(null);
     // phase: 'form' | 'uploading' | 'launching' | 'ready'
@@ -635,8 +674,20 @@ function WaasFromBackupModal({ onClose, onSaved }) {
                             </div>
                             <div className="form-group mb-0">
                                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Category</label>
-                                <input className="form-control w-full" value={form.category}
-                                    onChange={e => set('category', e.target.value)} placeholder="restaurant" />
+                                <div className="flex flex-wrap gap-1.5 p-2 border border-border rounded-md bg-background min-h-[40px]">
+                                    {allCats.map(c => (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => set('category', c)}
+                                            className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors capitalize ${
+                                                form.category === c
+                                                    ? 'bg-primary text-primary-foreground border-primary'
+                                                    : 'bg-muted text-muted-foreground border-transparent hover:border-border'
+                                            }`}
+                                        >{c}</button>
+                                    ))}
+                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Version</label>
@@ -758,6 +809,7 @@ function WaasManageTab({ isAdmin }) {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [pendingDelete, setPendingDelete] = useState(null);
+    const [search, setSearch] = useState('');
 
     const reload = useCallback(async () => {
         try {
@@ -769,6 +821,16 @@ function WaasManageTab({ isAdmin }) {
     }, [toast]);
 
     useEffect(() => { reload(); }, [reload]);
+
+    const filteredTemplates = useMemo(() => {
+        if (!search.trim()) return templates;
+        const q = search.toLowerCase();
+        return templates.filter(t =>
+            (t.name || '').toLowerCase().includes(q) ||
+            (t.category || '').toLowerCase().includes(q) ||
+            (t.description || '').toLowerCase().includes(q)
+        );
+    }, [templates, search]);
 
     async function addCategory() {
         if (!newCat.trim()) return;
@@ -803,9 +865,9 @@ function WaasManageTab({ isAdmin }) {
             {/* Categories */}
             <div className="settings-card">
                 <div className="settings-card__header">
-                    <div className="settings-card__header-left">
-                        <h3 className="text-sm font-semibold">Custom Categories</h3>
-                        <p className="text-xs text-muted-foreground">Add extra categories to the template filter bar.</p>
+                    <div className="settings-card__header-left flex flex-row items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-semibold">Default Categories</h3>
+                        <p className="text-xs text-muted-foreground">— For New Template and Edit dropdowns</p>
                     </div>
                 </div>
                 <div className="flex gap-2 mb-3">
@@ -839,20 +901,38 @@ function WaasManageTab({ isAdmin }) {
             {/* Template library */}
             <div className="settings-card">
                 <div className="settings-card__header">
-                    <div className="settings-card__header-left">
+                    <div className="settings-card__header-left flex flex-row items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-semibold">Template Library</h3>
-                        <p className="text-xs text-muted-foreground">{templates.length} templates total</p>
+                        <p className="text-xs text-muted-foreground">— {filteredTemplates.length} of {templates.length} templates</p>
                     </div>
-                    {isAdmin && (
-                        <button className="btn btn-primary btn-sm flex items-center gap-1"
-                            onClick={() => setCreating(true)}>
-                            <Plus size={13} /> New Template
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {/* Search in Manage */}
+                        <div className="search-box">
+                            <Search size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search templates…"
+                                value={search}
+                                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                            />
+                            {search && (
+                                <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setSearch('')}>
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                        {isAdmin && (
+                            <button className="btn btn-primary btn-sm flex items-center gap-1"
+                                onClick={() => setCreating(true)}>
+                                <Plus size={13} /> New Template
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="waas-manage-grid">
-                    {templates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(t => (
+                    {filteredTemplates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(t => (
                         <div key={t.id} className="waas-manage-card">
                             <div className="waas-manage-thumb">
                                 {t.screenshot
@@ -889,7 +969,7 @@ function WaasManageTab({ isAdmin }) {
                         </div>
                     ))}
                 </div>
-                <Paginator page={page} total={templates.length} onPage={setPage} />
+                <Paginator page={page} total={filteredTemplates.length} onPage={setPage} />
             </div>
 
             {creating && (
@@ -979,37 +1059,54 @@ function WaasBrowseTab({ isAdmin }) {
     const [preview, setPreview] = useState(null);
     const [page, setPage] = useState(1);
     const searchRef = useRef(null);
+    const activeCategoryRef = useRef(activeCategory);
+    activeCategoryRef.current = activeCategory;
 
     const load = useCallback(async (cat, q) => {
         try {
-            const [tr, cr] = await Promise.all([
+            const [tr, cr, customCr] = await Promise.all([
                 api.listWpTemplates(cat || null, q || null),
                 api.getWpTemplateCategories(),
+                api.getWpCustomCategories(),
             ]);
             setTemplates(tr.templates || []);
-            setCategories(cr.categories || []);
+            // Merge template categories with custom categories
+            const allCats = [...(cr.categories || [])];
+            for (const c of (customCr.categories || [])) {
+                if (!allCats.includes(c)) allCats.push(c);
+            }
+            setCategories(allCats.sort());
         } catch { toast.error('Failed to load templates'); }
         finally { setLoading(false); }
     }, [toast]);
 
     useEffect(() => { load(activeCategory, search); }, []);
 
-    function applyFilters(cat, q) {
+    // Instant search with 300ms debounce
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setPage(1);
+            const cat = activeCategoryRef.current;
+            const params = {};
+            if (cat) params.cat = cat;
+            if (search) params.q = search;
+            setSearchParams(params, { replace: true });
+            load(cat, search);
+        }, 300);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    function applyCategory(cat) {
         setActiveCategory(cat);
-        setSearch(q);
         setPage(1);
         const params = {};
         if (cat) params.cat = cat;
-        if (q) params.q = q;
+        if (search) params.q = search;
         setSearchParams(params, { replace: true });
-        load(cat, q);
+        load(cat, search);
     }
 
-    function handleSearch(e) {
-        if (e.key === 'Enter') applyFilters(activeCategory, search);
-    }
-
-    function clearSearch() { setSearch(''); applyFilters(activeCategory, ''); }
+    function clearSearch() { setSearch(''); }
 
     const [deploying, setDeploying] = useState(null);
 
@@ -1027,40 +1124,33 @@ function WaasBrowseTab({ isAdmin }) {
         <div className="flex flex-col gap-5">
             {/* Search + category filter */}
             <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="relative flex-1 max-w-md">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <input
-                            ref={searchRef}
-                            className="form-control w-full pl-9 pr-8"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            onKeyDown={handleSearch}
-                            placeholder="Search templates…"
-                        />
-                        {search && (
-                            <button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                onClick={clearSearch}>
-                                <X size={13} />
-                            </button>
-                        )}
-                    </div>
-                    <button className="btn btn-primary btn-sm flex items-center gap-1"
-                        onClick={() => applyFilters(activeCategory, search)}>
-                        <Search size={13} /> Search
-                    </button>
+                <div className="search-box max-w-md">
+                    <Search size={16} />
+                    <input
+                        ref={searchRef}
+                        type="text"
+                        placeholder="Search templates…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        autoComplete="off"
+                    />
+                    {search && (
+                        <button className="search-clear-btn" onClick={clearSearch}>
+                            <X size={14} />
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                     <button
                         className={`category-btn ${!activeCategory ? 'active' : ''}`}
-                        onClick={() => applyFilters('', search)}
+                        onClick={() => applyCategory('')}
                     >All</button>
                     {categories.map(cat => (
                         <button
                             key={cat}
                             className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
-                            onClick={() => applyFilters(cat, search)}
+                            onClick={() => applyCategory(cat)}
                         >
                             <span className="capitalize">{cat}</span>
                         </button>
@@ -1592,6 +1682,7 @@ function SaasManageTab() {
     const [creating, setCreating] = useState(false);
     const [loadingEdit, setLoadingEdit] = useState(null);
     const [page, setPage] = useState(1);
+    const [search, setSearch] = useState('');
 
     async function reload() {
         try {
@@ -1600,6 +1691,16 @@ function SaasManageTab() {
             setCustomCats(cr.categories || []);
         } catch { toast.error('Failed to load'); }
     }
+
+    const filteredTemplates = useMemo(() => {
+        if (!search.trim()) return localTemplates;
+        const q = search.toLowerCase();
+        return localTemplates.filter(t =>
+            (t.name || '').toLowerCase().includes(q) ||
+            (t.id || '').toLowerCase().includes(q) ||
+            (t.categories || []).some(c => c.toLowerCase().includes(q))
+        );
+    }, [localTemplates, search]);
 
     async function handleEdit(t) {
         setLoadingEdit(t.id);
@@ -1637,8 +1738,9 @@ function SaasManageTab() {
             {/* Custom categories */}
             <div className="settings-card">
                 <div className="settings-card__header">
-                    <div className="settings-card__header-left">
-                        <h3 className="text-sm font-semibold">Custom Categories</h3>
+                    <div className="settings-card__header-left flex flex-row items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-semibold">Default Categories</h3>
+                        <p className="text-xs text-muted-foreground">— For New Template and Edit dropdowns</p>
                     </div>
                 </div>
                 <div className="flex gap-2 mb-3">
@@ -1662,19 +1764,38 @@ function SaasManageTab() {
             {/* Local templates */}
             <div className="settings-card">
                 <div className="settings-card__header">
-                    <div className="settings-card__header-left">
+                    <div className="settings-card__header-left flex flex-row items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-semibold">Local Templates</h3>
+                        <p className="text-xs text-muted-foreground">— {filteredTemplates.length} of {localTemplates.length} templates</p>
                     </div>
-                    <button className="btn btn-primary btn-sm flex items-center gap-1"
-                        onClick={() => setCreating(true)}>
-                        <Plus size={13} /> New
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {/* Search in Manage */}
+                        <div className="search-box">
+                            <Search size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search templates…"
+                                value={search}
+                                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                            />
+                            {search && (
+                                <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setSearch('')}>
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                        <button className="btn btn-primary btn-sm flex items-center gap-1"
+                            onClick={() => setCreating(true)}>
+                            <Plus size={13} /> New
+                        </button>
+                    </div>
                 </div>
-                {localTemplates.length === 0
-                    ? <p className="text-xs text-muted-foreground">No local templates.</p>
+                {filteredTemplates.length === 0
+                    ? <p className="text-xs text-muted-foreground">{search ? 'No matching templates.' : 'No local templates.'}</p>
                     : (
                         <div className="flex flex-col gap-2">
-                            {localTemplates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(t => (
+                            {filteredTemplates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(t => (
                                 <div key={t.id} className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-md">
                                     <div>
                                         <p className="text-xs font-medium">{t.name}</p>
@@ -1695,7 +1816,7 @@ function SaasManageTab() {
                                     </div>
                                 </div>
                             ))}
-                            <Paginator page={page} total={localTemplates.length} onPage={setPage} />
+                            <Paginator page={page} total={filteredTemplates.length} onPage={setPage} />
                         </div>
                     )
                 }
@@ -1704,6 +1825,7 @@ function SaasManageTab() {
             {(creating || editing) && (
                 <SaasTemplateEditor
                     initial={editing || null}
+                    customCats={customCats}
                     onClose={() => { setEditing(null); setCreating(false); }}
                     onSaved={() => { setEditing(null); setCreating(false); reload(); }}
                 />
@@ -1712,25 +1834,38 @@ function SaasManageTab() {
     );
 }
 
-function SaasTemplateEditor({ initial, onClose, onSaved }) {
+function SaasTemplateEditor({ initial, onClose, onSaved, customCats = [] }) {
     const toast = useToast();
     const isNew = !initial;
+    const [selectedCats, setSelectedCats] = useState(initial?.categories || []);
     const [form, setForm] = useState({
         name: initial?.name || '',
         version: initial?.version || '1.0.0',
         description: initial?.description || '',
-        categories: (initial?.categories || []).join(', '),
         featured: initial?.featured || false,
         compose_yaml: initial?.compose_yaml || DEFAULT_COMPOSE,
     });
     const [saving, setSaving] = useState(false);
     const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+    const allSaasCats = useMemo(() => {
+        const builtins = Object.values(SAAS_CAT_GROUP).filter((v, i, a) => a.indexOf(v) === i).sort();
+        const merged = [...builtins];
+        for (const c of customCats) { if (!merged.includes(c)) merged.push(c); }
+        return merged;
+    }, [customCats]);
+
+    function toggleCat(cat) {
+        setSelectedCats(prev =>
+            prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+        );
+    }
+
     async function handleSave() {
         setSaving(true);
         const payload = {
             ...form,
-            categories: form.categories.split(',').map(c => c.trim()).filter(Boolean),
+            categories: selectedCats,
             featured: form.featured,
         };
         try {
@@ -1774,9 +1909,21 @@ function SaasTemplateEditor({ initial, onClose, onSaved }) {
                                 onChange={e => set('description', e.target.value)} />
                         </div>
                         <div className="form-group mb-0 col-span-2">
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Categories (comma-separated)</label>
-                            <input className="form-control w-full" value={form.categories}
-                                onChange={e => set('categories', e.target.value)} />
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Categories</label>
+                            <div className="flex flex-wrap gap-1.5 p-2 border border-border rounded-md bg-background min-h-[40px]">
+                                {allSaasCats.map(c => (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => toggleCat(c)}
+                                        className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${
+                                            selectedCats.includes(c)
+                                                ? 'bg-primary text-primary-foreground border-primary'
+                                                : 'bg-muted text-muted-foreground border-transparent hover:border-border'
+                                        }`}
+                                    >{c}</button>
+                                ))}
+                            </div>
                         </div>
                         <div className="form-group mb-0 col-span-2">
                             <label className="text-xs font-medium text-muted-foreground mb-1 block flex items-center gap-1">
@@ -1851,7 +1998,7 @@ function SaasReposTab() {
         <div className="flex flex-col gap-6">
             <div className="settings-card">
                 <div className="settings-card__header">
-                    <div className="settings-card__header-left">
+                    <div className="settings-card__header-left flex flex-row items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-semibold">Template Repositories</h3>
                     </div>
                     <button className="btn btn-ghost btn-sm flex items-center gap-1"
@@ -1920,6 +2067,7 @@ function SaasBrowseTab({ isAdmin }) {
     const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const [allTemplates, setAllTemplates] = useState([]);
+    const [customCats, setCustomCats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState(searchParams.get('q') || '');
     const [activeGroup, setActiveGroup] = useState('');
@@ -1930,8 +2078,12 @@ function SaasBrowseTab({ isAdmin }) {
 
     const load = useCallback(async (q) => {
         try {
-            const tr = await api.listTemplates(null, q || null);
+            const [tr, cr] = await Promise.all([
+                api.listTemplates(null, q || null),
+                api.getCustomCategories()
+            ]);
             setAllTemplates(tr.templates || []);
+            setCustomCats(cr.categories || []);
             if (tr.repo_errors?.length) setRepoErrors(tr.repo_errors);
         } catch { toast.error('Failed to load templates'); }
         finally { setLoading(false); }
@@ -1939,27 +2091,34 @@ function SaasBrowseTab({ isAdmin }) {
 
     useEffect(() => { load(search); }, []);
 
+    // Instant search with 300ms debounce
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setPage(1);
+            const params = {};
+            if (search) params.q = search;
+            setSearchParams(params, { replace: true });
+            load(search);
+        }, 300);
+        return () => clearTimeout(t);
+    }, [search]);
+
     const groups = useMemo(() => {
         const seen = new Set();
         for (const t of allTemplates) {
             seen.add(getSaasGroup(t.categories || []));
         }
+        // Add custom categories as additional groups
+        for (const cat of customCats) {
+            seen.add(cat);
+        }
         return [...seen].sort();
-    }, [allTemplates]);
+    }, [allTemplates, customCats]);
 
     const visibleTemplates = useMemo(() => {
         if (!activeGroup) return allTemplates;
         return allTemplates.filter(t => getSaasGroup(t.categories || []) === activeGroup);
     }, [allTemplates, activeGroup]);
-
-    function applySearch(q) {
-        setSearch(q);
-        setPage(1);
-        const params = {};
-        if (q) params.q = q;
-        setSearchParams(params, { replace: true });
-        load(q);
-    }
 
     const pagedTemplates = useMemo(
         () => visibleTemplates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -1981,23 +2140,20 @@ function SaasBrowseTab({ isAdmin }) {
 
             {/* Search + group filters */}
             <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="relative flex-1 max-w-md">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <input
-                            className="form-control w-full pl-9 pr-8"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && applySearch(search)}
-                            placeholder="Search applications…"
-                        />
-                        {search && (
-                            <button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                onClick={() => applySearch('')}>
-                                <X size={13} />
-                            </button>
-                        )}
-                    </div>
+                <div className="search-box max-w-md">
+                    <Search size={16} />
+                    <input
+                        type="text"
+                        placeholder="Search applications…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        autoComplete="off"
+                    />
+                    {search && (
+                        <button className="search-clear-btn" onClick={() => setSearch('')}>
+                            <X size={14} />
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -2020,7 +2176,7 @@ function SaasBrowseTab({ isAdmin }) {
                     <Package size={40} className="opacity-30" />
                     <p className="text-sm font-medium">No templates found</p>
                     {(search || activeGroup) && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => { applySearch(''); setActiveGroup(''); }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setActiveGroup(''); }}>
                             Clear filters
                         </button>
                     )}

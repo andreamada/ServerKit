@@ -356,6 +356,7 @@ def update_app(app_id):
 @jwt_required()
 def delete_app(app_id):
     import shutil
+    import threading
     from app.services.nginx_service import NginxService
 
     current_user_id = get_jwt_identity()
@@ -368,56 +369,48 @@ def delete_app(app_id):
     if user.role != 'admin' and app.user_id != current_user_id:
         return jsonify({'error': 'Access denied'}), 403
 
-    cleanup_results = {
-        'docker': None,
-        'folder': None,
-        'nginx': None
-    }
+    # Capture everything needed before deleting the DB record
+    app_type = app.app_type
+    root_path = app.root_path
+    app_name = app.name
 
-    # For Docker and wp_template apps, stop and remove containers/volumes
-    if app.app_type in ('docker', 'wp_template') and app.root_path:
-        try:
-            result = DockerService.compose_down(app.root_path, volumes=True, remove_orphans=True)
-            cleanup_results['docker'] = result
-        except Exception as e:
-            cleanup_results['docker'] = {'error': str(e)}
-
-        # Delete the app folder
-        try:
-            root = os.path.abspath(app.root_path)
-            apps_dir = os.path.abspath(paths.APPS_DIR)
-            if root.startswith(apps_dir) and os.path.exists(root):
-                shutil.rmtree(root)
-                cleanup_results['folder'] = {'success': True}
-        except Exception as e:
-            cleanup_results['folder'] = {'error': str(e)}
-
-        # For wp_template: also remove the template YAML from the registry
-        if app.app_type == 'wp_template':
-            try:
-                from app.services.wp_template_service import WpTemplateService
-                template_id = os.path.basename(os.path.abspath(app.root_path))
-                WpTemplateService.delete_template(template_id)
-                cleanup_results['template_yaml'] = {'success': True}
-            except Exception as e:
-                cleanup_results['template_yaml'] = {'error': str(e)}
-
-    # Remove nginx site config
+    # Always remove Nginx config synchronously (fast, no Docker)
     try:
-        NginxService.disable_site(app.name)
-        NginxService.delete_site(app.name)
-        cleanup_results['nginx'] = {'success': True}
-    except Exception as e:
-        cleanup_results['nginx'] = {'error': str(e)}
+        NginxService.disable_site(app_name)
+        NginxService.delete_site(app_name)
+    except Exception:
+        pass
 
-    # Delete from database
+    # Delete from database immediately so the frontend gets a fast response
     db.session.delete(app)
     db.session.commit()
 
-    return jsonify({
-        'message': 'Application deleted successfully',
-        'cleanup': cleanup_results
-    }), 200
+    # Docker teardown + folder removal runs in the background so the HTTP
+    # response is never blocked by a slow `docker compose down`.
+    def _cleanup_background():
+        if app_type in ('docker', 'wp_template') and root_path:
+            try:
+                DockerService.compose_down(root_path, volumes=True, remove_orphans=True)
+            except Exception:
+                pass
+            try:
+                root = os.path.abspath(root_path)
+                apps_dir = os.path.abspath(paths.APPS_DIR)
+                if root.startswith(apps_dir) and os.path.exists(root):
+                    shutil.rmtree(root)
+            except Exception:
+                pass
+            if app_type == 'wp_template':
+                try:
+                    from app.services.wp_template_service import WpTemplateService
+                    template_id = os.path.basename(os.path.abspath(root_path))
+                    WpTemplateService.delete_template(template_id)
+                except Exception:
+                    pass
+
+    threading.Thread(target=_cleanup_background, daemon=True).start()
+
+    return jsonify({'message': 'Application deleted successfully'}), 200
 
 
 @apps_bp.route('/<int:app_id>/start', methods=['POST'])
